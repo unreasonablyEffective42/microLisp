@@ -11,6 +11,7 @@ which will eventually return an applicable type. When all the children of the no
 do a fold operation over the values of the child nodes and then return its value back up the calling EVAL
  */
 public class Evaluator {
+    //Gets the various builtIn operations from the corresponding string
     private static BinaryOperator<Integer> getOperation(String op){
         return switch (op) {
             case "PLUS" -> (x, y) -> x + y;

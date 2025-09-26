@@ -33,7 +33,7 @@ public class Parser {
                 return node;
             }
             //If the source is syntactically correct, only labels and operators will immediately follow a LPAREN
-            else if (current.x().equals("OPERATOR") || current.x().equals("LABEL")) {
+            else if (current.x().equals("OPERATOR") || current.x().equals("LABEL") || current.x().equals("KEYWORD")) {
                 //This is the node that will be returned by this level of the recursive parse, its value is either
                 //an operation, or a label, which could be a function
                 Node<String> node = new Node<String>((String) current.y());
@@ -52,7 +52,7 @@ public class Parser {
                     //add the following LABEL and NUMBER type tokens as children of the current node,
                     //Labels, if they end up as bound variables in an environment will be evaluated for their values
                     // in the evaluator
-                    else if (current.x().equals("LABEL") || current.x().equals("NUMBER")) {
+                    else if (current.x().equals("LABEL") || current.x().equals("NUMBER") || current.x().equals("SPECIAL") || current.x().equals("CHARACTER")) {
                         node.createChild(current.y().toString());
                         current = lexer.getNextToken();
                     }

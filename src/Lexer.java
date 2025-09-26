@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 /*The lexer, or tokenizer, takes in a source file as a string, and produces tokens using the
   getNextToken() method. When the entire source has been consumed, the method will always
@@ -12,6 +13,7 @@ public class Lexer {
     Character currentChar;
     //for comparing tokens to the EOF token
     static Token eof = new Token("EOF", null);
+    List<String> keywords = Arrays.asList("list","cons","let","define","cond","if","lambda","define");
     //Constructor
     Lexer (String src_){
         src = src_;
@@ -27,7 +29,7 @@ public class Lexer {
             currentChar = this.src.charAt(pos);
         }
         else {
-            currentChar = '#';
+            currentChar = '~';
         }
     }
     //backs up the current position and updates to previous character
@@ -54,8 +56,41 @@ public class Lexer {
             res.append(currentChar);
             this.advance();
         }
-        Token tok = new Token("LABEL", res.toString());
-        return tok;
+        if (keywords.contains(res.toString())){
+            Token tok = new Token("KEYWORD", res.toString());
+            return tok;
+        }
+        else {
+            Token tok = new Token("LABEL", res.toString());
+            return tok;
+        }
+    }
+    //Lexing booleans #t,#f, or chars #\c
+    private Token special(){
+        StringBuilder res = new StringBuilder();
+        res.append(currentChar);
+        this.advance();
+        if (Character.isLetter(this.currentChar)) {
+            while (Character.isLetter(this.currentChar)) {
+                res.append(currentChar);
+                this.advance();
+            }
+            Token tok = new Token("SPECIAL", res.toString());
+            return tok;
+        }else if (currentChar == '\\'){
+            res.append(currentChar);
+            this.advance();
+            while (Character.isLetter(this.currentChar)) {
+                res.append(currentChar);
+                this.advance();
+            }
+            Token tok = new Token("CHARACTER", res.toString());
+            return tok;
+        }
+        else {
+            return null;
+        }
+
     }
     //advances past any detected whitespaces
     private void skipWhitespace(){
@@ -67,7 +102,7 @@ public class Lexer {
     //This is where the magic happens, depending on what the current character is
     //the conditionals will choose the correct kind of token to produce
     public Token getNextToken(){
-        if (this.currentChar == '#'){
+        if (this.currentChar == '~'){
             return new Token<>("EOF",null);
         }
         if (Character.isWhitespace(this.currentChar)){
@@ -81,6 +116,9 @@ public class Lexer {
         }
         else if (Character.isWhitespace(this.currentChar)){
             this.skipWhitespace();
+        }
+        else if (this.currentChar == '#'){
+            return this.special();
         }
         else if (this.currentChar == '('){
             this.advance();
