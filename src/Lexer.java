@@ -1,30 +1,42 @@
 import java.util.ArrayList;
 import java.util.List;
-
+/*The lexer, or tokenizer, takes in a source file as a string, and produces tokens using the
+  getNextToken() method. When the entire source has been consumed, the method will always
+  return an EOF token.
+ */
 public class Lexer {
+    //Current position in the source
     int pos = 0;
-    String text;
+    //The source code
+    String src;
     Character currentChar;
+    //for comparing tokens to the EOF token
     static Token eof = new Token("EOF", null);
-    Lexer (String text_){
-        text = text_;
-        currentChar = this.text.charAt(pos);
+    //Constructor
+    Lexer (String src_){
+        src = src_;
+        currentChar = this.src.charAt(pos);
     }
-
+    /*Advances the position by one and sets the new current character.
+      If lexer reaches the end of the source, it replaces the current
+      character with # which causes getNextToken to return the EOF Token.
+    */
     private void advance(){
-        if (pos < text.length() -1){
+        if (pos < src.length() -1){
             pos++;
-            currentChar = this.text.charAt(pos);
+            currentChar = this.src.charAt(pos);
         }
         else {
             currentChar = '#';
         }
     }
+    //backs up the current position and updates to previous character
     public void backUp(){
         pos--;
-        currentChar = this.text.charAt(pos);
+        currentChar = this.src.charAt(pos);
     }
-
+    //if a numeric character is detected, keep consuming until current character is not a digit,
+    //then return a NUMBER token with the number as a string
     private Token number(){
         StringBuilder res = new StringBuilder();
         while (Character.isDigit(this.currentChar)){
@@ -34,7 +46,8 @@ public class Lexer {
         Token tok = new Token("NUMBER", res.toString());
         return tok;
     }
-
+    //This detects contiguous letters, and creates a string, these could be keywords, variable names
+    //or functions. Returns a LABEL token with the label
     private Token label(){
         StringBuilder res = new StringBuilder();
         while (Character.isLetter(this.currentChar)){
@@ -44,13 +57,15 @@ public class Lexer {
         Token tok = new Token("LABEL", res.toString());
         return tok;
     }
-
+    //advances past any detected whitespaces
     private void skipWhitespace(){
         while (Character.isWhitespace((this.currentChar))) {
             this.advance();
         }
     }
 
+    //This is where the magic happens, depending on what the current character is
+    //the conditionals will choose the correct kind of token to produce
     public Token getNextToken(){
         if (this.currentChar == '#'){
             return new Token<>("EOF",null);
@@ -122,6 +137,7 @@ public class Lexer {
         return null;
 
     }
+    //for testing purposes, returns a list of all tokens that can be extracted from the source
     public List<Token<String,String>> getTokens(){
         Token currentToken =  this.getNextToken();
         List<Token<String,String>> res = new ArrayList<>();

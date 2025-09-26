@@ -1,5 +1,5 @@
 import java.util.stream.Stream;
-
+//basic tree class
 public class Tree<T extends Comparable<T>> {
     Node<T> root;
 
