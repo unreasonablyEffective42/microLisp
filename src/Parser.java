@@ -65,6 +65,47 @@ public class Parser {
                     node.addChild(this.parse());
                     return node;
                 }
+                if (node.getValue().type().equals("COND")) {
+                    // Parse each clause until the closing RPAREN
+                    while (!current.type().equals("RPAREN")) {
+                        if (!current.type().equals("LPAREN")) {
+                            throw new SyntaxException("cond clauses must be lists, found: " + current);
+                        }
+
+                        // Parse a clause ( (predicate expr) )
+                        current = lexer.getNextToken();
+                        Node<Token> clause = new Node<>(new Token("CLAUSE", null));
+
+                        // Parse predicate
+                        if (current.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            clause.addChild(this.parse());
+                            current = lexer.getNextToken();
+                        } else {
+                            clause.addChild(new Node<>(current));
+                            current = lexer.getNextToken();
+                        }
+
+                        // Parse body expression
+                        if (current.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            clause.addChild(this.parse());
+                            current = lexer.getNextToken();
+                        } else {
+                            clause.addChild(new Node<>(current));
+                            current = lexer.getNextToken();
+                        }
+
+                        if (!current.type().equals("RPAREN")) {
+                            throw new SyntaxException("cond clause not closed properly");
+                        }
+                        // Advance to the next token for the while loop
+                        current = lexer.getNextToken();
+
+                        node.addChild(clause);
+                    }
+                    return node;
+                }
 
                 // General case: keep parsing children until RPAREN
                 while (!current.type().equals("RPAREN")) {
@@ -120,7 +161,7 @@ public class Parser {
             }
         }
         else {
-            throw new SyntaxException("Unexpected EOF encountered: '(' not matched with ')'");
+            throw new SyntaxException("Unexpected EOF encountered: '(' not matched with ')'" + current);
         }
     }
 }

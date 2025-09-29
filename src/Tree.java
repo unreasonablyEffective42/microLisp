@@ -12,6 +12,6 @@ public class Tree<T extends Comparable<T>> {
     }
 
     public void printTree() {
-        root.printNodes();
+        root.printNodes(0);
     }
 }

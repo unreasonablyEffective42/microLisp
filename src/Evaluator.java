@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.function.BinaryOperator;
+import java.util.function.Function;
 
 /*
  The evaluator walks the AST and evaluates expressions. This version focuses on
@@ -30,7 +30,8 @@ public class Evaluator {
     private static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
     private static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
     private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); }
-
+    private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
+    private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "STRING") ||  isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
     private static BiFunction<Integer,Integer,Object> getPrimitive(String op){
         return switch (op) {
@@ -56,10 +57,17 @@ public class Evaluator {
     }
 
     // ---------- special forms ----------
-    private static Object evaluateCond(ArrayList<Node<Token>> clauses, Environment env){
-        // TODO: implement cond once parser builds (test expr) pairs per clause.
-        // Placeholder: return null for now to keep the evaluator compiling.
-        return null;
+    private static Object evaluateCond(ArrayList<Node<Token>> clauses, Environment env) {
+        for (Node<Token> clause : clauses) {
+            Node<Token> predicate = clause.getChildren().get(0);
+            Node<Token> body      = clause.getChildren().get(1);
+
+            Object result = eval(predicate, env);
+            if ("#t".equals(result)) {
+                return eval(body, env);
+            }
+        }
+        return null; // or raise error if no clause matches
     }
 
     // ---------- core eval ----------
@@ -82,29 +90,33 @@ public class Evaluator {
             env.addFrame(new Pair<>(label, binding));
             return env;
         }
+        if (isCond(t)) {
+            return evaluateCond(expr.getChildren(), env);
+        }
 
         if (isLambda(t)) {
             // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]
-            ArrayList<Node<Token>> kids = expr.getChildren();
+            ArrayList<Node<Token>> children = expr.getChildren();
 
             // Build closure (params list is first child, body is second)
             ArrayList<Token> closureParts = new ArrayList<>();
             @SuppressWarnings("unchecked")
-            ArrayList<Node<Token>> params = kids.get(0).getChildren(); // "PARAMS" node’s children
+            ArrayList<Node<Token>> params = children.get(0).getChildren(); // "PARAMS" node’s children
             closureParts.add(new Token<>("VARS", params));
-            Node<Token> body = kids.get(1);
+            Node<Token> body = children.get(1);
             closureParts.add(new Token<>("BODY", body));
             closureParts.add(new Token<>("ENV", env));
             Token<String,Object> closureTok = new Token<>("CLOSURE", closureParts);
 
             // If it's an IIFE, apply to remaining args
-            if (kids.size() > 2) {
+            if (children.size() > 2) {
                 ArrayList<Object> argVals = new ArrayList<>();
-                for (int i = 2; i < kids.size(); i++) {
-                    argVals.add(eval(kids.get(i), env));
+                for (int i = 2; i < children.size(); i++) {
+                    argVals.add(eval(children.get(i), env));
                 }
                 return applyProcedure(closureTok, argVals);
             }
+
             // otherwise just the closure literal
             return closureTok;
         }
@@ -130,17 +142,17 @@ public class Evaluator {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) opTok;
                 return applyProcedure(procTok, argVals);
-            } else if (op instanceof java.util.function.Function<?,?> fn) {
+            } else if (op instanceof Function<?,?> fn) {
                 if (argVals.size() != 1)
                     throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
                 @SuppressWarnings("unchecked")
-                java.util.function.Function<Object,Object> f = (java.util.function.Function<Object,Object>) fn;
+                Function<Object,Object> f = (Function<Object,Object>) fn;
                 return f.apply(argVals.get(0));
-            } else if (op instanceof java.util.function.BiFunction<?,?,?> bfn) {
+            } else if (op instanceof BiFunction<?,?,?> bfn) {
                 if (argVals.size() != 2)
                     throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
                 @SuppressWarnings("unchecked")
-                java.util.function.BiFunction<Object,Object,Object> bf = (java.util.function.BiFunction<Object,Object,Object>) bfn;
+                BiFunction<Object,Object,Object> bf = (BiFunction<Object,Object,Object>) bfn;
                 return bf.apply(argVals.get(0), argVals.get(1));
             } else {
                 throw new SyntaxException("First position is not a procedure: " + sym);
@@ -158,9 +170,21 @@ public class Evaluator {
             Token<String,Object> procTok = (Token<String,Object>) t;
             return applyProcedure(procTok, argVals);
         }
+        if (!expr.getChildren().isEmpty()) {
+            Object headVal = eval(new Node<>(t), env);  // evaluate head
+            ArrayList<Object> argVals = new ArrayList<>();
+            for (Node<Token> child : expr.getChildren()) {
+                argVals.add(eval(child, env));
+            }
+
+            if (headVal instanceof Token<?,?> headTok) {
+                @SuppressWarnings("unchecked")
+                Token<String,Object> procTok = (Token<String,Object>) headTok;
+                return applyProcedure(procTok, argVals);
+            }
+        }
 
         // If nothing above matched, this should be an application form we don't recognize
-        // (You can add COND, etc., later.)
         throw new SyntaxException("Cannot evaluate expression with head: " + t);
     }
 
@@ -184,7 +208,7 @@ public class Evaluator {
 
 
     // ---------- application ----------
-    private static Object applyProcedure(Token<String,Object> proc, ArrayList<Object> args) {
+    public static Object applyProcedure(Token<String,Object> proc, ArrayList<Object> args) {
         if (isPrimitive(proc)){
             String opName = (String) proc.value();
             return applyPrimitive(opName, args);

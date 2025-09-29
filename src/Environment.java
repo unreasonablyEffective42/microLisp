@@ -3,7 +3,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 //A dictionary class, will be used for environment frames, where symbols will be bound to expressions
-//An environment will be a List<Dict>, when a new lexical scope is encountered, the current environment will
+//An environment will be a List<Frame>, when a new lexical scope is encountered, the current environment will
 // be copied and prepended  to the list, then the bindings in the current frame will be added
 //if a symbol already has a binding in the frame, the old value will be overwritten, but since it will just be for
 //that frame, when exiting the lexical scope, that frame will be popped off and the previous frame will become the

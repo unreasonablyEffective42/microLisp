@@ -1,4 +1,5 @@
 import java.util.Scanner;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -7,12 +8,12 @@ public class MicroLisp {
     public static void main(String[] args){
         Token eof = new Token<>("EOF","EOF");
         Environment environment = new Environment(
+                new Pair<>("else", "#t"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
                 new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t")
-                //new Pair<String,Object>("eq?",(x,y) -> x == y)
         );
         String src;
-        if (args.length == 1){
+        if (args.length > 0){
             try {
                 src = Files.readString(Path.of(args[0]));
                 Parser parser = new Parser(src);

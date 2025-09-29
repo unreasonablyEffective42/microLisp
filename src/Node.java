@@ -51,10 +51,10 @@ public class Node<T> implements Comparable<Node<Token>> {
     }
 
     //for debugging, traverses the tree and prints all values
-    public void printNodes(){
-        System.out.println(value);
+    public void printNodes(int ind){
+        System.out.println(" ".repeat(ind)+value);
         for(Node<Token> child : children){
-            child.printNodes();
+            child.printNodes(ind + 1);
         }
     }
     //If a node has no children, it is a leaf
