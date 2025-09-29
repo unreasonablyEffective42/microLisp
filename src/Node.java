@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 
 /*
 This is a custom generic Node type, for creating tree like structures. Any value can be used for the value field,
@@ -14,7 +13,7 @@ public class Node<T> implements Comparable<Node<Token>> {
 
     @SafeVarargs
     //constructor for Nodes with variable number of children
-    public Node(T value, Node<T>... children_) {
+    public Node(Object value, ArrayList<Node<Token>> children_) {
         this.value = value;
         Collections.addAll(this.children, children_);
     }

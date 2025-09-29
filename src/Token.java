@@ -1,6 +1,6 @@
 //Generic token type
-public record Token<String, type>(String type, type value) {
-    public boolean equals(Token<String, type> other) {
+public record Token<String, T>(String type, T value) {
+    public boolean equals(Token<String, T> other) {
         return (this.type.equals(other.type) && this.value.equals(other.value));
     }
 }

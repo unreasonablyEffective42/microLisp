@@ -1,3 +1,6 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 /*
 The Parser is an object that has a lexer. It consumes tokens one at a time from the lexer and builds
 the abstract syntax tree using our Node class. It uses a recursive descent algorithm.
@@ -5,7 +8,7 @@ the abstract syntax tree using our Node class. It uses a recursive descent algor
 public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", null);
-
+    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL");
     public Parser(String src) {
         this.lexer = new Lexer(src);
     }
@@ -31,8 +34,8 @@ public class Parser {
                 Node<Token> node = new Node<>(new Token("NULL", "()"));
                 return node;
             }
-            //If the source is syntactically correct, only symbols will immediately follow a LPAREN
-            else if (current.type().equals("SYMBOL")) {
+            //If the source is syntactically correct, only symbols or keywords will immediately follow a LPAREN
+            else if (keywords.contains(current.type())) {
                 //This is the node that will be returned by this level of the recursive parse, its value is either
                 //an operation, or a label, which could be a function
                 Node<Token> node = new Node<>(current);

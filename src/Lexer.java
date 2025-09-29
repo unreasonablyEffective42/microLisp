@@ -53,9 +53,19 @@ public class Lexer {
     //or functions. Returns a LABEL token with the label
     private Token symbol(){
         StringBuilder res = new StringBuilder();
-        while (Character.isLetter(this.currentChar) || this.currentChar == '?'){
+        while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)){
             res.append(currentChar);
             this.advance();
+        }
+        String res2 = res.toString();
+        if (res2.equals("lambda")){
+            Token tok = new Token("LAMBDA", "");
+        }
+        else if (res2.equals("cond")){
+            Token tok = new Token("COND", "");
+        }
+        else if (res2.equals("quote")){
+            Token tok = new Token("QUOTE", "");
         }
         Token tok = new Token("SYMBOL", res.toString());
         return tok;
