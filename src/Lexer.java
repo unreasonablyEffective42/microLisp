@@ -78,6 +78,7 @@ public class Lexer {
             Token tok = new Token("PRIMITIVE", "EQ");
             return tok;
         }
+
         else {
             Token tok = new Token("SYMBOL", res.toString());
             return tok;

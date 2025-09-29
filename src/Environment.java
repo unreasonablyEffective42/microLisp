@@ -40,6 +40,9 @@ public class Environment {
     public void addFrame(Pair<String,Object> ... bindings){
         frames.add(0,new Frame(Arrays.asList(bindings)));
     }
+    public void addFrame(List<Pair<String,Object>> bindings){
+        frames.add(0,new Frame(bindings));
+    }
 
 
     public Optional<Object> lookup(String key){
