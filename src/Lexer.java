@@ -12,7 +12,7 @@ public class Lexer {
     String src;
     Character currentChar;
     //for comparing tokens to the EOF token
-    static Token eof = new Token("EOF", null);
+    static Token eof = new Token("EOF", "EOF");
     List<Character> parsableSymbols = Arrays.asList('-','+','*','!','?','/','|','^','&','$','@','`','\\',':','[',']','_','=','.',',');
     List<Token> tokens = new ArrayList<>();
     //Constructor
@@ -133,7 +133,7 @@ public class Lexer {
     //the conditionals will choose the correct kind of token to produce
     public Token getNextToken(){
         if (this.currentChar == '~'){
-            return new Token<>("EOF",null);
+            return new Token<>("EOF","EOF");
         }
         if (Character.isWhitespace(this.currentChar)){
             this.skipWhitespace();

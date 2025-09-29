@@ -7,7 +7,7 @@ the abstract syntax tree using our Node class. It uses a recursive descent algor
  */
 public class Parser {
     Lexer lexer;
-    Token eof = new Token("EOF", null);
+    Token eof = new Token("EOF", "EOF");
     List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE");
 
     public Parser(String src) {
@@ -19,11 +19,11 @@ public class Parser {
         //Get the first token for this recursive call
         Token current = lexer.getNextToken();
         //add an EOF token to the tree, will end the parsing operation
-        if (current.equals(eof)) {
-            Node<Token> node = new Node<Token>(eof);
+        if (current.type().equals("EOF")) {
+            Node<Token> node = new Node<Token>(new Token<>("EOF","EOF"));
             return node;
         }
-        if (current.type().equals("NUMBER") || current.type().equals("BOOLEAN") || current.type().equals("STRING")) {
+        if (current.type().equals("NUMBER") || current.type().equals("BOOLEAN") || current.type().equals("STRING")||current.type().equals("SYMBOL")) {
             Node<Token> node = new Node<>(new Token(current.type(), current.value()));
             return node;
         }
@@ -32,7 +32,7 @@ public class Parser {
         else if (current.type().equals("LPAREN")) {
             current = lexer.getNextToken();
 
-            if (current.equals(eof)) {
+            if (current.type().equals("EOF")) {
                 throw new SyntaxException("Unexpected EOF encountered: '(' not matched with ')'");
             }
             if (current.type().equals("RPAREN")) {

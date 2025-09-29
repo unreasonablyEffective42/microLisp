@@ -110,13 +110,14 @@ public class Evaluator {
         }
 
         // Variable (symbol) — atom vs call
+        // Variable (symbol) — atom vs call
         if (isSymbol(t)) {
-            // If it's just a bare symbol (no children), return its bound value.
             if (expr.getChildren().isEmpty()) {
                 String sym = (String) t.value();
                 return env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
             }
-            // Otherwise: (symbol arg1 arg2 ...) — a call
+
+            // (symbol arg1 arg2 ...)
             String sym = (String) t.value();
             Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
 
@@ -129,9 +130,23 @@ public class Evaluator {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) opTok;
                 return applyProcedure(procTok, argVals);
+            } else if (op instanceof java.util.function.Function<?,?> fn) {
+                if (argVals.size() != 1)
+                    throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                java.util.function.Function<Object,Object> f = (java.util.function.Function<Object,Object>) fn;
+                return f.apply(argVals.get(0));
+            } else if (op instanceof java.util.function.BiFunction<?,?,?> bfn) {
+                if (argVals.size() != 2)
+                    throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                java.util.function.BiFunction<Object,Object,Object> bf = (java.util.function.BiFunction<Object,Object,Object>) bfn;
+                return bf.apply(argVals.get(0), argVals.get(1));
+            } else {
+                throw new SyntaxException("First position is not a procedure: " + sym);
             }
-            throw new SyntaxException("First position is not a procedure: " + sym);
         }
+
 
         // Primitive-headed application: (+ 1 2), (< 3 4), etc.
         if (isPrimitive(t)){
@@ -191,6 +206,7 @@ public class Evaluator {
             // Evaluate body in the extended env
             return eval(body, newEnv);
         }
+
         else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }
