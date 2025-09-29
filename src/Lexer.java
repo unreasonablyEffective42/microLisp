@@ -13,7 +13,8 @@ public class Lexer {
     Character currentChar;
     //for comparing tokens to the EOF token
     static Token eof = new Token("EOF", null);
-    List<String> keywords = Arrays.asList("list","cons","let","define","cond","if","lambda","define");
+    List<Character> parsableSymbols = Arrays.asList('-','+','*','!','?','/','|','^','&','$','@','`','\\',':','[',']','_','=','.',',');
+    List<Token> tokens = new ArrayList<>();
     //Constructor
     Lexer (String src_){
         src = src_;
@@ -45,25 +46,20 @@ public class Lexer {
             res.append(currentChar);
             this.advance();
         }
-        Token tok = new Token("NUMBER", res.toString());
+        Token tok = new Token("NUMBER", Integer.valueOf(res.toString()));
         return tok;
     }
-    //This detects contiguous letters, and creates a string, these could be keywords, variable names
+    //This detects contiguous letters and symbols, and creates a string, these could be keywords, variable names
     //or functions. Returns a LABEL token with the label
-    private Token label(){
+    private Token symbol(){
         StringBuilder res = new StringBuilder();
-        while (Character.isLetter(this.currentChar)){
+        while (Character.isLetter(this.currentChar) || this.currentChar == '?'){
             res.append(currentChar);
             this.advance();
         }
-        if (keywords.contains(res.toString())){
-            Token tok = new Token("KEYWORD", res.toString());
-            return tok;
-        }
-        else {
-            Token tok = new Token("LABEL", res.toString());
-            return tok;
-        }
+        Token tok = new Token("SYMBOL", res.toString());
+        return tok;
+
     }
     //Lexing booleans #t,#f, or chars #\c
     private Token special(){
@@ -75,7 +71,7 @@ public class Lexer {
                 res.append(currentChar);
                 this.advance();
             }
-            Token tok = new Token("SPECIAL", res.toString());
+            Token tok = new Token("BOOLEAN", res.toString());
             return tok;
         }else if (currentChar == '\\'){
             res.append(currentChar);
@@ -91,6 +87,17 @@ public class Lexer {
             return null;
         }
 
+    }
+
+    private Token string(){
+        this.advance();
+        StringBuilder res = new StringBuilder();
+        while (!(this.currentChar == '\"')){
+            res.append(currentChar);
+            this.advance();
+        }
+        this.advance();
+        return new Token("STRING", res.toString());
     }
     //advances past any detected whitespaces
     private void skipWhitespace(){
@@ -111,11 +118,11 @@ public class Lexer {
         if (Character.isDigit(this.currentChar)){
             return this.number();
         }
-        else if (Character.isLetter(this.currentChar)){
-            return this.label();
+        else if (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)){
+            return this.symbol();
         }
-        else if (Character.isWhitespace(this.currentChar)){
-            this.skipWhitespace();
+        else if (this.currentChar == '\"'){
+            return this.string();
         }
         else if (this.currentChar == '#'){
             return this.special();

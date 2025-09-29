@@ -8,7 +8,7 @@ and it supports an arbitrary number of children. The children are currently stor
 to a custom List type
  */
 
-public class Node<T> {
+public class Node<T> implements Comparable<Node<Token>> {
     T value;
     ArrayList<Node<T>> children = new ArrayList<>();
 
@@ -68,5 +68,10 @@ public class Node<T> {
     //If a node has no children, it is a leaf
     public boolean isLeaf(){
         return children.isEmpty();
+    }
+
+    @Override
+    public int compareTo(Node<Token> tokenNode) {
+        return 0;
     }
 }

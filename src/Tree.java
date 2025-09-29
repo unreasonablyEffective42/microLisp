@@ -1,9 +1,9 @@
 import java.util.stream.Stream;
 //basic tree class
 public class Tree<T extends Comparable<T>> {
-    Node<T> root;
+    Node<Token> root;
 
-    public Tree(Node<T> root_) {
+    public Tree(Node<Token> root_) {
         root = root_;
     }
 
