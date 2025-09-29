@@ -1,17 +1,27 @@
+import java.util.Scanner;
 public class Main {
-
     public static void main(String[] args){
-        //String src = "(number? #\\strings \"blah blah blah\" 2)";
-        String src = "(foo (* 2 (+ 3 1) (+ #t 5)))";
-        //String src = "(* 1 2 3 4 5 6)";
         Environment environment = new Environment(
                 new Pair<String,Object>("x",3),
                 new Pair<String,Object>("y",4)
+                //new Pair<String,Object>("eq?",(x,y) -> x == y)
         );
-        Parser parser = new Parser(src);
-        Tree<Node<Token>> parseTree = new Tree<>(parser.parse());
-        parseTree.root.printNodes();
 
+        Main.repl(environment);
+
+    }
+    static void repl(Environment environment){
+        Scanner scanner = new Scanner(System.in);
+        while(true){
+            System.out.print(">>>");
+            String input = scanner.nextLine();
+            if(input.equals(":exit")){
+                break;
+            }
+            Parser p = new Parser(input);
+            Object result = Evaluator.eval(p.parse(),environment);
+            System.out.println(result.toString());
+        }
     }
 
 

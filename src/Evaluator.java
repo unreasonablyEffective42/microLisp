@@ -1,113 +1,126 @@
 import java.util.ArrayList;
+import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 
 /*
-The evaluator is a static class that actually comprises two mutually recursive operations. EVAL will take an expression(a tree, or a label)
-and walk down the tree to see what can be evaluated, when a label is found at the head of a node, it will see if it
-is an operation, or a function in the environment, if it is just a label it will return its value if it has one.
-If so, it will try to APPLY the operation or function to the children of the current root node. If APPLY, during the
-attempt at application of the children to the operations, finds sub expressions of tree or label types, will EVAL those,
-which will eventually return an applicable type. When all the children of the node are in applicable type, Apply will
-do a fold operation over the values of the child nodes and then return its value back up the calling EVAL
- */
+ The evaluator walks the AST and evaluates expressions. This version focuses on
+ getting primitive application working cleanly and predictably.
+
+ Eval takes in an expression and attempts to reduce it, either returning values, looking up symbol values \
+ in the environment or calling apply to an expression and some arguments
+ Notes:
+ - Primitives are sourced from PRIMITIVE tokens (Lexer emits PRIMITIVE type).
+ - Symbols are looked up in the Environment and unwrapped.
+ - (quote ...) returns the raw value without evaluation.
+ - (cond ...) and (lambda ...) are to be implemented
+*/
 public class Evaluator {
     Evaluator() {}
-    //Gets the various builtIn operations from the corresponding string
-    private static BinaryOperator<Integer> getPrimitive(String op){
+
+    // ---------- token helpers ----------
+    private static boolean isType      (Token<?, ?> t, String ty) { return ty.equals(t.type()); }
+    private static boolean isNumber    (Token<?, ?> t){ return isType(t, "NUMBER"); }
+    private static boolean isString    (Token<?, ?> t){ return isType(t, "STRING"); }
+    private static boolean isSymbol    (Token<?, ?> t){ return isType(t, "SYMBOL"); }
+    private static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
+    private static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
+    private static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE"); }
+    private static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
+    private static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
+    private static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
+    private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); }
+
+    // ---------- primitive table ----------
+    private static BiFunction<Integer,Integer,Object> getPrimitive(String op){
         return switch (op) {
-            case "PLUS" -> (x, y) -> x + y;
-            case "MINUS" -> (x, y) -> x - y;
-            case "MULTIPLY" -> (x, y) -> x * y;
-            case "DIVIDE" -> (x, y) -> x / y;
-            case "MODULO" -> (x, y) -> x % y;
-            case "EXPONENT" -> (x, y) -> x ^ y;
-            default -> throw new IllegalStateException("Unexpected value: " + op);
+            case "PLUS"      -> (x, y) -> x + y;
+            case "MINUS"     -> (x, y) -> x - y;
+            case "MULTIPLY"  -> (x, y) -> x * y;
+            case "DIVIDE"    -> (x, y) -> x / y;
+            case "MODULO"    -> (x, y) -> x % y;
+            case "EXPONENT"  -> (x, y) -> (int)Math.pow(x, y);
+            case "EQ"    -> (x, y) -> x.equals(y) ? "#t" : "#f";
+            case "LT"        -> (x, y) -> x < y ? "#t" : "#f";
+            case "GT"        -> (x, y) -> x > y ? "#t" : "#f";
+            default -> throw new IllegalStateException("Unexpected operator: " + op);
         };
     }
-    private static boolean isNumber (Token token){
-        return token.type().equals("NUMBER");
+    // ---------- list evaluation ----------
+    private static ArrayList<Object> evaluateList(ArrayList<Node<Token>> list, Environment env){
+        ArrayList<Object> out = new ArrayList<>(list.size());
+        for (Node<Token> node : list) {
+            out.add(eval(node, env));
+        }
+        return out;
     }
-    private static boolean isString (Token token){
-        return token.type().equals("STRING");
-    }
-    private static boolean isSymbol (Token token){
-        return token.type().equals("SYMBOL");
-    }
-    private static boolean isLambda (Token token){
-        return token.type().equals("LAMBDA");
-    }
-    private static boolean isCond (Token token){
-        return token.type().equals("COND");
-    }
-    private static boolean isQuote (Token token){
-        return token.type().equals("QUOTE");
-    }
-    private static boolean isBool (Token token){
-        return token.type().equals("BOOLEAN");
-    }
-    private static boolean isPrimitive (Token token){
-        return token.type().equals("PRIMITIVE");
-    }
-    private static boolean isClosure (Token token){
-        return token.type().equals("CLOSURE");
-    }
-    private static Object evaluateCond (ArrayList<Node<Token>> conditions, Environment environment){
+
+    // ---------- special forms ----------
+    private static Object evaluateCond(ArrayList<Node<Token>> clauses, Environment env){
+        // TODO: implement cond once parser builds (test expr) pairs per clause.
+        // Placeholder: return null for now to keep the evaluator compiling.
         return null;
     }
-    private static Object evaluateList (ArrayList<Node<Token>> list, Environment environment){
-        ArrayList<Object> res = new ArrayList<>(list);
-        for(Node<Token> node : list){
-            res.add(eval(node, environment));
-        }
-        return res;
-    }
 
-    public static Object eval(Node<Token> expression, Environment environment){
-        if (isNumber(expression.value) || isBool(expression.value) || isString(expression.value)) {
-            return expression.value.value();
-        }
-        else if (isSymbol(expression.value)) {
-            return environment.lookup((String) expression.value.value())
-                    .orElseThrow(() -> new RuntimeException("Unbound symbol"));
-        }
-        else if (isLambda(expression.value)){
+    // ---------- core eval ----------
+    public static Object eval(Node<Token> expr, Environment env){
+        Token<?,?> t = expr.getValue();
 
-            ArrayList<Token> args = new ArrayList<>();
-            args.add(new Token<>("VARS",expression.children.get(0)));
-            args.add(new Token<>("BODY",expression.children.subList(1, expression.children.size()-1)));
-            args.add(new Token<>("ENV", environment));
-            Token lambda = new Token<>("CLOSURE", args);
-            return lambda;
+        if (isNumber(t) || isBool(t) || isString(t)) {
+            return t.value();
         }
-        else if (isCond(expression.value)){
-            return evaluateCond(expression.children, environment);
+        else if (isSymbol(t)){
+            String sym = (String) t.value();
+            return env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
         }
-        else if (isQuote(expression.value)){
-            return expression.value.value();
+        else if (isLambda(t)){
+            // TODO: Build and return a CLOSURE token here
+            // (params list, body nodes, and captured env). For now, just return the raw token.
+            return t;
+        }
+        else if (isCond(t)){
+            return evaluateCond(expr.getChildren(), env);
+        }
+        else if (isQuote(t)){
+            // In classic Lisp, (quote x) just returns the unevaluated datum.
+            return t.value();
+        }
+        else if (isDefine(t)){
+            String label = (String)expr.children.get(0).value.value();
+            Object binding = eval(expr.children.get(1), env);
+            env.addFrame(new Pair<>(label, binding));
+            return env;
         }
         else {
-            return applyProcedure((Token<String, ArrayList>) expression.value, evaluateList(expression.children, environment));
+            // Application: head token is operator or procedure; children are args
+            ArrayList<Object> argVals = evaluateList(expr.getChildren(), env);
+            return applyProcedure(t, argVals);
         }
     }
 
-    private static Object applyProcedure(Token<String, ArrayList> procedure, ArrayList<Token> arguments) {
-        if (isPrimitive(procedure)){
-            return applyPrimitive(String.valueOf(procedure.value()), arguments);
+    // ---------- application ----------
+    private static Object applyProcedure(Token<?,?> proc, ArrayList<Object> args) {
+        if (isPrimitive(proc)){
+            String opName = (String) proc.value();
+            return applyPrimitive(opName, args);
         }
-        else if (isClosure(procedure)){
-            return eval(procedure.value().get(1), bind(procedure.value().get(0)), arguments ,procedure.value().get(2));
+        else if (isClosure(proc)){
+            // TODO: unpack closure payload (params, body, env), extend env with arg bindings,
+            // then eval body in that env. This requires Environment to support pushing a new frame.
+            throw new UnsupportedOperationException("Closure application not implemented yet");
         }
         else {
-            throw new SyntaxException("First argument to apply is not a procedure " + procedure);
+            throw new SyntaxException("First position is not a procedure: " + proc);
         }
     }
 
-    private static Object applyPrimitive(String procedure, ArrayList<Object> arguments) {
-        try{
-            Object res = evaluateList(arguments).stream().reduce(getPrimitive(procedure));
-            return res;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    private static Object applyPrimitive(String opName, ArrayList<Object> args) {
+        if (args.size() < 2) throw new RuntimeException("Expected at least two arguments for: " + opName);
+        BiFunction<Integer,Integer,Object> op = getPrimitive(opName);
+
+        Object acc = args.get(0);
+        for (int i = 1; i < args.size(); i++) {
+            acc = op.apply((Integer) acc, (Integer) args.get(i));
         }
+        return acc;
     }
 }

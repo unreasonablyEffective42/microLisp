@@ -38,7 +38,7 @@ public class Environment {
         frames.add(new Frame(Arrays.asList(firstFrame)));
     }
     public void addFrame(Pair<String,Object> ... bindings){
-        frames.addFirst(new Frame(Arrays.asList(bindings)));
+        frames.add(0,new Frame(Arrays.asList(bindings)));
     }
 
 

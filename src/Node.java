@@ -9,13 +9,12 @@ to a custom List type
 
 public class Node<T> implements Comparable<Node<Token>> {
     T value;
-    ArrayList<Node<T>> children = new ArrayList<>();
+    ArrayList<Node<Token>> children = new ArrayList<Node<Token>>();
 
-    @SafeVarargs
     //constructor for Nodes with variable number of children
-    public Node(Object value, ArrayList<Node<Token>> children_) {
+    public Node(T value, ArrayList<Node<Token>> children_) {
         this.value = value;
-        Collections.addAll(this.children, children_);
+        this.children.addAll(children_);
     }
     //constructor for leaf node
     public Node(T value){
@@ -28,11 +27,11 @@ public class Node<T> implements Comparable<Node<Token>> {
         this.value = value;
     }
     //returns all child nodes
-    public ArrayList<Node<T>> getChildren() {
+    public ArrayList<Node<Token>> getChildren() {
         return children;
     }
     //add an existing node as a child of this node
-    public void addChild(Node<T> child) {
+    public void addChild(Node<Token> child) {
         children.add(child);
     }
     //to be implemented
@@ -41,26 +40,20 @@ public class Node<T> implements Comparable<Node<Token>> {
     }
     //Add multiple nodes at once as child nodes
     @SafeVarargs
-    public final void addChildren(Node<T>... children_) {
+    public final void addChildren(Node<Token>... children_) {
         Collections.addAll(children, children_);
     }
 
     //create a child node from a value
-    public void createChild(T value){
-        Node<T> child = new Node<>(value);
+    public void createChild(Token value){
+        Node<Token> child = new Node<Token>(value);
         children.add(child);
     }
-    //create multiple child nodes from values
-    @SafeVarargs
-    public final void createChildren(T... values){
-        for (T value: values){
-            this.createChild(value);
-        }
-    }
+
     //for debugging, traverses the tree and prints all values
     public void printNodes(){
         System.out.println(value);
-        for(Node<T> child : children){
+        for(Node<Token> child : children){
             child.printNodes();
         }
     }

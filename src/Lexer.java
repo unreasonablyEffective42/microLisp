@@ -60,16 +60,28 @@ public class Lexer {
         String res2 = res.toString();
         if (res2.equals("lambda")){
             Token tok = new Token("LAMBDA", "");
+            return tok;
         }
         else if (res2.equals("cond")){
             Token tok = new Token("COND", "");
+            return tok;
         }
         else if (res2.equals("quote")){
             Token tok = new Token("QUOTE", "");
+            return tok;
         }
-        Token tok = new Token("SYMBOL", res.toString());
-        return tok;
-
+        else if (res2.equals("define")){
+            Token tok = new Token("DEFINE", "");
+            return tok;
+        }
+        else if (res2.equals("eq?")){
+            Token tok = new Token("PRIMITIVE", "EQ");
+            return tok;
+        }
+        else {
+            Token tok = new Token("SYMBOL", res.toString());
+            return tok;
+        }
     }
     //Lexing booleans #t,#f, or chars #\c
     private Token special(){
@@ -128,7 +140,7 @@ public class Lexer {
         if (Character.isDigit(this.currentChar)){
             return this.number();
         }
-        else if (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)){
+        else if (Character.isLetter(this.currentChar)){
             return this.symbol();
         }
         else if (this.currentChar == '\"'){
@@ -147,47 +159,47 @@ public class Lexer {
         }
         else if (this.currentChar == '+'){
             this.advance();
-            return new Token<>("OPERATOR","PLUS");
+            return new Token<>("PRIMITIVE","PLUS");
         }
         else if (this.currentChar == '-'){
             this.advance();
-            return new Token<>("OPERATOR","MINUS");
+            return new Token<>("PRIMITIVE","MINUS");
         }
         else if (this.currentChar == '*'){
             this.advance();
-            return new Token<>("OPERATOR","MULTIPLY");
+            return new Token<>("PRIMITIVE","MULTIPLY");
         }
         else if (this.currentChar == '/'){
             this.advance();
-            return new Token<>("OPERATOR","DIVIDE");
+            return new Token<>("PRIMITIVE","DIVIDE");
         }
         else if (this.currentChar == '%'){
             this.advance();
-            return new Token<>("OPERATOR","MODULO");
+            return new Token<>("PRIMITIVE","MODULO");
         }
         else if (this.currentChar == '^'){
             this.advance();
-            return new Token<>("OPERATOR","EXPONENT");
+            return new Token<>("PRIMITIVE","EXPONENT");
         }
         else if (this.currentChar == '='){
             this.advance();
-            return new Token<>("OPERATOR","EQUALS");
+            return new Token<>("PRIMITIVE","EQUALS");
         }
         else if (this.currentChar == '<'){
             this.advance();
-            return new Token<>("OPERATOR","LT");
+            return new Token<>("PRIMITIVE","LT");
         }
         else if (this.currentChar == '>'){
             this.advance();
-            return new Token<>("OPERATOR","GT");
+            return new Token<>("PRIMITIVE","GT");
         }
         else if (this.currentChar == '!'){
             this.advance();
-            return new Token<>("OPERATOR","NOT");
+            return new Token<>("PRIMITIVE","NOT");
         }
         else if (this.currentChar == ':'){
             this.advance();
-            return new Token<>("OPERATOR","COLON");
+            return new Token<>("PRIMITIVE","COLON");
         }
         return null;
 

@@ -8,7 +8,7 @@ the abstract syntax tree using our Node class. It uses a recursive descent algor
 public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", null);
-    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL");
+    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE","DEFINE");
     public Parser(String src) {
         this.lexer = new Lexer(src);
     }
@@ -19,6 +19,10 @@ public class Parser {
         //add an EOF token to the tree, will end the parsing operation
         if (current.equals(eof)) {
             Node<Token> node = new Node<Token>(eof);
+            return node;
+        }
+        if(current.type().equals("NUMBER")||current.type().equals("BOOLEAN")||current.type().equals("STRING")) {
+            Node<Token> node = new Node<>(new Token(current.type(), current.value()));
             return node;
         }
         //If the current token is a LPAREN, begin the process of creating a new s-expression,
@@ -34,6 +38,7 @@ public class Parser {
                 Node<Token> node = new Node<>(new Token("NULL", "()"));
                 return node;
             }
+
             //If the source is syntactically correct, only symbols or keywords will immediately follow a LPAREN
             else if (keywords.contains(current.type())) {
                 //This is the node that will be returned by this level of the recursive parse, its value is either
