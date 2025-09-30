@@ -8,7 +8,7 @@ the abstract syntax tree using our Node class. It uses a recursive descent algor
 public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", "EOF");
-    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE");
+    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE","LIST");
 
     public Parser(String src) {
         this.lexer = new Lexer(src);

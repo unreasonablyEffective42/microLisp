@@ -26,7 +26,7 @@ public class Stack<T>{
     stack = stack.tail();  
     return res; 
   }
-
+//some changes
   public void push(T elem){
     stack = new LinkedList(elem, stack);
   }

@@ -24,6 +24,7 @@ public class Evaluator {
     private static boolean isString    (Token<?, ?> t){ return isType(t, "STRING"); }
     private static boolean isSymbol    (Token<?, ?> t){ return isType(t, "SYMBOL"); }
     private static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
+    private static boolean isList      (Token<?, ?> t){ return isType(t, "LIST"); }
     private static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
     private static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE"); }
     private static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
@@ -93,7 +94,10 @@ public class Evaluator {
         if (isCond(t)) {
             return evaluateCond(expr.getChildren(), env);
         }
-
+        if (isList(t)){
+            LinkedList<Object> lst = new LinkedList<>(evaluateList(expr.getChildren(),env));
+            return lst;
+        }
         if (isLambda(t)) {
             // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]
             ArrayList<Node<Token>> children = expr.getChildren();

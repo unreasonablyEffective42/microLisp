@@ -11,6 +11,8 @@ public class MicroLisp {
                 new Pair<>("else", "#t"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
                 new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
+                new Pair<>("head",(Function<LinkedList, Object>) (lst) -> lst.head()),
+                new Pair<>("tail",(Function<LinkedList, Object>) (lst) -> lst.tail()),
                 new Pair<>("print",(Function<Object,Object>) x1 -> {
                    System.out.println(x1);
                     return "IO::()";
