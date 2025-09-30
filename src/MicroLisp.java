@@ -33,6 +33,7 @@ public class MicroLisp {
                     Evaluator.eval(current, environment);
                     current = parser.parse();
                 }
+                System.out.println("Module :" + args[0]+ " loaded successfully");
                 repl(environment);
             }
             catch (IOException e){}
