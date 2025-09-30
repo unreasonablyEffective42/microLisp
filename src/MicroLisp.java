@@ -10,15 +10,26 @@ public class MicroLisp {
         Environment environment = new Environment(
                 new Pair<>("else", "#t"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
-                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t")
+                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
+                new Pair<>("print",(Function<Object,Object>) x1 -> {
+                   System.out.println(x1);
+                    return "IO::()";
+                })
         );
+        environment.addFrame(
+                new Pair<>("eval", (Function<Object,Object>) (str) -> {
+                    Parser p = new Parser(str.toString());
+                    return Evaluator.eval(p.parse(), environment);
+                })
+        );
+
         String src;
         if (args.length > 0){
             try {
                 src = Files.readString(Path.of(args[0]));
                 Parser parser = new Parser(src);
                 Node current = parser.parse();
-                while(!current.value.equals(eof)){
+                while(!((Token) current.value).type().equals("EOF")){
                     Evaluator.eval(current, environment);
                     current = parser.parse();
                 }

@@ -131,80 +131,74 @@ public class Lexer {
 
     //This is where the magic happens, depending on what the current character is
     //the conditionals will choose the correct kind of token to produce
-    public Token getNextToken(){
-        if (this.currentChar == '~'){
-            return new Token<>("EOF","EOF");
+    public Token getNextToken() {
+        // Always handle sentinel first
+        if (this.currentChar == '~') {
+            return new Token<>("EOF", "EOF");
         }
-        if (Character.isWhitespace(this.currentChar)){
-            this.skipWhitespace();
-        }
-        if (Character.isDigit(this.currentChar)){
-            return this.number();
-        }
-        else if (Character.isLetter(this.currentChar)){
-            return this.symbol();
-        }
-        else if (this.currentChar == '\"'){
-            return this.string();
-        }
-        else if (this.currentChar == '#'){
-            return this.special();
-        }
-        else if (this.currentChar == '('){
-            this.advance();
-            return new Token<>("LPAREN",null);
-        }
-        else if (this.currentChar == ')'){
-            this.advance();
-            return new Token<>("RPAREN",null);
-        }
-        else if (this.currentChar == '+'){
-            this.advance();
-            return new Token<>("PRIMITIVE","PLUS");
-        }
-        else if (this.currentChar == '-'){
-            this.advance();
-            return new Token<>("PRIMITIVE","MINUS");
-        }
-        else if (this.currentChar == '*'){
-            this.advance();
-            return new Token<>("PRIMITIVE","MULTIPLY");
-        }
-        else if (this.currentChar == '/'){
-            this.advance();
-            return new Token<>("PRIMITIVE","DIVIDE");
-        }
-        else if (this.currentChar == '%'){
-            this.advance();
-            return new Token<>("PRIMITIVE","MODULO");
-        }
-        else if (this.currentChar == '^'){
-            this.advance();
-            return new Token<>("PRIMITIVE","EXPONENT");
-        }
-        else if (this.currentChar == '='){
-            this.advance();
-            return new Token<>("PRIMITIVE","EQUALS");
-        }
-        else if (this.currentChar == '<'){
-            this.advance();
-            return new Token<>("PRIMITIVE","LT");
-        }
-        else if (this.currentChar == '>'){
-            this.advance();
-            return new Token<>("PRIMITIVE","GT");
-        }
-        else if (this.currentChar == '!'){
-            this.advance();
-            return new Token<>("PRIMITIVE","NOT");
-        }
-        else if (this.currentChar == ':'){
-            this.advance();
-            return new Token<>("PRIMITIVE","COLON");
-        }
-        return null;
 
+        // Skip whitespace
+        if (Character.isWhitespace(this.currentChar)) {
+            this.skipWhitespace();
+            return this.getNextToken();
+        }
+
+        if (Character.isDigit(this.currentChar)) {
+            return this.number();
+        } else if (Character.isLetter(this.currentChar)) {
+            return this.symbol();
+        } else if (this.currentChar == '\"') {
+            return this.string();
+        } else if (this.currentChar == '#') {
+            return this.special();
+        } else if (this.currentChar == '(') {
+            this.advance();
+            return new Token<>("LPAREN", null);
+        } else if (this.currentChar == ')') {
+            this.advance();
+            return new Token<>("RPAREN", null);
+        } else if (this.currentChar == '+') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "PLUS");
+        } else if (this.currentChar == '-') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "MINUS");
+        } else if (this.currentChar == '*') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "MULTIPLY");
+        } else if (this.currentChar == '/') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "DIVIDE");
+        } else if (this.currentChar == '%') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "MODULO");
+        } else if (this.currentChar == '^') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "EXPONENT");
+        } else if (this.currentChar == '=') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "EQUALS");
+        } else if (this.currentChar == '<') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "LT");
+        } else if (this.currentChar == '>') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "GT");
+        } else if (this.currentChar == '!') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "NOT");
+        } else if (this.currentChar == ':') {
+            this.advance();
+            return new Token<>("PRIMITIVE", "COLON");
+        }
+
+        // If we get here, it's truly an illegal char (not '~')
+        throw new SyntaxException(
+                "Unexpected character '" + currentChar + "' at position " + pos
+        );
     }
+
+
     //for testing purposes, returns a list of all tokens that can be extracted from the source
     public List<Token<String,String>> getTokens(){
         Token currentToken =  this.getNextToken();

@@ -161,7 +161,7 @@ public class Parser {
             }
         }
         else {
-            throw new SyntaxException("Unexpected EOF encountered: '(' not matched with ')'" + current);
+            return parse();
         }
     }
 }
