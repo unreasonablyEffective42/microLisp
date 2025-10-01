@@ -24,7 +24,7 @@ public class LinkedList<T> {
 
   public T head() {
       return list.first;
-  }
+  } 
 
   @SuppressWarnings("unchecked")
   public Object tail() {
@@ -36,21 +36,21 @@ public class LinkedList<T> {
   }
 
   @SafeVarargs
+  @SuppressWarnings("unchecked")
   LinkedList(T... elems){
     if (elems.length == 0){
       this.list = null;
       return;
     }
 
-    this.list = new Pair<>(elems[0], new LinkedList<>());
-    LinkedList<T> current = (LinkedList<T>) this.list.second;
-
+    this.list = new Pair<>(elems[0], new LinkedList<>()); 
+    LinkedList<T> current = (LinkedList<T>) this.list.second;    
     for (int i = 1;i < elems.length;i++){
-      current.list = new Pair<>(elems[i], new LinkedList<>());
+      current.list = new Pair<>(elems[i], new LinkedList<>()); 
       current = (LinkedList<T>) current.list.second;
     }
   }
-  
+  @SuppressWarnings("unchecked")
   LinkedList(ArrayList<T> elems){
     if (elems.size() == 0){
       this.list = null;
@@ -58,10 +58,11 @@ public class LinkedList<T> {
     }
 
     this.list = new Pair<>(elems.get(0),new LinkedList<>());
+
     LinkedList<T> current = (LinkedList<T>)this.list.second;
 
     for (int i = 1;i < elems.size();i++){
-      current.list = new Pair<>(elems.get(i), new LinkedList<>());
+      current.list = new Pair<>(elems.get(i), new LinkedList<>()); 
       current = (LinkedList<T>) current.list.second;
     }
   }
@@ -100,28 +101,21 @@ public class LinkedList<T> {
     this.list.first = newHead;
   }
 
-  public void setTail(LinkedList lst){
+  public void setTail(LinkedList<T> lst){
     this.list.second = lst;
   }
-
+  @SuppressWarnings("unchecked")
   public int size(){
-    LinkedList current = this;
-    int s = 0;
-    while (!(current == null)){
-      s++;      
-      Object tail = current.tail();
-      if (tail instanceof LinkedList) {
-          current = (LinkedList<T>) tail; // safe cast
-      } else {
-          // improper list ends here
-          break;
-      }
+    LinkedList<T> current = this;
+    int s = 0; 
+    while (current.list != null){
+      if (this.list.second == null){
+        break;
+      } 
+      current = (LinkedList) current.list.second;
+      s++;
     }
     return s;
-  }
-  public static void main(String[] args){
-    LinkedList lst = new LinkedList<>(1, 2);
-    System.out.println(lst);
   }
 }
 
