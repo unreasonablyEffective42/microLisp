@@ -51,9 +51,12 @@ public class LinkedList<T>{
 
   @Override
   public String toString(){
+    if (this.head().equals("()")){
+      return "()";
+    }
     StringBuilder str = new StringBuilder("(");
     LinkedList<T> current = this;
-    while(!(current == null) && !(current.head() == null)){
+    while(!(current == null) && !(current.head() == null) &&!current.head().equals("()")){
       str.append(current.head() + " ");
       current = current.tail();
     }
@@ -76,6 +79,20 @@ public class LinkedList<T>{
 
   public LinkedList tail(){
     return this.list.second;
+  }
+
+  public int size(){
+    LinkedList current = this;
+    int s = 0;
+    while (!(current == null)){
+      s++;
+      current = current.tail();
+    }
+    return s;
+  }
+  public static void main(String[] args){
+    LinkedList lst = new LinkedList<>(1, 2);
+    System.out.println(lst);
   }
 }
 
