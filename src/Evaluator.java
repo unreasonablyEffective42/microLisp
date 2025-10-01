@@ -76,7 +76,7 @@ public class Evaluator {
         Token<?,?> t = expr.getValue();
 
         // Atoms
-        if (isNumber(t) || isBool(t) || isString(t)) {
+        if (isNumber(t) || isBool(t) || isString(t) || isNull(t)) {
             return t.value();
         }
 
@@ -95,6 +95,7 @@ public class Evaluator {
             return evaluateCond(expr.getChildren(), env);
         }
         if (isList(t)){
+            expr.createChild(new Token<>("NULL","()"));
             LinkedList<Object> lst = new LinkedList<>(evaluateList(expr.getChildren(),env));
             return lst;
         }
@@ -125,7 +126,6 @@ public class Evaluator {
             return closureTok;
         }
 
-        // Variable (symbol) — atom vs call
         // Variable (symbol) — atom vs call
         if (isSymbol(t)) {
             if (expr.getChildren().isEmpty()) {
