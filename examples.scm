@@ -4,4 +4,9 @@
 
 (define fact (lambda (x) (fact-helper x 1)))
 
-(define fact-helper  (lambda (n a) (cond ((eq? n 0) a) (else (fact-helper (- n 1) (* a n))))))
+(define fact-helper (lambda (n a) (cond ((eq? n 0) a) (else (fact-helper (- n 1) (* a n))))))
+
+(define map 
+  (lambda (fn lst)
+    (cond ((null? lst) '() )
+          (else (cons (fn (head lst)) (map fn (tail lst)))))))

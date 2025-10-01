@@ -9,26 +9,51 @@ public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", "EOF");
     List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE","LIST");
-
+    boolean quoting = false;
     public Parser(String src) {
         this.lexer = new Lexer(src);
     }
-
-    //The recursive descent method, it categorizes the types of tokens and uses that information to construct the tree
+    // Parses a raw datum (used inside quoted expressions).
+    private Node<Token> parseDatum() {
+        Token tok = lexer.getNextToken();
+        if (tok.type().equals("LPAREN")) {
+            Node<Token> listNode = new Node<>(new Token("LIST",""));
+            Token inner = lexer.getNextToken();
+            while (!inner.type().equals("RPAREN")) {
+                if (inner.type().equals("LPAREN")) {
+                    lexer.backUp();
+                    listNode.addChild(parseDatum());
+                } else {
+                    listNode.createChild(inner);
+                }
+                inner = lexer.getNextToken();
+            }
+            return listNode;
+        } else {
+            // atom: number, symbol, string, boolean, etc.
+            return new Node<>(tok);
+        }
+    }
+    
     public Node<Token> parse() {
         //Get the first token for this recursive call
         Token current = lexer.getNextToken();
         //add an EOF token to the tree, will end the parsing operation
         if (current.type().equals("EOF")) {
-            Node<Token> node = new Node<Token>(new Token<>("EOF","EOF"));
+            return new Node<>(new Token<>("EOF","EOF"));
+        }
+        // atoms: numbers, booleans, strings, symbols
+        if (current.type().equals("NUMBER") || current.type().equals("BOOLEAN") ||
+            current.type().equals("STRING") || current.type().equals("SYMBOL")) {
+            return new Node<>(new Token(current.type(), current.value()));
+        }
+        // ---------- shorthand quote handling ----------
+        else if (current.type().equals("QUOTE")) {
+            Node<Token> node = new Node<>(new Token("QUOTE",""));
+            node.addChild(parseDatum());   // parse raw datum
             return node;
         }
-        if (current.type().equals("NUMBER") || current.type().equals("BOOLEAN") || current.type().equals("STRING")||current.type().equals("SYMBOL")) {
-            Node<Token> node = new Node<>(new Token(current.type(), current.value()));
-            return node;
-        }
-        //If the current token is a LPAREN, begin the process of creating a new s-expression,
-        //this node be completed and returned to the caller when a RPAREN is detected.
+        // ---------- list / s-expression ----------
         else if (current.type().equals("LPAREN")) {
             current = lexer.getNextToken();
 
@@ -38,13 +63,11 @@ public class Parser {
             if (current.type().equals("RPAREN")) {
                 return new Node<>(new Token("NULL", "()"));
             }
-
             // Case 1: operator is a keyword (lambda, define, etc.)
             if (keywords.contains(current.type())) {
                 Node<Token> node = new Node<>(current);
                 current = lexer.getNextToken();
-
-                // Special handling for lambda: next thing must be a param list
+                // ---------- lambda special form ----------
                 if (node.getValue().type().equals("LAMBDA")) {
                     if (!current.type().equals("LPAREN")) {
                         throw new SyntaxException("Lambda must be followed by a parameter list in parentheses");
@@ -60,78 +83,134 @@ public class Parser {
                         current = lexer.getNextToken();
                     }
                     node.addChild(paramList);
-
                     // Parse body expression
                     node.addChild(this.parse());
                     return node;
                 }
-                if (node.getValue().type().equals("COND")) {
-                    // Parse each clause until the closing RPAREN
-                    while (!current.type().equals("RPAREN")) {
-                        if (!current.type().equals("LPAREN")) {
-                            throw new SyntaxException("cond clauses must be lists, found: " + current);
-                        }
-
-                        // Parse a clause ( (predicate expr) )
-                        current = lexer.getNextToken();
-                        Node<Token> clause = new Node<>(new Token("CLAUSE", null));
-
-                        // Parse predicate
-                        if (current.type().equals("LPAREN")) {
-                            lexer.backUp();
-                            clause.addChild(this.parse());
-                            current = lexer.getNextToken();
-                        } else {
-                            clause.addChild(new Node<>(current));
-                            current = lexer.getNextToken();
-                        }
-
-                        // Parse body expression
-                        if (current.type().equals("LPAREN")) {
-                            lexer.backUp();
-                            clause.addChild(this.parse());
-                            current = lexer.getNextToken();
-                        } else {
-                            clause.addChild(new Node<>(current));
-                            current = lexer.getNextToken();
-                        }
-
-                        if (!current.type().equals("RPAREN")) {
-                            throw new SyntaxException("cond clause not closed properly");
-                        }
-                        // Advance to the next token for the while loop
-                        current = lexer.getNextToken();
-
-                        node.addChild(clause);
+                // ---------- quote special form ----------
+                if (node.getValue().type().equals("QUOTE")) {
+                    if (current.type().equals("LPAREN")) {
+                        lexer.backUp();
+                        node.addChild(parseDatum());   // parse raw datum inside (quote …)
+                        lexer.getNextToken();          // consume closing RPAREN
+                        return node;
+                    } else {
+                        node.addChild(new Node<>(current));
+                        return node;
                     }
-                    return node;
                 }
+                // ---------- cond special form ----------
+                if (node.getValue().type().equals("COND")) {                    
+                  // Parse each clause until the closing RPAREN of cond
+                  while (!current.type().equals("RPAREN")) {
+                      if (!current.type().equals("LPAREN")) {
+                          throw new SyntaxException("cond clauses must be lists, found: " + current);
+                      }
 
-                // General case: keep parsing children until RPAREN
+                      // Enter clause list
+                      current = lexer.getNextToken();
+                      Node<Token> clause = new Node<>(new Token("CLAUSE", null));
+
+                      // Parse predicate
+                      if (current.type().equals("LPAREN")) {
+                          lexer.backUp();
+                          clause.addChild(this.parse());
+                          current = lexer.getNextToken();
+                      } else {
+                          clause.addChild(new Node<>(current));
+                          current = lexer.getNextToken();
+                      }
+
+                      // Parse body expressions until RPAREN
+                      while (!current.type().equals("RPAREN")) {
+                          if (current.type().equals("LPAREN")) {
+                              lexer.backUp();
+                              clause.addChild(this.parse());
+                              current = lexer.getNextToken();
+                          } else {
+                              clause.addChild(new Node<>(current));
+                              current = lexer.getNextToken();
+                          }
+                      }
+
+                      // At this point, current == RPAREN for the clause
+                      node.addChild(clause);
+
+                      // Advance to next token for the outer cond loop
+                      current = lexer.getNextToken();
+                  }
+                  return node; 
+                }
+                // ---------- general keyword form ----------
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         node.addChild(this.parse());
                         current = lexer.getNextToken();
+                    } else if (current.type().equals("DOT")) {
+                        // Parse dotted pair
+                        Node<Token> dotNode = new Node<>(current);
+                        Token next = lexer.getNextToken();
+                        if (next.type().equals("RPAREN")) {
+                            throw new SyntaxException("Dot must be followed by an element");
+                        }
+                        if (next.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            dotNode.addChild(this.parse());
+                        } else {
+                            dotNode.addChild(new Node<>(next));
+                        }
+                        node.addChild(dotNode);
+                        // after parsing dotted cdr, require a closing RPAREN
+                        current = lexer.getNextToken();
+                        if (!current.type().equals("RPAREN")) {
+                            throw new SyntaxException("Dotted pair must end the list");
+                        }
+                        return node;
+                    } else if (current.type().equals("QUOTE")) {
+                        node.addChild(parseDatum());
+                        current = lexer.getNextToken();
                     } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") ||
-                            current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") ||
-                            current.type().equals("STRING")) {
+                              current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") ||
+                              current.type().equals("STRING")) {
                         node.createChild(current);
                         current = lexer.getNextToken();
                     }
                 }
                 return node;
             }
-
-            // Case 2: operator itself is a subexpression, not a keyword
+            // Case 2: operator itself is a subexpression
             else if (current.type().equals("LPAREN")) {
                 lexer.backUp();
-                Node<Token> node = this.parse(); // parse the operator expr
+                Node<Token> node = this.parse(); // parse operator expr
                 current = lexer.getNextToken();
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         node.addChild(this.parse());
+                        current = lexer.getNextToken();
+                    } else if (current.type().equals("DOT")) {
+                        // Parse dotted pair
+                        Node<Token> dotNode = new Node<>(current);
+                        Token next = lexer.getNextToken();
+                        if (next.type().equals("RPAREN")) {
+                            throw new SyntaxException("Dot must be followed by an element");
+                        }
+                        if (next.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            dotNode.addChild(this.parse());
+                        } else {
+                            dotNode.addChild(new Node<>(next));
+                        }
+                        node.addChild(dotNode);
+                        // after parsing dotted cdr, require a closing RPAREN
+                        current = lexer.getNextToken();
+                        if (!current.type().equals("RPAREN")) {
+                            throw new SyntaxException("Dotted pair must end the list");
+                        }
+                        return node;
+                    } else if (current.type().equals("QUOTE")) {
+                        node.addChild(parseDatum());
                         current = lexer.getNextToken();
                     } else {
                         node.createChild(current);
@@ -140,8 +219,7 @@ public class Parser {
                 }
                 return node;
             }
-
-            // Case 3: operator is a plain symbol (like "foo")
+            // Case 3: operator is a plain symbol
             else if (current.type().equals("SYMBOL")) {
                 Node<Token> node = new Node<>(current);
                 current = lexer.getNextToken();
@@ -150,18 +228,62 @@ public class Parser {
                         lexer.backUp();
                         node.addChild(this.parse());
                         current = lexer.getNextToken();
+                    } else if (current.type().equals("DOT")) {
+                        // Parse dotted pair
+                        Node<Token> dotNode = new Node<>(current);
+                        Token next = lexer.getNextToken();
+                        if (next.type().equals("RPAREN")) {
+                            throw new SyntaxException("Dot must be followed by an element");
+                        }
+                        if (next.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            dotNode.addChild(this.parse());
+                        } else {
+                            dotNode.addChild(new Node<>(next));
+                        }
+                        node.addChild(dotNode);
+                        // after parsing dotted cdr, require a closing RPAREN
+                        current = lexer.getNextToken();
+                        if (!current.type().equals("RPAREN")) {
+                            throw new SyntaxException("Dotted pair must end the list");
+                        }
+                        return node;
+                    } else if (current.type().equals("QUOTE")) {
+                        node.addChild(parseDatum());
+                        current = lexer.getNextToken();
                     } else {
                         node.createChild(current);
                         current = lexer.getNextToken();
                     }
                 }
                 return node;
-            } else {
+            }
+            // Case 4: operator is a literal number (list starting with number)
+            else if (current.type().equals("NUMBER")) {
+                Node<Token> node = new Node<>(new Token<>("LIST",""));
+                node.createChild(current);
+                current = lexer.getNextToken();
+                while (!current.type().equals("RPAREN")) {
+                    if (current.type().equals("LPAREN")) {
+                        lexer.backUp();
+                        node.addChild(this.parse());
+                        current = lexer.getNextToken();
+                    } else if (current.type().equals("QUOTE")) {
+                        node.addChild(parseDatum());
+                        current = lexer.getNextToken();
+                    } else {
+                        node.createChild(current);
+                        current = lexer.getNextToken();
+                    }
+                }
+                return node;
+            }
+            else {
                 throw new SyntaxException("Unexpected token after '(': " + current);
             }
         }
         else {
-            return parse();
+            return parse(); // fallback
         }
     }
 }

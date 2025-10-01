@@ -23,7 +23,12 @@ public class Stack<T>{
       throw new RuntimeException("Empty stack");
     }
     T res = stack.head();
-    stack = stack.tail();  
+    Object tail = stack.tail();
+    Object t = stack.tail();
+    if (!(t instanceof LinkedList)) {
+        throw new RuntimeException("Stack corrupted: improper tail");
+    }
+    stack = (LinkedList<T>) t;
     return res; 
   }
 //some changes
