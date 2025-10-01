@@ -1,0 +1,62 @@
+>>>(fact 1)
+1
+>>>(+ (fact 2) 1)
+3
+>>>(fact (+ 2 1))
+6
+--Function definition works
+>>>(define foo (lambda (x) (+ x 1)))
+Environment@4c873330
+-as does application
+>>>(foo 1)
+2
+--But trying to directly apply the same lambda expression returns the closure token 
+--and not the result of applying the procedure to the argument.
+--Unclear if the 1 is even being captured and then bound to x
+>>>((lambda (x) (+ x 1)) 1)
+Token[type=CLOSURE, value=[Token[type=VARS, value=[Node@49097b5d]], Token[type=BODY, value=Node@6e2c634b], Token[type=ENV, value=Environment@4c873330]]]
+--Map as defined in the examples is correct Scheme, so if the interpreter was 
+--functioning it would return for the following
+>>>(map fact '(1 2 3))
+(1 2 6)
+--But instead throws this error
+>>>(map fact '(1 2 3))
+Exception in thread "main" SyntaxException: Quote only accepts one argument
+        at Evaluator.eval(Evaluator.java:95)
+        at Evaluator.evaluateCond(Evaluator.java:67)
+        at Evaluator.eval(Evaluator.java:118)
+        at Evaluator.applyProcedure(Evaluator.java:286)
+        at Evaluator.eval(Evaluator.java:185)
+        at Evaluator.eval(Evaluator.java:180)
+        at Evaluator.evaluateCond(Evaluator.java:67)
+        at Evaluator.eval(Evaluator.java:118)
+        at Evaluator.applyProcedure(Evaluator.java:286)
+        at Evaluator.eval(Evaluator.java:185)
+        at Evaluator.eval(Evaluator.java:180)
+        at Evaluator.evaluateCond(Evaluator.java:67)
+        at Evaluator.eval(Evaluator.java:118)
+        at Evaluator.applyProcedure(Evaluator.java:286)
+        at Evaluator.eval(Evaluator.java:185)
+        at Evaluator.eval(Evaluator.java:180)
+        at Evaluator.evaluateCond(Evaluator.java:67)
+        at Evaluator.eval(Evaluator.java:118)
+        at Evaluator.applyProcedure(Evaluator.java:286)
+        at Evaluator.eval(Evaluator.java:185)
+        at MicroLisp.repl(MicroLisp.java:122)
+        at MicroLisp.main(MicroLisp.java:89)
+
+--These two work as expected, the list is quoted so is actually a list
+--and not an application of 1 to the rest of the list/improper list
+--Tail does access the contents properly though
+>>>(tail (tail '(1 2 . 3)))
+3
+>>>(tail (tail (tail '(1 2 3))))
+()
+
+--Both should fail, as both forms are not quoted so the Evaluator
+--Should interpret them as the unquoted form, and then attempt 
+--to apply 1 as a procedure, which should cause an error
+>>>(tail (tail (1 2 . 3)))
+3
+>>>(tail (tail (tail (1 2 3))))
+()
