@@ -9,6 +9,7 @@ public class MicroLisp {
         Token eof = new Token<>("EOF","EOF");
         Environment environment = new Environment(
                 new Pair<>("else", "#t"),
+                //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
                 new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
                 new Pair<>("head",(Function<LinkedList, Object>) (lst) -> lst.head()),
@@ -17,6 +18,13 @@ public class MicroLisp {
                     System.out.println(x1);
                     return "IO::()";
                 }),
+                new Pair<>("null?", (Function<Object,String>) (x) -> {
+                    if (x == null) return "#t";                     // treat Java null as empty
+                    if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
+                    if (x.toString().equals("()")) return "#t";
+                    return "#f";
+                })
+                /*
                 new Pair<>("map",(BiFunction<LinkedList,Function<Object,Object>,LinkedList>) (lst, fn) ->{
                   LinkedList ret = new LinkedList<>("()");
                   if (lst.size() == 0){
@@ -30,26 +38,32 @@ public class MicroLisp {
                     current = current.tail();
                   }
                   return ret;
-                })
+                })*/
         );
         environment.addFrame(
           new Pair<>("eval", (Function<Object,Object>) (str) -> {
             Parser p = new Parser(str.toString());
             return Evaluator.eval(p.parse(), environment);
           }),
-          new Pair<>("cons",(BiFunction<Object,Object,LinkedList>) (fst,snd) ->{
-            if (fst == null || fst.toString().equals("()")){
-              throw new SyntaxException("First element of a pair cannot be null");
-            }
-            else if (snd == null || snd.toString().equals("()")){
-              Parser f = new Parser(fst.toString());
-              return new LinkedList<>(Evaluator.eval(f.parse(),environment));
-            }
-            else {
-              Parser f = new Parser(fst.toString());
-              Parser s = new Parser(snd.toString());
-              return new LinkedList<Object>(Evaluator.eval(f.parse(),environment),Evaluator.eval(s.parse(),environment));
-            }
+
+          new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
+              if (fst == null || "()" .equals(fst.toString())) {
+                  throw new SyntaxException("First element of a pair cannot be null");
+              }
+              // Proper list tail: next cell
+              if (snd instanceof LinkedList<?> tailList) {
+                  @SuppressWarnings("unchecked")
+                  LinkedList<Object> properTail = (LinkedList<Object>) (LinkedList<?>) tailList;
+                  return new LinkedList<>(fst, properTail);
+              }
+
+              // Empty list tail
+              if (snd == null || "()" .equals(snd.toString())) {
+                  return new LinkedList<>(fst, (LinkedList<Object>) null);
+              }
+
+              // Improper list tail (dotted pair)
+              return new LinkedList<>(fst, snd);
           })
         );
 
@@ -77,8 +91,6 @@ public class MicroLisp {
         else {
             repl(environment);
         }
-
-
     }
     static void repl(Environment environment){
         Scanner scanner = new Scanner(System.in);

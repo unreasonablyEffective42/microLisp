@@ -1,23 +1,40 @@
 import java.util.ArrayList;
 
-public class LinkedList<T>{
-  private Pair<T,LinkedList> list;
+public class LinkedList<T> {
+  Pair<T, Object> list;
 
-  LinkedList(){
-     list = new Pair<>();
-  }
-  
-  LinkedList(T elem){
-    list = new Pair<>();
-    list.first = elem;
-    list.second = new LinkedList();
+  public LinkedList() {
+      this.list = null;
   }
 
-  LinkedList(T elem, LinkedList list_){
-    list = new Pair<>();
-    list.first = elem;
-    list.second = list_;
-  } 
+  // Proper list constructor
+  public LinkedList(T elem, LinkedList<T> tail) {
+      this.list = new Pair<>(elem, tail);
+  }
+
+  // Improper list constructor
+  public LinkedList(T elem, Object tail) {
+      this.list = new Pair<>(elem, tail);
+  }
+
+  // Single element list
+  public LinkedList(T elem) {
+      this.list = new Pair<>(elem, null);
+  }
+
+  public T head() {
+      return list.first;
+  }
+
+  @SuppressWarnings("unchecked")
+  public Object tail() {
+      return list.second;
+  }
+
+  public boolean isEmpty() {
+      return list == null;
+  }
+
   @SafeVarargs
   LinkedList(T... elems){
     if (elems.length == 0){
@@ -26,11 +43,11 @@ public class LinkedList<T>{
     }
 
     this.list = new Pair<>(elems[0], new LinkedList<>());
-    LinkedList<T> current = this.list.second;
+    LinkedList<T> current = (LinkedList<T>) this.list.second;
 
     for (int i = 1;i < elems.length;i++){
       current.list = new Pair<>(elems[i], new LinkedList<>());
-      current = current.list.second;
+      current = (LinkedList<T>) current.list.second;
     }
   }
   
@@ -41,28 +58,42 @@ public class LinkedList<T>{
     }
 
     this.list = new Pair<>(elems.get(0),new LinkedList<>());
-    LinkedList<T> current = this.list.second;
+    LinkedList<T> current = (LinkedList<T>)this.list.second;
 
     for (int i = 1;i < elems.size();i++){
       current.list = new Pair<>(elems.get(i), new LinkedList<>());
-      current = current.list.second;
+      current = (LinkedList<T>) current.list.second;
     }
   }
 
   @Override
-  public String toString(){
-    if (this.head().equals("()")){
-      return "()";
-    }
-    StringBuilder str = new StringBuilder("(");
-    LinkedList<T> current = this;
-    while(!(current == null) && !(current.head() == null) &&!current.head().equals("()")){
-      str.append(current.head() + " ");
-      current = current.tail();
-    }
-    str.deleteCharAt(str.length()-1);
-    str.append(")");
-    return str.toString();
+  public String toString() {
+      if (list == null) return "()";
+      StringBuilder sb = new StringBuilder("(");
+      Object current = this;
+
+      while (current instanceof LinkedList) {
+          LinkedList<?> cell = (LinkedList<?>) current;
+          if (cell.list == null) {
+            sb.deleteCharAt(sb.length() -1);
+            break;
+          }
+          sb.append(cell.head());
+          Object tail = cell.tail();
+          if (tail == null) {
+              break;
+          }
+          if (tail instanceof LinkedList) {
+              sb.append(" ");
+              current = tail;
+          } else {
+              // dotted pair
+              sb.append(" . ").append(tail);
+              break;
+          }
+      }
+      sb.append(")");
+      return sb.toString();
   }
 
   public void setHead(T newHead){
@@ -73,20 +104,18 @@ public class LinkedList<T>{
     this.list.second = lst;
   }
 
-  public T head(){
-    return this.list.first;
-  }
-
-  public LinkedList tail(){
-    return this.list.second;
-  }
-
   public int size(){
     LinkedList current = this;
     int s = 0;
     while (!(current == null)){
-      s++;
-      current = current.tail();
+      s++;      
+      Object tail = current.tail();
+      if (tail instanceof LinkedList) {
+          current = (LinkedList<T>) tail; // safe cast
+      } else {
+          // improper list ends here
+          break;
+      }
     }
     return s;
   }

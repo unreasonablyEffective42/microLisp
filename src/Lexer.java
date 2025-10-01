@@ -139,13 +139,11 @@ public class Lexer {
         if (this.currentChar == '~') {
             return new Token<>("EOF", "EOF");
         }
-
         // Skip whitespace
         if (Character.isWhitespace(this.currentChar)) {
             this.skipWhitespace();
             return this.getNextToken();
         }
-
         if (Character.isDigit(this.currentChar)) {
             return this.number();
         } else if (Character.isLetter(this.currentChar)) {
@@ -193,15 +191,18 @@ public class Lexer {
         } else if (this.currentChar == ':') {
             this.advance();
             return new Token<>("PRIMITIVE", "COLON");
+        } else if (this.currentChar == '\''){
+            this.advance();
+            return new Token<>("QUOTE", "");
+        } else if (this.currentChar == '.'){
+            this.advance();
+            return new Token<>("DOT",".");
         }
-
         // If we get here, it's truly an illegal char (not '~')
         throw new SyntaxException(
                 "Unexpected character '" + currentChar + "' at position " + pos
         );
     }
-
-
     //for testing purposes, returns a list of all tokens that can be extracted from the source
     public List<Token<String,String>> getTokens(){
         Token currentToken =  this.getNextToken();
