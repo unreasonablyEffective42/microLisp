@@ -24,7 +24,7 @@ if not exist "%USERPROFILE%\bin" mkdir "%USERPROFILE%\bin"
 
 :: Copy jar into bin folder so launcher can always find it
 copy /Y "MicroLisp.jar" "%USERPROFILE%\bin\" >nul
-
+echo Adding microlisp to the path
 (
   echo @echo off
 ) > "%USERPROFILE%\bin\microlisp.bat"
@@ -35,6 +35,6 @@ copy /Y "MicroLisp.jar" "%USERPROFILE%\bin\" >nul
 
 @echo off
 setx PATH "%PATH%;%USERPROFILE%\bin">nul
-echo Path updated permanently. Please restart command prompt for changes to take effect.
+echo MicroLisp installed, open a new terminal and enter 'microlisp' to use
 
 endlocal
