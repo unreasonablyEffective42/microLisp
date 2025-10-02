@@ -117,7 +117,10 @@ public class MicroLisp {
                 System.out.println(e);
               }
                 
-            } else {
+            } else if(input.equals("")){
+              System.out.print("");
+            }
+            else {
               Parser p = new Parser(input);
               Object result = Evaluator.eval(p.parse(),environment);
               System.out.println(result.toString());

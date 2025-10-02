@@ -304,12 +304,14 @@ public class Evaluator {
 
         if (args.size() == 1) {
             return args.get(0);
+        } else if (args.size() == 2){
+            return op.apply((Integer) args.get(0),(Integer) args.get(1)); 
+        } else {       
+            Object acc = args.get(0);
+            for (int i = 1; i < args.size(); i++) {
+                acc = op.apply((Integer) acc, (Integer) args.get(i));
+            }
+            return acc;
         }
-
-        Object acc = args.get(0);
-        for (int i = 1; i < args.size(); i++) {
-            acc = op.apply((Integer) acc, (Integer) args.get(i));
-        }
-        return acc;
     }
 }
