@@ -28,4 +28,4 @@ if ! echo "$PATH" | grep -q "$HOME/bin"; then
 fi
 
 echo
-echo "Installed. You can now run: microlisp examples.scm"
+echo "MicroLisp Installed. You can now run in a new terminal with 'microlisp'"

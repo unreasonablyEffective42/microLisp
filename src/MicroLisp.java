@@ -94,7 +94,7 @@ public class MicroLisp {
     }
     static void repl(Environment environment){
         Scanner scanner = new Scanner(System.in);
-        System.out.println("MicroLisp 1.0 \n Type :exit to quit");
+        System.out.println("MicroLisp 1.0 \nType :exit to quit, :load filename to load a file");
         while(true){
             System.out.print(">>>");
             String input = scanner.nextLine();
