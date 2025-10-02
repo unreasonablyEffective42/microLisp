@@ -92,7 +92,7 @@ public class Evaluator {
         // Special forms
         if (isQuote(t)) {
             if (expr.getChildren().size() != 1) {
-                throw new SyntaxException("Quote only accepts one argument");
+                throw new SyntaxException("Quote only accepts one argument, received: " + expr.getChildren().size() + "args: "+expr.getChildren());
             }
 
             Node<Token> quoted = expr.getChildren().get(0);
