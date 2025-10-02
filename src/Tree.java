@@ -1,5 +1,6 @@
 import java.util.stream.Stream;
 //basic tree class
+@SuppressWarnings("rawtypes")
 public class Tree<T extends Comparable<T>> {
     Node<Token> root;
 

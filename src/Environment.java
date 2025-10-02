@@ -34,9 +34,11 @@ class Frame{
 public class Environment {
     ArrayList<Frame> frames= new ArrayList<>();
     @SafeVarargs
+    @SuppressWarnings("varargs")
     Environment(Pair<String, Object> ... firstFrame){
         frames.add(new Frame(Arrays.asList(firstFrame)));
     }
+    @SuppressWarnings("unchecked")
     public void addFrame(Pair<String,Object> ... bindings){
         frames.add(0,new Frame(Arrays.asList(bindings)));
     }

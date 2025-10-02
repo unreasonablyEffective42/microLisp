@@ -6,7 +6,7 @@ This is a custom generic Node type, for creating tree like structures. Any value
 and it supports an arbitrary number of children. The children are currently stored as an ArrayList, but will be updated
 to a custom List type
  */
-
+@SuppressWarnings("rawtypes")
 public class Node<T> implements Comparable<Node<Token>> {
     T value;
     ArrayList<Node<Token>> children = new ArrayList<Node<Token>>();
@@ -34,12 +34,13 @@ public class Node<T> implements Comparable<Node<Token>> {
     public void addChild(Node<Token> child) {
         children.add(child);
     }
-    //to be implemented
+    @SafeVarargs
     public void removeChild(Node<T> child) {
         children.remove(child);
     }
     //Add multiple nodes at once as child nodes
     @SafeVarargs
+    @SuppressWarnings("varargs","unchecked")
     public final void addChildren(Node<Token>... children_) {
         Collections.addAll(children, children_);
     }
