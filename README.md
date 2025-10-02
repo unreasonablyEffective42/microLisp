@@ -9,8 +9,7 @@ The syntax and semantics almost entirely follow from Scheme. Some differences in
 - `(define (fnName arg1 arg2 ...) functionBody)` is instead `(define fnName (lambda (arg1 arg2 ...) functionBody))`
 
 -   Application of raw lambdas do not evaluate currently at the moment, `((lambda (x) (+ x 1)) 1)' -> 2` is the expected behavior, instead application of lambda expressions directly just return the closure token for the evaluator
--   arithmetic operations take `varargs`, just like scheme, but using say `+` in `(foldr + 0 '(1 2 3 4 5))` does not work, you have to turn the expression into a binary operation like 
-	- `(define add (lambda (x y) (+ x y)))` then `(foldr add 0 '(1 2 3 4 5))`
+-   arithmetic operations take `varargs`, just like scheme, but using say `+` in `(foldr + 0 '(1 2 3 4 5))` does not work, you have to turn the expression into a binary operation `(define add (lambda (x y) (+ x y)))` then `(foldr add 0 '(1 2 3 4 5))`
 
 To build, clone the repository 
 `git clone [https://github.com/unreasonablyeffective42/microlisp` 
