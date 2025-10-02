@@ -36,3 +36,15 @@
     (cond ((eq? n 0) (cons a '() ))
           (else (cons a (fibshelper b (+ a b) (- n 1)))))))
 
+(define pair
+  (lambda (x y)
+    (lambda (m) (m x y))))
+
+(define first
+  (lambda (z)
+    (z (lambda (p q) p))))
+
+(define second
+  (lambda (z)
+    (z (lambda (p q) q))))
+

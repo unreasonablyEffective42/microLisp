@@ -34,13 +34,14 @@ public class Node<T> implements Comparable<Node<Token>> {
     public void addChild(Node<Token> child) {
         children.add(child);
     }
-    @SafeVarargs
+    
+   
     public void removeChild(Node<T> child) {
         children.remove(child);
     }
     //Add multiple nodes at once as child nodes
     @SafeVarargs
-    @SuppressWarnings("varargs","unchecked")
+    @SuppressWarnings("varargs")
     public final void addChildren(Node<Token>... children_) {
         Collections.addAll(children, children_);
     }
