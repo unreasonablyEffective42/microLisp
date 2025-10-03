@@ -86,7 +86,7 @@ public class MicroLisp {
         } else {
             System.out.println(RED+ "Could not find banner"+RESET);
         }
-        System.out.println("\n"+YELLOW + "              MicroLisp v1.0 - Jordan Jacobson 2025" + RESET);
+        System.out.println("\n"+YELLOW + "              MicroLisp v1.0 - ©Jordan Jacobson 2025" + RESET);
         System.out.println("Type "+BLUE+":exit"+RESET+" to quit, "+BLUE+":load filename"+RESET+" to load a file");
         if (args.length > 0){
           for (int i=0;i<args.length;i++){
