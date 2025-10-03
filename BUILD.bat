@@ -12,6 +12,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
+copy /Y banner.txt out\
+
 echo Creating JAR...
 jar cfm MicroLisp.jar manifest.mf -C out .
 if errorlevel 1 (

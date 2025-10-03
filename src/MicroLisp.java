@@ -4,6 +4,7 @@ import java.util.function.Function;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
+import java.io.InputStream;
 public class MicroLisp {
     public static void main(String[] args){
         Token eof = new Token<>("EOF","EOF");
@@ -67,11 +68,19 @@ public class MicroLisp {
           })
         );
         String src; 
-        try{ 
-          String banner = Files.readString(Path.of("banner.txt"));
-          System.out.print(banner);
+
+        InputStream in = MicroLisp.class.getResourceAsStream("/banner.txt");
+        if (in != null) {
+            try {
+                String banner = new String(in.readAllBytes());
+                System.out.print(banner);
+                in.close();
+            } catch (IOException e) {
+                System.out.println("Error reading banner: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Could not find banner");
         }
-        catch(IOException e){System.out.println("Could not find banner");}  
         if (args.length > 0){
           for (int i=0;i<args.length;i++){
             try {

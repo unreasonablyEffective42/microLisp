@@ -5,7 +5,7 @@ set -e
 rm -rf out
 mkdir out
 javac -d out $(find src -name "*.java")
-
+cp banner.txt out/
 # 2. Package jar
 jar cfm MicroLisp.jar manifest.mf -C out .
 
