@@ -6,6 +6,11 @@ import java.nio.file.Path;
 import java.io.IOException;
 import java.io.InputStream;
 public class MicroLisp {
+    public static final String RESET = "\u001B[0m";
+    public static final String RED = "\u001B[31m";
+    public static final String GREEN = "\u001B[32m";
+    public static final String BLUE = "\u001B[34m";
+    public static final String YELLOW = "\u001b[0;93m";
     public static void main(String[] args){
         Token eof = new Token<>("EOF","EOF");
         Environment environment = new Environment(
@@ -72,15 +77,17 @@ public class MicroLisp {
         InputStream in = MicroLisp.class.getResourceAsStream("/banner.txt");
         if (in != null) {
             try {
-                String banner = new String(in.readAllBytes());
-                System.out.print(banner);
+                String banner = new String(in.readAllBytes()).replaceAll("\\s+$", "");
+                System.out.print(banner); 
                 in.close();
             } catch (IOException e) {
-                System.out.println("Error reading banner: " + e.getMessage());
+                System.out.println(RED+"Error reading banner: "+RESET + e.getMessage());
             }
         } else {
-            System.out.println("Could not find banner");
+            System.out.println(RED+ "Could not find banner"+RESET);
         }
+        System.out.println("\n"+YELLOW + "              MicroLisp v1.0 - Jordan Jacobson 2025" + RESET);
+        System.out.println("Type "+BLUE+":exit"+RESET+" to quit, "+BLUE+":load filename"+RESET+" to load a file");
         if (args.length > 0){
           for (int i=0;i<args.length;i++){
             try {
@@ -91,11 +98,11 @@ public class MicroLisp {
                     Evaluator.eval(current, environment);
                     current = parser.parse();
                 }
-                System.out.println(args[i]+ " loaded successfully");
+                System.out.println(args[i]+ GREEN + " loaded successfully" + RESET);
                 
             }
             catch (IOException e){
-                System.out.println("Could not load file " + args[i]);
+                System.out.println(RED +"Could not load file "+ RESET + args[i]);
                 System.out.println(e);
             }
           }
@@ -124,10 +131,10 @@ public class MicroLisp {
                     Evaluator.eval(current, environment);
                     current = l.parse();
                 }
-                System.out.println(file + " loaded successfully");
+                System.out.println(file + GREEN +" loaded successfully" + RESET);
                 }
               catch (IOException e){
-                System.out.println("Could not load file " + input.substring(5).trim());
+                System.out.println(RED + "Could not load file "+ RESET + input.substring(5).trim());
                 System.out.println(e);
               }
                 
