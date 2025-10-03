@@ -66,8 +66,12 @@ public class MicroLisp {
               return new LinkedList<>(fst, snd);
           })
         );
-
-        String src;
+        String src; 
+        try{ 
+          String banner = Files.readString(Path.of("banner.txt"));
+          System.out.print(banner);
+        }
+        catch(IOException e){System.out.println("Could not find banner");}  
         if (args.length > 0){
           for (int i=0;i<args.length;i++){
             try {
@@ -92,9 +96,9 @@ public class MicroLisp {
             repl(environment);
         }
     }
-    static void repl(Environment environment){
+    static void repl(Environment environment) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("MicroLisp 1.0 \nType :exit to quit, :load filename to load a file");
+        
         while(true){
             System.out.print(">>>");
             String input = scanner.nextLine();
