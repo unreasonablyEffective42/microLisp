@@ -9,8 +9,9 @@ public class MicroLisp {
     public static final String RESET = "\u001B[0m";
     public static final String RED = "\u001B[31m";
     public static final String GREEN = "\u001B[32m";
-    public static final String BLUE = "\u001B[34m";
+    public static final String BLUE = "\u001B[38;2;45;199;193m";
     public static final String YELLOW = "\u001b[0;93m";
+    public static final String ORANGE = "\u001b[38;2;255;140;0m";
     public static void main(String[] args){
         Token eof = new Token<>("EOF","EOF");
         Environment environment = new Environment(
@@ -18,8 +19,9 @@ public class MicroLisp {
                 //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
                 new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
-                new Pair<>("head",(Function<LinkedList, Object>) (lst) -> lst.head()),
-                new Pair<>("tail",(Function<LinkedList, Object>) (lst) -> lst.tail()),
+                new Pair<>("head",(Function<LinkedList, Object>) (xs) -> xs.head()),
+                new Pair<>("tail",(Function<LinkedList, Object>) (xs) -> xs.tail()),
+                new Pair<>("length",(Function<LinkedList, Integer>) (xs) -> xs.size()),
                 new Pair<>("print",(Function<Object,Object>) x1 -> {
                     System.out.println(x1);
                     return "IO::()";
@@ -116,7 +118,7 @@ public class MicroLisp {
         Scanner scanner = new Scanner(System.in);
         
         while(true){
-            System.out.print(">>>");
+            System.out.print(ORANGE + ">>>"+ RESET);
             String input = scanner.nextLine();
             if(input.equals(":exit")){
                 break;
