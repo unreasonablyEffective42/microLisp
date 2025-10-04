@@ -21,10 +21,10 @@ public class MicroLispTest {
         if (test("Cons number list", testEval("(cons 1 (cons 2 '()))", "(1 2)", env))) passed++; else failed++;
         if (test("Cons string list", testEval("(cons \"a\" (cons \"b\" '()))", "(\"a\" \"b\")", env))) passed++; else failed++;
 
-        System.out.println("\n=============================");
+        System.out.println("============================================="); 
         System.out.println("Tests passed: " + passed);
         System.out.println("Tests failed: " + failed);
-        System.out.println("=============================");
+        System.out.println("=============================================");
     }
 
     // ---------- Individual Tests ----------

@@ -1,6 +1,11 @@
 @echo off
 setlocal EnableExtensions
 
+echo =============================================
+echo   MicroLisp Windows Build
+echo =============================================
+echo.
+
 :: --- Locate JDK bin folder ---
 set "JAVABIN="
 for /d %%D in ("C:\Program Files\Java\jdk-*") do (
@@ -17,42 +22,47 @@ if not defined JAVABIN (
 )
 
 echo Using JDK bin: %JAVABIN%
+echo.
 
-:: Clean + compile
+:: 1. Clean + compile
 if exist out rmdir /s /q out
 mkdir out
-
-echo Compiling...
+echo Compiling MicroLisp...
 "%JAVABIN%\javac" -d out src\*.java
 if errorlevel 1 (
-  echo Compile failed.
-  exit /b 1
+    echo Compile failed.
+    exit /b 1
 )
+copy /Y banner.txt out\ >nul
+echo Compilation complete.
+echo.
 
-copy /Y banner.txt out\
-
-echo Creating JAR...
+:: 2. Package jar
+echo Packaging MicroLisp.jar...
 "%JAVABIN%\jar" cfm MicroLisp.jar manifest.mf -C out .
 if errorlevel 1 (
-  echo JAR creation failed.
-  exit /b 1
+    echo JAR creation failed.
+    exit /b 1
 )
+echo Packaging complete.
+echo.
 
-:: Ensure user bin folder exists
+:: 3. Ensure user bin folder exists
+echo Creating launcher...
 if not exist "%USERPROFILE%\bin" mkdir "%USERPROFILE%\bin"
 
-:: Copy jar into bin folder so launcher can always find it
+:: 4. Copy jar and launcher
 copy /Y "MicroLisp.jar" "%USERPROFILE%\bin\" >nul
-echo Adding microlisp to the path
+
 (
   echo @echo off
+  echo java -jar "%%~dp0MicroLisp.jar" %%*
 ) > "%USERPROFILE%\bin\microlisp.bat"
 
-(
-  echo java -jar "%%~dp0MicroLisp.jar" %%*
-) >> "%USERPROFILE%\bin\microlisp.bat"
+echo Launcher created at %USERPROFILE%\bin\microlisp.bat
+echo.
 
-:: --- Safely add %USERPROFILE%\bin to PATH without truncating ---
+:: 5. Add to PATH if needed
 reg query "HKCU\Environment" /v PATH | find /i "%USERPROFILE%\bin" >nul
 if errorlevel 1 (
     for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v PATH ^| find /i "PATH"') do (
@@ -63,8 +73,29 @@ if errorlevel 1 (
     ) else (
         setx PATH "%UserPath%;%USERPROFILE%\bin"
     )
+    echo Added %%USERPROFILE%%\bin to PATH. Open a new terminal for it to take effect.
 )
+echo PATH check complete.
+echo.
 
-echo MicroLisp installed, open a new terminal and enter 'microlisp' to use
+:: 6. Run unit tests
+echo =============================================
+echo Testing Build
+echo =============================================
+echo.
+"%JAVABIN%\java" -cp out MicroLispTest
+if errorlevel 1 (
+    echo.
+    echo Unit tests failed.
+    exit /b 1
+)
+echo.
+echo All tests passed!
+echo.
+
+echo =============================================
+echo MicroLisp Installed
+echo You can now run 'microlisp' in a new terminal
+echo =============================================
 
 endlocal
