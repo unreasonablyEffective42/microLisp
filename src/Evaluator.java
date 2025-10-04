@@ -34,20 +34,24 @@ public class Evaluator {
     private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
     private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "STRING") ||  isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
-    private static BiFunction<Integer,Integer,Object> getPrimitive(String op){
+   
+    private static BiFunction<Object, Object, Object> getPrimitive(String op) {
         return switch (op) {
-            case "PLUS"      -> (x, y) -> x + y;
-            case "MINUS"     -> (x, y) -> x - y;
-            case "MULTIPLY"  -> (x, y) -> x * y;
-            case "DIVIDE"    -> (x, y) -> x / y;
-            case "MODULO"    -> (x, y) -> x % y;
-            case "EXPONENT"  -> (x, y) -> (int)Math.pow(x, y);
-            case "EQ"    -> (x, y) -> x.equals(y) ? "#t" : "#f";
-            case "LT"        -> (x, y) -> x < y ? "#t" : "#f";
-            case "GT"        -> (x, y) -> x > y ? "#t" : "#f";
+            case "PLUS" -> (x, y) -> (Integer)x + (Integer)y;
+            case "MINUS" -> (x, y) -> (Integer)x - (Integer)y;
+            case "MULTIPLY" -> (x, y) -> (Integer)x * (Integer)y;
+            case "DIVIDE" -> (x, y) -> (Integer)x / (Integer)y;
+            case "MODULO" -> (x, y) -> (Integer)x % (Integer)y;
+            case "EXPONENT" -> (x, y) -> (int)Math.pow((Integer)x, (Integer)y);
+
+            case "EQ" -> (x, y) -> x.equals(y) ? "#t" : "#f";
+            case "LT" -> (x, y) -> ((Integer)x) < ((Integer)y) ? "#t" : "#f";
+            case "GT" -> (x, y) -> ((Integer)x) > ((Integer)y) ? "#t" : "#f";
+
             default -> throw new IllegalStateException("Unexpected operator: " + op);
         };
     }
+
     // ---------- list evaluation ----------
     private static ArrayList<Object> evaluateList(ArrayList<Node<Token>> list, Environment env){
         ArrayList<Object> out = new ArrayList<>(list.size());
@@ -293,7 +297,7 @@ public class Evaluator {
 
     // Apply a primitive procedure (+, -, *, /, etc.)
     private static Object applyPrimitive(String opName, ArrayList<Object> args) {
-        BiFunction<Integer,Integer,Object> op = getPrimitive(opName);
+        BiFunction<Object,Object,Object> op = getPrimitive(opName);
 
         if (args.isEmpty()) {
             // Identity for +, 0; for *, 1 (depends on your getPrimitive design)
@@ -305,7 +309,7 @@ public class Evaluator {
         if (args.size() == 1) {
             return args.get(0);
         } else if (args.size() == 2){
-            return op.apply((Integer) args.get(0),(Integer) args.get(1)); 
+            return op.apply((Object) args.get(0),(Object) args.get(1)); 
         } else {       
             Object acc = args.get(0);
             for (int i = 1; i < args.size(); i++) {

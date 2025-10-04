@@ -18,9 +18,29 @@ public class MicroLisp {
                 new Pair<>("else", "#t"),
                 //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
-                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
-                new Pair<>("head",(Function<LinkedList, Object>) (xs) -> xs.head()),
-                new Pair<>("tail",(Function<LinkedList, Object>) (xs) -> xs.tail()),
+                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),                
+                new Pair<>("head", (Function<Object,Object>) (x) -> {
+                  if (x instanceof LinkedList) {
+                    return ((LinkedList<?>) x).head();
+                  } else if (x instanceof String) {
+                    String s = (String) x;
+                    if (s.isEmpty()){return "";}
+                    return String.valueOf(s.charAt(0));
+                  } else {
+                    throw new RuntimeException("head: unsupported type " + x.getClass());
+                  }
+                }),
+                new Pair<>("tail", (Function<Object,Object>) (x) -> {
+                  if (x instanceof LinkedList) {
+                    return ((LinkedList<?>) x).tail();
+                  } else if (x instanceof String) {
+                    String s = (String) x;
+                    if (s.isEmpty()) {return "";} 
+                    return s.substring(1);
+                  } else {
+                    throw new RuntimeException("tail: unsupported type " + x.getClass());
+                  }
+                }),
                 new Pair<>("length",(Function<LinkedList, Integer>) (xs) -> xs.size()),
                 new Pair<>("print",(Function<Object,Object>) x1 -> {
                     System.out.println(x1);
@@ -30,6 +50,7 @@ public class MicroLisp {
                     if (x == null) return "#t";                     // treat Java null as empty
                     if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
                     if (x.toString().equals("()")) return "#t";
+                    if (x.toString().equals("")) return "#t";
                     return "#f";
                 })
                 /*
