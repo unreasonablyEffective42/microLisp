@@ -5,38 +5,37 @@ public class LinkedList<T> {
   Pair<T, Object> list;
 
   public LinkedList() {
-    this.list = null;
+      this.list = null;
   }
 
   // Proper list constructor
   public LinkedList(T elem, LinkedList<T> tail) {
-    this.list = new Pair<>(elem, tail);
+      this.list = new Pair<>(elem, tail);
   }
 
   // Improper list constructor
   public LinkedList(T elem, Object tail) {
-    this.list = new Pair<>(elem, tail);
+      this.list = new Pair<>(elem, tail);
   }
 
   // Single element list
   public LinkedList(T elem) {
-    this.list = new Pair<>(elem, null);
+      this.list = new Pair<>(elem, null);
   }
 
   public T head() {
-    if (list == null){
-      return null;
-    }  
-    return list.first;
-
+      if (this.list == null){
+          return null;
+      }
+      return list.first;
   }
 
   @SuppressWarnings("unchecked")
   public Object tail() {
-    if (list == null){
-      return null;
-    }
-    return list.second;
+      if (this.list == null){
+          return null;
+      }
+      return list.second;
   }
 
   public boolean isEmpty() {
@@ -73,7 +72,7 @@ public class LinkedList<T> {
       current = (LinkedList<T>) current.list.second;
     }
   }
-  
+
   public boolean allString(){ 
     if (this.size() == 0){return false;}
     LinkedList current = this;
@@ -163,21 +162,24 @@ public class LinkedList<T> {
     this.list.second = lst;
   }
 
-  public int size(){
-    LinkedList current = this;
-    int s = 0;
-    while (!(current == null)){   
-      Object tail = current.tail();
-      if (tail instanceof LinkedList) {
-        s++;
-        current = (LinkedList<T>) tail; // safe cast
-      } else {
-        // improper list ends here
-        break;
-      }
+  
+public int size() {
+    if (this.list == null) return 0; // empty list 
+    int count = 0;
+    LinkedList<?> current = this;
+    while (current != null && current.list != null) {
+        count++;
+        Object tail = current.tail();
+        if (tail instanceof LinkedList<?>) {
+            current = (LinkedList<?>) tail;
+        } else {
+            // improper list tail (non-LinkedList value)
+            break;
+        }
     }
-    return s;
-  }
+    return count;
+}
+
   public static void main(String[] args){
     LinkedList lst = new LinkedList<>("a","b","c","d");
     LinkedList lst2 = new LinkedList<>(1,2,3,4);

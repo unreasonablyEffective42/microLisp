@@ -8,7 +8,7 @@ the abstract syntax tree using our Node class. It uses a recursive descent algor
 public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", "EOF");
-    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE","LIST");
+    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE", "LIST", "DO");
     boolean quoting = false;
     public Parser(String src) {
         this.lexer = new Lexer(src);
@@ -84,16 +84,16 @@ public class Parser {
                     }
                     node.addChild(paramList);
                     
-// Parse body expression
-node.addChild(this.parse());
+                    // Parse body expression
+                    node.addChild(this.parse());
 
-// NEW: consume the closing ')' of the (lambda …) form
-Token closer = lexer.getNextToken();
-if (!closer.type().equals("RPAREN")) {
-    throw new SyntaxException("Lambda must end with ')', found: " + closer);
-}
+                    // NEW: consume the closing ')' of the (lambda …) form
+                    Token closer = lexer.getNextToken();
+                    if (!closer.type().equals("RPAREN")) {
+                        throw new SyntaxException("Lambda must end with ')', found: " + closer);
+                    }
 
-return node;
+                    return node;
 
                 }
                 // ---------- quote special form ----------
@@ -149,6 +149,25 @@ return node;
                       current = lexer.getNextToken();
                   }
                   return node; 
+                }
+                // ---------- do block form -------- 
+                if (node.getValue().type().equals("DO")){ 
+                    while (!current.type().equals("RPAREN")) { 
+                        if (current.type().equals("LPAREN")){ 
+                            lexer.backUp(); 
+                            node.addChild(this.parse()); 
+                            current = lexer.getNextToken(); 
+                        } else if (current.type().equals("QUOTE")) { 
+                            node.addChild(parseDatum()); 
+                            current = lexer.getNextToken(); 
+                        } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") 
+                                || current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") 
+                                || current.type().equals("STRING")) {
+                            node.createChild(current); 
+                            current = lexer.getNextToken(); 
+                        } 
+                    }
+                    return node;
                 }
                 // ---------- general keyword form ----------
                 while (!current.type().equals("RPAREN")) {

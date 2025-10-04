@@ -32,6 +32,7 @@ public class Evaluator {
     private static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
     private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); }
     private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
+    private static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
     private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
    
@@ -85,6 +86,13 @@ public class Evaluator {
         } else {
             return tok.value();  // atom: number, symbol, string, boolean
         }
+    }
+    private static Object evaluateDo(ArrayList<Node<Token>> todos, Environment env){ 
+        if (todos.isEmpty()) return null;
+        for (int i = 0; i < todos.size() - 1; i++){ 
+            eval(todos.get(i),env); 
+        } 
+        return eval(todos.get(todos.size()-1),env); 
     }
     // ---------- core eval ----------
     public static Object eval(Node<Token> expr, Environment env){
@@ -154,6 +162,11 @@ public class Evaluator {
             // proper list case unchanged
             ArrayList<Object> elems = evaluateList(expr.getChildren(), env);
             return new LinkedList<>(elems);
+        }
+        if (isDo(t)){ 
+            if (expr.getChildren().size() < 1){ 
+                throw new SyntaxException("Do blocks require at least one expression"); 
+            } return evaluateDo(expr.getChildren(),env); 
         }
         if (isLambda(t)) {
             // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]

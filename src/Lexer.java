@@ -82,6 +82,10 @@ public class Lexer {
             Token tok = new Token("LIST","");
             return tok;
         }
+        else if (res2.equals("do")){ 
+            Token tok = new Token("DO",""); 
+            return tok;
+        }
         else {
             Token tok = new Token("SYMBOL", res.toString());
             return tok;
@@ -115,16 +119,31 @@ public class Lexer {
 
     }
 
-    private Token string(){
-        this.advance();
+    
+    private Token string() {
+        this.advance(); // skip the opening quote
         StringBuilder res = new StringBuilder();
-        while (!(this.currentChar == '\"')){
-            res.append(currentChar);
+
+        while (this.currentChar != '\"') {
+            if (this.currentChar == '\\') {
+                this.advance();
+                switch (this.currentChar) {
+                    case 'n' -> res.append('\n');
+                    case 't' -> res.append('\t');
+                    case 'r' -> res.append('\r');
+                    case '"' -> res.append('"');
+                    case '\\' -> res.append('\\');
+                    default -> res.append(this.currentChar); // unknown escape — keep literal
+                }
+            } else {
+                res.append(this.currentChar);
+            }
             this.advance();
         }
-        this.advance();
-        return new Token("STRING", res.toString());
-    }
+
+    this.advance(); // consume closing quote
+    return new Token("STRING", res.toString());
+}
     //advances past any detected whitespaces
     private void skipWhitespace(){
         while (Character.isWhitespace((this.currentChar))) {
