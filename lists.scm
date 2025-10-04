@@ -12,7 +12,7 @@
 (define foldr
   (lambda (fn z xs)
     (cond ((null? xs) z)
-          (else (fn (head xs) (foldr fn z (tail xs))))))
+          (else (fn (head xs) (foldr fn z (tail xs)))))))
 
 (define foldl
   (lambda (fn z xs)
