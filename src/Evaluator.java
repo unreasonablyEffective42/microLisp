@@ -162,7 +162,7 @@ public static Object eval(Node<Token> expr, Environment env){
 
     // --- KEY FIX SECTION ---
     // Application form: (f arg1 arg2 ...)
-    if (isList(t) && !expr.getChildren().isEmpty()) {
+    if (!expr.getChildren().isEmpty()) {
         // evaluate the operator (could itself be a lambda expression)
         Object op = eval(expr.getChildren().get(0), env);
 
