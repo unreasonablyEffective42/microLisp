@@ -84,7 +84,22 @@ public class Parser {
                     }
                     node.addChild(paramList);
                     // Parse body expression
+                    
+                    // Parse body expression
                     node.addChild(this.parse());
+
+                    // If there are arguments immediately after the lambda (IIFE),
+                    // parse them too before returning.
+                    Token next = lexer.getNextToken();
+                    while (!next.type().equals("RPAREN")) {
+                        if (next.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            node.addChild(this.parse());
+                        } else {
+                            node.addChild(new Node<>(next));
+                        }
+                        next = lexer.getNextToken();
+                    }
                     return node;
                 }
                 // ---------- quote special form ----------

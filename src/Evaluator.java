@@ -86,158 +86,131 @@ public class Evaluator {
             return tok.value();  // atom: number, symbol, string, boolean
         }
     }
+
+    // Evaluate all body forms in order and return the last one
+    // This is optional Scheme-style sequencing.
+    private static Object evalSequence(Node<Token> body, Environment env) {
+        if (body.getChildren().isEmpty()) {
+            return eval(body, env);
+        }
+        Object result = null;
+        for (Node<Token> expr : body.getChildren()) {
+            result = eval(expr, env);
+        }
+        return result;
+    }
     // ---------- core eval ----------
-    public static Object eval(Node<Token> expr, Environment env){
-        Token<?,?> t = expr.getValue();
-        // Atoms
-        if (isNumber(t) || isBool(t) || isNull(t)) {
-            return t.value();
-        }
-        // Special forms
 
-        if (isString(t)) {
-            String str = (String) t.value();  
-            ArrayList<Object> chars = new ArrayList<>();
-            for (int i = 0; i < str.length(); i++) {
-                chars.add(String.valueOf(str.charAt(i)));
-            }
-            return new LinkedList<>(chars);
-        }
-        if (isQuote(t)) {
-            if (expr.getChildren().size() != 1) {
-                throw new SyntaxException("Quote only accepts one argument, received: " + expr.getChildren().size() + "args: "+expr.getChildren());
-            }
+  
+public static Object eval(Node<Token> expr, Environment env){
+    Token<?,?> t = expr.getValue();
 
-            Node<Token> quoted = expr.getChildren().get(0);
+    // Atoms
+    if (isNumber(t) || isBool(t) || isNull(t)) return t.value();
 
-            if (isList(quoted.getValue())) {
-                // Recursively turn children into a LinkedList of unevaluated literals
-                ArrayList<Object> elems = new ArrayList<>();
-                for (Node<Token> child : quoted.getChildren()) {
-                    elems.add(quoteToValue(child));
-                }
-                return new LinkedList<>(elems);
-            } else {
-                return quoted.getValue().value();
-            }
-        }
-        if (isDefine(t)){
-            String label = (String)expr.getChildren().get(0).getValue().value();
-            Object binding = eval(expr.getChildren().get(1), env);
-            env.addFrame(new Pair<>(label, binding));
-            return env;
-        }
-        if (isCond(t)) {
-            return evaluateCond(expr.getChildren(), env);
-        }
+    // Strings -> LinkedList of chars
+    if (isString(t)) {
+        String str = (String) t.value();
+        ArrayList<Object> chars = new ArrayList<>();
+        for (int i = 0; i < str.length(); i++) chars.add(String.valueOf(str.charAt(i)));
+        return new LinkedList<>(chars);
+    }
 
-        if (isList(t)) {
-            ArrayList<Node<Token>> kids = expr.getChildren();
-            int dot = -1;
-            for (int i = 0; i < kids.size(); i++) {
-                if ("DOT".equals(kids.get(i).getValue().type())) { dot = i; break; }
-            }
-
-            if (dot >= 0) {
-                if (dot + 1 >= kids.size()) throw new SyntaxException("Dot without following cdr expression");
-                Object cdr = eval(kids.get(dot + 1), env);
-
-                Object cell = cdr;
-                for (int i = dot - 1; i >= 0; i--) {
-                    cell = (cell instanceof LinkedList)
-                        ? new LinkedList<>(eval(kids.get(i), env), (LinkedList<?>) cell)
-                        : new LinkedList<>(eval(kids.get(i), env), cell); // improper tail stays raw
-                }
-                return cell; // the full (possibly improper) list
-            }
-
-            // proper list case unchanged
-            ArrayList<Object> elems = evaluateList(expr.getChildren(), env);
+    // Quote
+    if (isQuote(t)) {
+        if (expr.getChildren().size() != 1)
+            throw new SyntaxException("Quote only accepts one argument");
+        Node<Token> quoted = expr.getChildren().get(0);
+        if (isList(quoted.getValue())) {
+            ArrayList<Object> elems = new ArrayList<>();
+            for (Node<Token> c : quoted.getChildren()) elems.add(quoteToValue(c));
             return new LinkedList<>(elems);
         }
-        if (isLambda(t)) {
-            // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]
-            ArrayList<Node<Token>> children = expr.getChildren();
-            // Build closure (params list is first child, body is second)
-            ArrayList<Token> closureParts = new ArrayList<>();
-            @SuppressWarnings("unchecked")
-            ArrayList<Node<Token>> params = children.get(0).getChildren(); // "PARAMS" node’s children
-            closureParts.add(new Token<>("VARS", params));
-            Node<Token> body = children.get(1);
-            closureParts.add(new Token<>("BODY", body));
-            closureParts.add(new Token<>("ENV", env));
-            Token<String,Object> closureTok = new Token<>("CLOSURE", closureParts);
-            // If it's an IIFE, apply to remaining args
-            if (children.size() > 2) {
-                ArrayList<Object> argVals = new ArrayList<>();
-                for (int i = 2; i < children.size(); i++) {
-                    argVals.add(eval(children.get(i), env));
-                }
-                return applyProcedure(closureTok, argVals);
-            }
-            // otherwise just the closure literal
-            return closureTok;
-        }
-        // Variable (symbol) — atom vs call
-        if (isSymbol(t)) {
-            if (expr.getChildren().isEmpty()) {
-                String sym = (String) t.value();
-                return env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
-            }
-            // (symbol arg1 arg2 ...)
-            String sym = (String) t.value();
-            Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
-
-            ArrayList<Object> argVals = new ArrayList<>();
-            for (Node<Token> child : expr.getChildren()) {
-                argVals.add(eval(child, env));
-            }
-            if (op instanceof Token<?,?> opTok) {
-                @SuppressWarnings("unchecked")
-                Token<String,Object> procTok = (Token<String,Object>) opTok;
-                return applyProcedure(procTok, argVals);
-            } else if (op instanceof Function<?,?> fn) {
-                if (argVals.size() != 1)
-                    throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
-                @SuppressWarnings("unchecked")
-                Function<Object,Object> f = (Function<Object,Object>) fn;
-                return f.apply(argVals.get(0));
-            } else if (op instanceof BiFunction<?,?,?> bfn) {
-                if (argVals.size() != 2)
-                    throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
-                @SuppressWarnings("unchecked")
-                BiFunction<Object,Object,Object> bf = (BiFunction<Object,Object,Object>) bfn;
-                return bf.apply(argVals.get(0), argVals.get(1));
-            } else {
-                throw new SyntaxException("First position is not a procedure: " + sym);
-            }
-        }
-        // Primitive-headed application: (+ 1 2), (< 3 4), etc.
-        if (isPrimitive(t)){
-            ArrayList<Object> argVals = new ArrayList<>();
-            for (Node<Token> child : expr.getChildren()) {
-                argVals.add(eval(child, env));
-            }
-            @SuppressWarnings("unchecked")
-            Token<String,Object> procTok = (Token<String,Object>) t;
-            return applyProcedure(procTok, argVals);
-        }
-        if (!expr.getChildren().isEmpty()) {
-            Object headVal = eval(new Node<>(t), env);  // evaluate head
-            ArrayList<Object> argVals = new ArrayList<>();
-            for (Node<Token> child : expr.getChildren()) {
-                argVals.add(eval(child, env));
-            }
-
-            if (headVal instanceof Token<?,?> headTok) {
-                @SuppressWarnings("unchecked")
-                Token<String,Object> procTok = (Token<String,Object>) headTok;
-                return applyProcedure(procTok, argVals);
-            }
-        }
-        // If nothing above matched, this should be an application form we don't recognize
-        throw new SyntaxException("Cannot evaluate expression with head: " + t);
+        return quoted.getValue().value();
     }
+
+    // Define
+    if (isDefine(t)) {
+        String label = (String) expr.getChildren().get(0).getValue().value();
+        Object binding = eval(expr.getChildren().get(1), env);
+        env.addFrame(new Pair<>(label, binding));
+        return label; // nicer REPL output
+    }
+
+    // Cond
+    if (isCond(t)) return evaluateCond(expr.getChildren(), env);
+
+    // Lambda form → build closure token
+    if (isLambda(t)) {
+        ArrayList<Node<Token>> kids = expr.getChildren();
+        ArrayList<Token> closure = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        ArrayList<Node<Token>> params = kids.get(0).getChildren();
+        closure.add(new Token<>("VARS", params));
+        closure.add(new Token<>("BODY", kids.get(1)));
+        closure.add(new Token<>("ENV", env));
+        Token<String,Object> closureTok = new Token<>("CLOSURE", closure);
+
+        // IIFE case
+        if (kids.size() > 2) {
+            ArrayList<Object> args = new ArrayList<>();
+            for (int i = 2; i < kids.size(); i++) args.add(eval(kids.get(i), env));
+            return applyProcedure(closureTok, args);
+        }
+        return closureTok;
+    }
+
+    // --- KEY FIX SECTION ---
+    // Application form: (f arg1 arg2 ...)
+    if (isList(t) && !expr.getChildren().isEmpty()) {
+        // evaluate the operator (could itself be a lambda expression)
+        Object op = eval(expr.getChildren().get(0), env);
+
+        // evaluate arguments
+        ArrayList<Object> args = new ArrayList<>();
+        for (int i = 1; i < expr.getChildren().size(); i++)
+            args.add(eval(expr.getChildren().get(i), env));
+
+        // now apply if callable
+        if (op instanceof Token<?,?> tok) {
+            @SuppressWarnings("unchecked")
+            Token<String,Object> proc = (Token<String,Object>) tok;
+            return applyProcedure(proc, args);
+        } else if (op instanceof Function<?,?> fn) {
+            @SuppressWarnings("unchecked")
+            Function<Object,Object> f = (Function<Object,Object>) fn;
+            if (args.size() != 1)
+                throw new SyntaxException("Function expects 1 arg, got " + args.size());
+            return f.apply(args.get(0));
+        } else if (op instanceof BiFunction<?,?,?> bfn) {
+            @SuppressWarnings("unchecked")
+            BiFunction<Object,Object,Object> bf = (BiFunction<Object,Object,Object>) bfn;
+            if (args.size() != 2)
+                throw new SyntaxException("BiFunction expects 2 args, got " + args.size());
+            return bf.apply(args.get(0), args.get(1));
+        } else {
+            return op; // literal or data list
+        }
+    }
+
+    // Primitives
+    if (isPrimitive(t)) {
+        ArrayList<Object> args = new ArrayList<>();
+        for (Node<Token> c : expr.getChildren()) args.add(eval(c, env));
+        @SuppressWarnings("unchecked")
+        Token<String,Object> proc = (Token<String,Object>) t;
+        return applyProcedure(proc, args);
+    }
+
+    // Symbol lookup
+    if (isSymbol(t) && expr.getChildren().isEmpty()) {
+        String sym = (String) t.value();
+        return env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
+    }
+
+    throw new SyntaxException("Cannot evaluate expression with head: " + t);
+}
+
 
     private static void bind (ArrayList<Node<Token>> vars, ArrayList<Object> args, Environment env){
         if (vars.size() == args.size()) {
@@ -296,7 +269,10 @@ public class Evaluator {
             bind(params, normalizedArgs, newEnv);
 
             // Evaluate body in extended env
-            return eval(body, newEnv);
+            
+            // Evaluate body (supports multi-expression lambdas if desired)
+            return evalSequence(body, newEnv);
+
         }
         else {
             throw new SyntaxException("First position is not a procedure: " + proc);
