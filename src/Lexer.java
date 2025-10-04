@@ -90,6 +90,14 @@ public class Lexer {
             Token tok = new Token("LET","");
             return tok;
         }
+        else if (res2.equals("lets")){
+            Token tok = new Token("LETS","");
+            return tok;
+        }
+        else if (res2.equals("letr")){
+            Token tok = new Token("LETR","");
+            return tok;
+        }
         else {
             Token tok = new Token("SYMBOL", res.toString());
             return tok;

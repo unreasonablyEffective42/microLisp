@@ -8,7 +8,10 @@ the abstract syntax tree using our Node class. It uses a recursive descent algor
 public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", "EOF");
-    List keywords = Arrays.asList("COND", "QUOTE", "LAMBDA", "SYMBOL", "PRIMITIVE", "DEFINE", "LIST", "DO", "LET");
+    List keywords = Arrays.asList(
+            "COND", "QUOTE", "LAMBDA", 
+            "SYMBOL", "PRIMITIVE", "DEFINE", 
+            "LIST", "DO", "LET", "LETS", "LETR");
     boolean quoting = false;
     public Parser(String src) {
         this.lexer = new Lexer(src);
@@ -169,44 +172,52 @@ public class Parser {
                     }
                     return node;
                 }
-                
-                if (node.getValue().type().equals("LET")) {
-                    // Parse the bindings list
+
+                // ---------- LET ----------
+                if (node.getValue().type().equals("LET") ||
+                    node.getValue().type().equals("LETS") ||
+                    node.getValue().type().equals("LETR")) {
+
                     if (!current.type().equals("LPAREN")) {
-                        throw new SyntaxException("let must be followed by a binding list in parentheses");
+                        throw new SyntaxException(node.getValue().type() + " must be followed by a binding list in parentheses");
                     }
+
                     Node<Token> bindings = new Node<>(new Token("BINDINGS", null));
+
                     current = lexer.getNextToken(); // enter the binding list
                     while (!current.type().equals("RPAREN")) {
                         if (!current.type().equals("LPAREN")) {
-                            throw new SyntaxException("each let binding must be enclosed in parentheses");
+                            throw new SyntaxException("each " + node.getValue().type() + " binding must be enclosed in parentheses");
                         }
-                        // Parse a single binding (symbol expr)
+
                         current = lexer.getNextToken();
                         if (!current.type().equals("SYMBOL")) {
                             throw new SyntaxException("binding must start with a symbol, found: " + current);
                         }
+
                         Node<Token> pair = new Node<>(new Token("BINDING", null));
-                        pair.createChild(current); // variable name
-                        // Next: binding expression
+                        pair.createChild(current);
+
                         Node<Token> valueExpr = this.parse();
                         pair.addChild(valueExpr);
-                        // Consume the closing ')'
+
                         Token closer = lexer.getNextToken();
                         if (!closer.type().equals("RPAREN")) {
                             throw new SyntaxException("binding must end with ')', found: " + closer);
                         }
+
                         bindings.addChild(pair);
-                        current = lexer.getNextToken(); // advance for next binding
+                        current = lexer.getNextToken();
                     }
+
                     node.addChild(bindings);
-                    // Now parse the single body expression
                     node.addChild(this.parse());
-                    // Consume the final ')' closing the whole let form
+
                     Token closer = lexer.getNextToken();
                     if (!closer.type().equals("RPAREN")) {
-                        throw new SyntaxException("let must end with ')', found: " + closer);
+                        throw new SyntaxException(node.getValue().type() + " must end with ')', found: " + closer);
                     }
+
                     return node;
                 }
                 // ---------- general keyword form ----------

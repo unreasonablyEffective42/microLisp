@@ -20,7 +20,13 @@ public class MicroLispTest {
         if (test("Printf newline", testPrint("(printf \"abc\\n123\")", "abc\n123", env))) passed++; else failed++;
         if (test("Cons number list", testEval("(cons 1 (cons 2 '()))", "(1 2)", env))) passed++; else failed++;
         if (test("Cons string list", testEval("(cons \"a\" (cons \"b\" '()))", "(\"a\" \"b\")", env))) passed++; else failed++;
-
+        if (test("Let single binding", testEval("(let ((x 5)) x)", 5, env))) passed++; else failed++;
+        if (test("Let multiple bindings", testEval("(let ((x 1) (y 2)) (+ x y))", 3, env))) passed++; else failed++; 
+        if (test("Let nested dependency (should error)", testLetNestedFails(env))) passed++; else failed++;
+        if (test("Lets sequential single binding", testEval("(lets ((x 2)) (+ x 3))", 5, env))) passed++; else failed++;
+        if (test("Lets sequential multiple bindings", testEval("(lets ((x 1) (y (+ x 1))) y)", 2, env))) passed++; else failed++;
+        if (test("Lets shadowing variable", testEval("(lets ((x 10) (x (+ x 5))) x)", 15, env))) passed++; else failed++;
+        if (test("Lets independent evaluation", testEval("(lets ((a 3) (b (* a 2)) (c (+ b 1))) c)", 7, env))) passed++; else failed++;
         System.out.println("============================================="); 
         System.out.println("Tests passed: " + passed);
         System.out.println("Tests failed: " + failed);
@@ -82,5 +88,14 @@ public class MicroLispTest {
         System.setOut(new PrintStream(baos));
         try { r.run(); } finally { System.setOut(oldOut); }
         return baos.toString();
+    }
+
+    static boolean testLetNestedFails(Environment env) {
+        try {
+            eval("(let ((x 1) (y (+ x 1))) y)", env);
+            return false; // should not reach here
+        } catch (RuntimeException e) {
+            return e.getMessage().contains("Unbound symbol: x");
+        }
     }
 }

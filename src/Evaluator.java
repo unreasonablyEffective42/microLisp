@@ -34,6 +34,8 @@ public class Evaluator {
     private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
     private static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
     private static boolean isLet       (Token<?, ?> t){ return isType(t, "LET"); }
+    private static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
+    private static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
     private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
    
@@ -95,9 +97,7 @@ public class Evaluator {
         } 
         return eval(todos.get(todos.size()-1),env); 
     }
-    
-    
-    
+    // --- let special form helper ------  
     private static Object evaluateLet(ArrayList<Node<Token>> let, Environment env){
         if (let.size() != 2) {
             throw new SyntaxException("let requires a binding list and one body expression");
@@ -143,6 +143,42 @@ public class Evaluator {
         // Apply the closure to all binding values
         return applyProcedure(closureToken, argVals);
     }
+    //------   lets special form helper
+    private static Object evaluateLets(ArrayList<Node<Token>> lets, Environment env){
+        if (lets.size() != 2) {
+            throw new SyntaxException("lets requires a binding list and one body expression");
+        }
+
+        Node<Token> bindingsNode = lets.get(0);
+        Node<Token> bodyNode = lets.get(1);
+        ArrayList<Node<Token>> bindingPairs = bindingsNode.getChildren();
+
+        if (bindingPairs.isEmpty()) {
+            return eval(bodyNode, env);
+        }
+
+        Node<Token> currentBody = bodyNode;
+        for (int i = bindingPairs.size() - 1; i >= 0; i--) {
+            Node<Token> binding = bindingPairs.get(i);
+            if (binding.getChildren().size() != 2) {
+                throw new SyntaxException("Each lets binding must be a (symbol expr) pair");
+            }
+
+            Node<Token> labelNode = binding.getChildren().get(0);
+            Node<Token> valueExpr = binding.getChildren().get(1);
+
+            Node<Token> lambdaNode = new Node<>(new Token<>("LAMBDA", ""));
+            Node<Token> paramsNode = new Node<>(new Token<>("PARAMS", null));
+            paramsNode.addChild(labelNode);
+            lambdaNode.addChild(paramsNode);
+            lambdaNode.addChild(currentBody);            
+            // NEW: make it an IIFE by putting the arg on the SAME lambda node
+            lambdaNode.addChild(valueExpr);
+            currentBody = lambdaNode;
+        }
+
+        return eval(currentBody, env);
+    }
 
     // ---------- core eval ----------
     public static Object eval(Node<Token> expr, Environment env){
@@ -152,7 +188,6 @@ public class Evaluator {
             return t.value();
         }
         // Special forms
-
         if (isString(t)) {
             String str = (String) t.value();  
             ArrayList<Object> chars = new ArrayList<>();
@@ -220,6 +255,9 @@ public class Evaluator {
         }
         if (isLet(t)){
             return evaluateLet(expr.getChildren(),env);
+        }
+        if (isLets(t)) {
+            return evaluateLets(expr.getChildren(), env);
         }
         if (isLambda(t)) {
             // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]
