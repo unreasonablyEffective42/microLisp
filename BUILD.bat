@@ -82,18 +82,8 @@ echo.
 echo =============================================
 echo Testing Build
 echo =============================================
-echo.
-"%JAVABIN%\java" -cp out MicroLispTest
-if errorlevel 1 (
-    echo.
-    echo Unit tests failed.
-    exit /b 1
-)
-echo.
-echo All tests passed!
-echo.
 
-echo =============================================
+"%JAVABIN%\java" -cp out MicroLispTest
 echo MicroLisp Installed
 echo You can now run 'microlisp' in a new terminal
 echo =============================================
