@@ -1,25 +1,26 @@
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class LinkedList<T> {
   Pair<T, Object> list;
 
   public LinkedList() {
-      this.list = null;
+    this.list = null;
   }
 
   // Proper list constructor
   public LinkedList(T elem, LinkedList<T> tail) {
-      this.list = new Pair<>(elem, tail);
+    this.list = new Pair<>(elem, tail);
   }
 
   // Improper list constructor
   public LinkedList(T elem, Object tail) {
-      this.list = new Pair<>(elem, tail);
+    this.list = new Pair<>(elem, tail);
   }
 
   // Single element list
   public LinkedList(T elem) {
-      this.list = new Pair<>(elem, null);
+    this.list = new Pair<>(elem, null);
   }
 
   public T head() {
@@ -32,10 +33,10 @@ public class LinkedList<T> {
 
   @SuppressWarnings("unchecked")
   public Object tail() {
-      if (list == null){
-        return null;
-      }
-      return list.second;
+    if (list == null){
+      return null;
+    }
+    return list.second;
   }
 
   public boolean isEmpty() {
@@ -85,6 +86,33 @@ public class LinkedList<T> {
     }
     return true;
   }
+  
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof LinkedList<?> other)) return false;
+    return equalsHelper(this, other);
+  }
+
+  private static boolean equalsHelper(LinkedList<?> xs, LinkedList<?> ys) {
+    if (xs == null && ys == null) {
+      return true;
+    }
+    if (xs == null || ys == null) {
+      return false;
+    } 
+    if (!Objects.equals(xs.head(), ys.head())) {
+      return false;
+    }
+    Object xtail = xs.tail();
+    Object ytail = ys.tail();
+    if (xtail instanceof LinkedList<?> && ytail instanceof LinkedList<?>) {
+      return equalsHelper((LinkedList<?>) xtail, (LinkedList<?>) ytail);
+    } else {
+      return Objects.equals(xtail, ytail);
+    }
+  }
+
   @Override
   public String toString() {
     if (list == null) return "()";  
@@ -101,8 +129,7 @@ public class LinkedList<T> {
     }
     Object current = this;
     sb.append("(");
-    while (current instanceof LinkedList) {
-      
+    while (current instanceof LinkedList) { 
       LinkedList<?> cell = (LinkedList<?>) current;
       if (cell.list == null) {
         break;

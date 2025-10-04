@@ -198,6 +198,7 @@ public class Lexer {
             this.advance();
             return new Token<>("DOT",".");
         }
+
         // If we get here, it's truly an illegal char (not '~')
         throw new SyntaxException(
                 "Unexpected character '" + currentChar + "' at position " + pos

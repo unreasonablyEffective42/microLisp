@@ -20,3 +20,7 @@
           (else (foldl fn (fn (head xs) z) (tail xs))))))
 
 (define reverse (lambda (xs) (foldl cons '() xs)))
+
+(define xs '(1 2 3 4 5 6 7 8 9))
+
+(define st '("a" "b" "c" "d"))

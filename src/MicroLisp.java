@@ -25,7 +25,7 @@ public class MicroLisp {
                   } else if (x instanceof String) {
                     String s = (String) x;
                     if (s.isEmpty()){return "";}
-                    return String.valueOf(s.charAt(0));
+                    return "\""+String.valueOf(s.charAt(0))+"\"";
                   } else {
                     throw new RuntimeException("head: unsupported type " + x.getClass());
                   }
@@ -53,21 +53,7 @@ public class MicroLisp {
                     if (x.toString().equals("")) return "#t";
                     return "#f";
                 })
-                /*
-                new Pair<>("map",(BiFunction<LinkedList,Function<Object,Object>,LinkedList>) (lst, fn) ->{
-                  LinkedList ret = new LinkedList<>("()");
-                  if (lst.size() == 0){
-                    return ret;
-                  }
-                  ret.setHead(fn.apply(lst.head()));
-                  lst=lst.tail();
-                  LinkedList current = ret;
-                  for (int i = 1; i < lst.size(); i++){
-                    current.setTail(new LinkedList(fn.apply(lst.head())));
-                    current = current.tail();
-                  }
-                  return ret;
-                })*/
+                
         );
         environment.addFrame(
           new Pair<>("eval", (Function<Object,Object>) (str) -> {

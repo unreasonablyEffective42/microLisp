@@ -32,7 +32,7 @@ public class Evaluator {
     private static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
     private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); }
     private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
-    private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "STRING") ||  isType(t, "BOOLEAN") ; }
+    private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
    
     private static BiFunction<Object, Object, Object> getPrimitive(String op) {
@@ -90,10 +90,19 @@ public class Evaluator {
     public static Object eval(Node<Token> expr, Environment env){
         Token<?,?> t = expr.getValue();
         // Atoms
-        if (isNumber(t) || isBool(t) || isString(t) || isNull(t)) {
+        if (isNumber(t) || isBool(t) || isNull(t)) {
             return t.value();
         }
         // Special forms
+
+        if (isString(t)) {
+            String str = (String) t.value();  
+            ArrayList<Object> chars = new ArrayList<>();
+            for (int i = 0; i < str.length(); i++) {
+                chars.add(String.valueOf(str.charAt(i)));
+            }
+            return new LinkedList<>(chars);
+        }
         if (isQuote(t)) {
             if (expr.getChildren().size() != 1) {
                 throw new SyntaxException("Quote only accepts one argument, received: " + expr.getChildren().size() + "args: "+expr.getChildren());
