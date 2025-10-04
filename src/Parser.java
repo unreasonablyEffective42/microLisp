@@ -83,9 +83,18 @@ public class Parser {
                         current = lexer.getNextToken();
                     }
                     node.addChild(paramList);
-                    // Parse body expression
-                    node.addChild(this.parse());
-                    return node;
+                    
+// Parse body expression
+node.addChild(this.parse());
+
+// NEW: consume the closing ')' of the (lambda …) form
+Token closer = lexer.getNextToken();
+if (!closer.type().equals("RPAREN")) {
+    throw new SyntaxException("Lambda must end with ')', found: " + closer);
+}
+
+return node;
+
                 }
                 // ---------- quote special form ----------
                 if (node.getValue().type().equals("QUOTE")) {
