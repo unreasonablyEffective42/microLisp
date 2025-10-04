@@ -33,6 +33,7 @@ public class Evaluator {
     private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); }
     private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
     private static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
+    private static boolean isLet       (Token<?, ?> t){ return isType(t, "LET"); }
     private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
    
@@ -94,6 +95,55 @@ public class Evaluator {
         } 
         return eval(todos.get(todos.size()-1),env); 
     }
+    
+    
+    
+    private static Object evaluateLet(ArrayList<Node<Token>> let, Environment env){
+        if (let.size() != 2) {
+            throw new SyntaxException("let requires a binding list and one body expression");
+        }
+
+        Node<Token> bindingsNode = let.get(0);
+        Node<Token> bodyNode = let.get(1);
+
+        ArrayList<Node<Token>> bindingPairs = bindingsNode.getChildren();
+        if (bindingPairs.isEmpty()) {
+            return eval(bodyNode, env);
+        }
+
+        // --- Build a lambda that takes all bindings as parameters ---
+        Node<Token> lambdaNode = new Node<>(new Token<>("LAMBDA", ""));
+        Node<Token> paramsNode = new Node<>(new Token<>("PARAMS", null));
+
+        ArrayList<Object> argVals = new ArrayList<>();
+
+        for (Node<Token> binding : bindingPairs) {
+            if (binding.getChildren().size() != 2) {
+                throw new SyntaxException("Each let binding must be a (symbol expr) pair");
+            }
+
+            Node<Token> labelNode = binding.getChildren().get(0);
+            Node<Token> valueExpr = binding.getChildren().get(1);
+
+            paramsNode.addChild(labelNode);
+            argVals.add(eval(valueExpr, env));
+        }
+
+        lambdaNode.addChild(paramsNode);
+        lambdaNode.addChild(bodyNode);
+
+        // Evaluate the lambda to a closure
+        Object closureTok = eval(lambdaNode, env);
+        if (!(closureTok instanceof Token<?,?> closure)) {
+            throw new SyntaxException("let expansion did not produce a closure");
+        }
+
+        @SuppressWarnings("unchecked")
+        Token<String,Object> closureToken = (Token<String,Object>) closure;
+        // Apply the closure to all binding values
+        return applyProcedure(closureToken, argVals);
+    }
+
     // ---------- core eval ----------
     public static Object eval(Node<Token> expr, Environment env){
         Token<?,?> t = expr.getValue();
@@ -167,6 +217,9 @@ public class Evaluator {
             if (expr.getChildren().size() < 1){ 
                 throw new SyntaxException("Do blocks require at least one expression"); 
             } return evaluateDo(expr.getChildren(),env); 
+        }
+        if (isLet(t)){
+            return evaluateLet(expr.getChildren(),env);
         }
         if (isLambda(t)) {
             // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]
