@@ -166,6 +166,7 @@ public class MicroLisp {
                     System.out.print(unescapeJava(out));
                     return "";
                 }),
+                new Pair<>("read", Evaluator.getPrimitive("READ")),
                 new Pair<>("null?", (Function<Object,String>) (x) -> {
                     if (x == null) return "#t";
                     if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
@@ -190,12 +191,7 @@ public class MicroLisp {
                         return new LinkedList<>(fst, properTail);
                     }
                     return new LinkedList<>(fst, snd);
-                }),
-                new Pair<>("read", (Supplier<String>) () -> {
-                    Scanner sc = new Scanner(System.in);
-                    String res = sc.nextLine();
-                    return res;
-                })
+                }) 
             );
             return environment;
         }

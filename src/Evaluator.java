@@ -2,6 +2,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.Scanner;
 import java.math.BigInteger;
 
 /*
@@ -39,33 +41,43 @@ public class Evaluator {
     private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
     // ---------- primitive table ----------
    
-    private static BiFunction<Object, Object, Object> getPrimitive(String op) {
+    public static Object getPrimitive(String op) {
         return switch (op) {
-            case "PLUS"      -> (x, y) -> ((BigInteger)x).add((BigInteger)y);
-            case "MINUS"     -> (x, y) -> ((BigInteger)x).subtract((BigInteger)y);
-            case "MULTIPLY"  -> (x, y) -> ((BigInteger)x).multiply((BigInteger)y);
-            case "DIVIDE"    -> (x, y) -> ((BigInteger)x).divide((BigInteger)y);
-            case "MODULO"    -> (x, y) -> ((BigInteger)x).mod((BigInteger)y);
-            case "EXPONENT"  -> (x, y) -> ((BigInteger)x).pow(((BigInteger)y).intValue());
-            case "LT"        -> (x, y) -> ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f";
-            case "GT"        -> (x, y) -> ((BigInteger)x).compareTo((BigInteger)y) > 0 ? "#t" : "#f";
-            case "EQ" -> (x, y) -> {
-                if (x == null || y == null) return "#f";
+            // ---- arithmetic ----
+            case "PLUS"      -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).add((BigInteger)y));
+            case "MINUS"     -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).subtract((BigInteger)y));
+            case "MULTIPLY"  -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).multiply((BigInteger)y));
+            case "DIVIDE"    -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).divide((BigInteger)y));
+            case "MODULO"    -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).mod((BigInteger)y));
+            case "EXPONENT"  -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).pow(((BigInteger)y).intValue()));
 
-                if (x instanceof BigInteger && y instanceof BigInteger) {
+            // ---- comparison ----
+            case "LT" -> (BiFunction<Object, Object, Object>) ((x, y) ->
+                ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f");
+            case "GT" -> (BiFunction<Object, Object, Object>) ((x, y) ->
+                ((BigInteger)x).compareTo((BigInteger)y) > 0 ? "#t" : "#f");
+
+            // ---- equality ----
+            case "EQ" -> (BiFunction<Object, Object, Object>) ((x, y) -> {
+                if (x == null || y == null) return "#f";
+                if (x instanceof BigInteger && y instanceof BigInteger)
                     return ((BigInteger)x).equals((BigInteger)y) ? "#t" : "#f";
-                } else if (x instanceof String && y instanceof String) {
+                if (x instanceof String && y instanceof String)
                     return ((String)x).equals(y) ? "#t" : "#f";
-                } else if (x instanceof LinkedList && y instanceof LinkedList) {
+                if (x instanceof LinkedList && y instanceof LinkedList)
                     return ((LinkedList<?>)x).equals(y) ? "#t" : "#f";
-                } else {
-                    return "#f"; // mismatched types
-                }
+                return "#f";
+            });
+
+            // ---- zero-arg primitives ----
+            case "READ" -> (Supplier<String>) () -> {
+                Scanner sc = new Scanner(System.in);
+                return sc.nextLine();
             };
+
             default -> throw new IllegalStateException("Unexpected operator: " + op);
         };
     }
-
     // ---------- list evaluation ----------
     private static ArrayList<Object> evaluateList(ArrayList<Node<Token>> list, Environment env){
         ArrayList<Object> out = new ArrayList<>(list.size());
@@ -270,75 +282,75 @@ public class Evaluator {
             return evaluateLets(expr.getChildren(), env);
         }
         
-if (isLambda(t)) {
-    // children: [PARAMS, BODY, ...maybe CALL0 and/or args...]
-    ArrayList<Node<Token>> children = expr.getChildren();
+        if (isLambda(t)) {
+            // children: [PARAMS, BODY, ...maybe CALL0 and/or args...]
+            ArrayList<Node<Token>> children = expr.getChildren();
 
-    // Build the closure (unchanged)
-    ArrayList<Token> closureParts = new ArrayList<>();
-    @SuppressWarnings("unchecked")
-    ArrayList<Node<Token>> params0 = children.get(0).getChildren(); // "PARAMS" node’s children
-    closureParts.add(new Token<>("VARS", params0));
-    Node<Token> body = children.get(1);
-    closureParts.add(new Token<>("BODY", body));
-    closureParts.add(new Token<>("ENV", env));
-    @SuppressWarnings("unchecked")
-    Token<String,Object> proc = new Token<>("CLOSURE", closureParts);
+            // Build the closure (unchanged)
+            ArrayList<Token> closureParts = new ArrayList<>();
+            @SuppressWarnings("unchecked")
+            ArrayList<Node<Token>> params0 = children.get(0).getChildren(); // "PARAMS" node’s children
+            closureParts.add(new Token<>("VARS", params0));
+            Node<Token> body = children.get(1);
+            closureParts.add(new Token<>("BODY", body));
+            closureParts.add(new Token<>("ENV", env));
+            @SuppressWarnings("unchecked")
+            Token<String,Object> proc = new Token<>("CLOSURE", closureParts);
 
-    // NEW: staged application & CALL0 chaining
-    int i = 2;
-    while (i < children.size()) {
-        Node<Token> ch = children.get(i);
-        String cty = (String) ch.getValue().type();
+            // NEW: staged application & CALL0 chaining
+            int i = 2;
+            while (i < children.size()) {
+                Node<Token> ch = children.get(i);
+                String cty = (String) ch.getValue().type();
 
-        if ("CALL0".equals(cty)) {
-            Object res = applyProcedure(proc, new ArrayList<>());
-            i++;
-            if (res instanceof Token<?,?> rt && isClosure(rt)) {
-                @SuppressWarnings("unchecked")
-                Token<String,Object> next = (Token<String,Object>) rt;
-                proc = next;                // keep chaining
-                continue;
-            } else {
-                if (i < children.size()) {
-                    throw new SyntaxException("CALL0 applied to non-procedure result with extra arguments remaining");
+                if ("CALL0".equals(cty)) {
+                    Object res = applyProcedure(proc, new ArrayList<>());
+                    i++;
+                    if (res instanceof Token<?,?> rt && isClosure(rt)) {
+                        @SuppressWarnings("unchecked")
+                        Token<String,Object> next = (Token<String,Object>) rt;
+                        proc = next;                // keep chaining
+                        continue;
+                    } else {
+                        if (i < children.size()) {
+                            throw new SyntaxException("CALL0 applied to non-procedure result with extra arguments remaining");
+                        }
+                        return res;                  // final value (e.g., 11)
+                    }
+                } else {
+                    // Determine current arity from the closure we’re holding
+                    @SuppressWarnings("unchecked")
+                    ArrayList<Token> parts = (ArrayList<Token>) proc.value();
+                    @SuppressWarnings("unchecked")
+                    ArrayList<Node<Token>> paramsNow = (ArrayList<Node<Token>>) parts.get(0).value();
+                    int need = paramsNow.size();
+
+                    // Collect exactly 'need' args (stop if we hit CALL0)
+                    ArrayList<Object> batch = new ArrayList<>();
+                    int taken = 0;
+                    while (taken < need && i < children.size()) {
+                        if ("CALL0".equals(children.get(i).getValue().type())) break;
+                        batch.add(eval(children.get(i), env));
+                        i++; taken++;
+                    }
+
+                    Object res = applyProcedure(proc, batch);
+
+                    if (i >= children.size()) {
+                        return res;                  // nothing left to apply
+                    }
+                    if (res instanceof Token<?,?> rt && isClosure(rt)) {
+                        @SuppressWarnings("unchecked")
+                        Token<String,Object> next = (Token<String,Object>) rt;
+                        proc = next;                 // got a new closure; continue applying leftovers
+                    } else {
+                        throw new IllegalStateException("Too many arguments applied to a non-closure result");
+                    }
                 }
-                return res;                  // final value (e.g., 11)
             }
-        } else {
-            // Determine current arity from the closure we’re holding
-            @SuppressWarnings("unchecked")
-            ArrayList<Token> parts = (ArrayList<Token>) proc.value();
-            @SuppressWarnings("unchecked")
-            ArrayList<Node<Token>> paramsNow = (ArrayList<Node<Token>>) parts.get(0).value();
-            int need = paramsNow.size();
-
-            // Collect exactly 'need' args (stop if we hit CALL0)
-            ArrayList<Object> batch = new ArrayList<>();
-            int taken = 0;
-            while (taken < need && i < children.size()) {
-                if ("CALL0".equals(children.get(i).getValue().type())) break;
-                batch.add(eval(children.get(i), env));
-                i++; taken++;
-            }
-
-            Object res = applyProcedure(proc, batch);
-
-            if (i >= children.size()) {
-                return res;                  // nothing left to apply
-            }
-            if (res instanceof Token<?,?> rt && isClosure(rt)) {
-                @SuppressWarnings("unchecked")
-                Token<String,Object> next = (Token<String,Object>) rt;
-                proc = next;                 // got a new closure; continue applying leftovers
-            } else {
-                throw new IllegalStateException("Too many arguments applied to a non-closure result");
-            }
+            // No extra children: just the closure literal
+            return proc;
         }
-    }
-    // No extra children: just the closure literal
-    return proc;
-}
         // Variable (symbol) — atom vs call
         if (isSymbol(t)) {
             if (expr.getChildren().isEmpty()) {
@@ -358,12 +370,17 @@ if (isLambda(t)) {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) opTok;
 
-                // ✅ If it's a closure and this is a CALL0 form, apply with no args
+                //If it's a closure and this is a CALL0 form, apply with no args
                 if (argVals.isEmpty()) {
                     return applyProcedure(procTok, new ArrayList<>()); 
                 }
 
                 return applyProcedure(procTok, argVals);
+            }
+            else if (op instanceof Supplier<?> supplier) {
+                if (!argVals.isEmpty())
+                    throw new SyntaxException("Procedure " + sym + " expects 0 arguments, got " + argVals.size());
+                return supplier.get();
             }
             else if (op instanceof Function<?,?> fn) {
                 if (argVals.size() != 1)
@@ -371,7 +388,8 @@ if (isLambda(t)) {
                 @SuppressWarnings("unchecked")
                 Function<Object,Object> f = (Function<Object,Object>) fn;
                 return f.apply(argVals.get(0));
-            } else if (op instanceof BiFunction<?,?,?> bfn) {
+            } 
+            else if (op instanceof BiFunction<?,?,?> bfn) {
                 if (argVals.size() != 2)
                     throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
                 @SuppressWarnings("unchecked")
@@ -474,30 +492,47 @@ if (isLambda(t)) {
         else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }
-    }
-
-
-    // Apply a primitive procedure (+, -, *, /, etc.)
+    }        
+    
     private static Object applyPrimitive(String opName, ArrayList<Object> args) {
-        BiFunction<Object,Object,Object> op = getPrimitive(opName);
+        Object primitive = getPrimitive(opName);
 
-        if (args.isEmpty()) {
-            // Identity for +, 0; for *, 1 (depends on your getPrimitive design)
-            if (opName.equals("+")) return 0;
-            if (opName.equals("*")) return 1;
-            throw new RuntimeException("Operator " + opName + " needs at least one argument");
-        }
+        // ---- BiFunction primitives (variadic support) ----
+        if (primitive instanceof BiFunction<?, ?, ?> bi) {
+            @SuppressWarnings("unchecked")
+            BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bi;
 
-        if (args.size() == 1) {
-            return args.get(0);
-        } else if (args.size() == 2){
-            return op.apply((Object) args.get(0),(Object) args.get(1)); 
-        } else {       
+            if (args.isEmpty()) {
+                // Optional identities
+                if (opName.equals("PLUS")) return BigInteger.ZERO;
+                if (opName.equals("MULTIPLY")) return BigInteger.ONE;
+                throw new IllegalStateException(opName + " requires at least one argument");
+            }
+
+            // fold left across all args
             Object acc = args.get(0);
             for (int i = 1; i < args.size(); i++) {
-                acc = op.apply((BigInteger) acc, (BigInteger) args.get(i));
+                acc = op.apply(acc, args.get(i));
             }
             return acc;
         }
+
+        // ---- Function primitives (single-arg) ----
+        else if (primitive instanceof Function<?, ?> fn) {
+            if (args.size() != 1)
+                throw new IllegalStateException(opName + " expects 1 argument, got " + args.size());
+            @SuppressWarnings("unchecked")
+            Function<Object, Object> op = (Function<Object, Object>) fn;
+            return op.apply(args.get(0));
+        }
+
+        // ---- Supplier primitives (zero-arg) ----
+        else if (primitive instanceof Supplier<?> supplier) {
+            if (!args.isEmpty())
+                throw new IllegalStateException(opName + " expects 0 arguments, got " + args.size());
+            return supplier.get();
+        }
+
+        throw new IllegalStateException("Unknown primitive type for operator: " + opName);
     }
 }
