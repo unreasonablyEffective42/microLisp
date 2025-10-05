@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 
 public class MicroLisp {
     public static final String RESET = "\u001B[0m";
@@ -99,10 +100,24 @@ public class MicroLisp {
     public static Environment makeGlobalEnv() {
             Environment environment = new Environment(
                 new Pair<>("else", "#t"),
-                //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),
-                new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
-                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
+                //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),                
+                new Pair<>("even?", (Function<BigInteger, String>) (x) ->
+                    x.mod(BigInteger.valueOf(2)).equals(BigInteger.ZERO) ? "#t" : "#f"
+                ),
+                new Pair<>("odd?", (Function<BigInteger, String>) (x) ->
+                    x.mod(BigInteger.valueOf(2)).equals(BigInteger.ZERO) ? "#f" : "#t"
+                ),
                 new Pair<>("not",(Function<String, String>) (x) -> x.equals("#t") ? "#f" : "#t"),
+                new Pair<>("and", (BiFunction<String, String, String>) (p, q) ->
+                    (p.equals("#t") && q.equals("#t")) ? "#t" : "#f"
+                ),
+
+                new Pair<>("or", (BiFunction<String, String, String>) (p, q) ->
+                    (p.equals("#t") || q.equals("#t")) ? "#t" : "#f"
+                ),
+                new Pair<>("xor", (BiFunction<String, String, String>) (p, q) ->
+                    ((p.equals("#t") && !q.equals("#t")) || (q.equals("#t") && !p.equals("#t"))) ? "#t" : "#f"
+                ),
                 new Pair<>("head", (Function<Object,Object>) (x) -> {
                     if (x instanceof LinkedList) {
                     return ((LinkedList<?>) x).head();
@@ -124,35 +139,32 @@ public class MicroLisp {
                     } else {
                     throw new RuntimeException("tail: unsupported type " + x.getClass());
                     }
-                }),
-                new Pair<>("length",(Function<LinkedList, Integer>) (xs) -> xs.size()),
+                }),                
+                new Pair<>("length", (Function<LinkedList, BigInteger>) (xs) ->
+                    BigInteger.valueOf(xs.size())
+                ),
                 new Pair<>("print", (Function<Object, Object>) x1 -> {
                     if (x1 == null) {
                         System.out.println("()");
                         return "";
                     }
                     String out = x1.toString();
-
                     // Drop wrapping quotes for string-like output
                     if (out.length() >= 2 && out.startsWith("\"") && out.endsWith("\"")) {
                         out = out.substring(1, out.length() - 1);
                     }
-
                     System.out.println(out);
                     return "";
                 }),
                 new Pair<>("printf", (Function<Object, Object>) x1 -> {
                     if (x1 == null) return "";
                     String out = x1.toString();
-
                     if (out.length() >= 2 && out.startsWith("\"") && out.endsWith("\"")) {
                         out = out.substring(1, out.length() - 1);
                     }
-
                     System.out.print(unescapeJava(out));
                     return "";
                 }),
-
                 new Pair<>("null?", (Function<Object,String>) (x) -> {
                     if (x == null) return "#t";
                     if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
@@ -164,32 +176,27 @@ public class MicroLisp {
                 Parser p = new Parser(str.toString());
                 return Evaluator.eval(p.parse(), environment);
                 }),
-
-                
-            new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
-                if (fst == null) {
-                    throw new SyntaxException("First element of a pair cannot be null");
-                }
-                if (snd == null) {
-                    return new LinkedList<>(fst, (LinkedList<Object>) null);
-                }
-                if (snd instanceof LinkedList<?> tailList) {
-                    @SuppressWarnings("unchecked")
-                    LinkedList<Object> properTail = (LinkedList<Object>) tailList;
-                    return new LinkedList<>(fst, properTail);
-                }
-                return new LinkedList<>(fst, snd);
-            })
-
+                new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
+                    if (fst == null) {
+                        throw new SyntaxException("First element of a pair cannot be null");
+                    }
+                    if (snd == null) {
+                        return new LinkedList<>(fst, (LinkedList<Object>) null);
+                    }
+                    if (snd instanceof LinkedList<?> tailList) {
+                        @SuppressWarnings("unchecked")
+                        LinkedList<Object> properTail = (LinkedList<Object>) tailList;
+                        return new LinkedList<>(fst, properTail);
+                    }
+                    return new LinkedList<>(fst, snd);
+                })
             );
             return environment;
         }
 
     private static String unescapeJava(String s) {
         // Convert common ANSI escape encodings first
-        s = s.replace("\\u001b", "\u001b")
-            .replace("\\033", "\u001b");
-
+        s = s.replace("\\u001b", "\u001b").replace("\\033", "\u001b");
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

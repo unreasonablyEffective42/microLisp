@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.math.BigInteger;
 /*The lexer, or tokenizer, takes in a source file as a string, and produces tokens using the
   getNextToken() method. When the entire source has been consumed, the method will always
   return an EOF token.
@@ -46,7 +47,7 @@ public class Lexer {
             res.append(currentChar);
             this.advance();
         }
-        Token tok = new Token("NUMBER", Integer.valueOf(res.toString()));
+        Token tok = new Token("NUMBER", new BigInteger(res.toString()));
         return tok;
     }
     //This detects contiguous letters and symbols, and creates a string, these could be keywords, variable names

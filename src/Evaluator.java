@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.math.BigInteger;
 
 /*
  The evaluator walks the AST and evaluates expressions. This version focuses on
@@ -40,17 +41,27 @@ public class Evaluator {
    
     private static BiFunction<Object, Object, Object> getPrimitive(String op) {
         return switch (op) {
-            case "PLUS" -> (x, y) -> (Integer)x + (Integer)y;
-            case "MINUS" -> (x, y) -> (Integer)x - (Integer)y;
-            case "MULTIPLY" -> (x, y) -> (Integer)x * (Integer)y;
-            case "DIVIDE" -> (x, y) -> (Integer)x / (Integer)y;
-            case "MODULO" -> (x, y) -> (Integer)x % (Integer)y;
-            case "EXPONENT" -> (x, y) -> (int)Math.pow((Integer)x, (Integer)y);
+            case "PLUS"      -> (x, y) -> ((BigInteger)x).add((BigInteger)y);
+            case "MINUS"     -> (x, y) -> ((BigInteger)x).subtract((BigInteger)y);
+            case "MULTIPLY"  -> (x, y) -> ((BigInteger)x).multiply((BigInteger)y);
+            case "DIVIDE"    -> (x, y) -> ((BigInteger)x).divide((BigInteger)y);
+            case "MODULO"    -> (x, y) -> ((BigInteger)x).mod((BigInteger)y);
+            case "EXPONENT"  -> (x, y) -> ((BigInteger)x).pow(((BigInteger)y).intValue());
+            case "LT"        -> (x, y) -> ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f";
+            case "GT"        -> (x, y) -> ((BigInteger)x).compareTo((BigInteger)y) > 0 ? "#t" : "#f";
+            case "EQ" -> (x, y) -> {
+                if (x == null || y == null) return "#f";
 
-            case "EQ" -> (x, y) -> x.equals(y) ? "#t" : "#f";
-            case "LT" -> (x, y) -> ((Integer)x) < ((Integer)y) ? "#t" : "#f";
-            case "GT" -> (x, y) -> ((Integer)x) > ((Integer)y) ? "#t" : "#f";
-
+                if (x instanceof BigInteger && y instanceof BigInteger) {
+                    return ((BigInteger)x).equals((BigInteger)y) ? "#t" : "#f";
+                } else if (x instanceof String && y instanceof String) {
+                    return ((String)x).equals(y) ? "#t" : "#f";
+                } else if (x instanceof LinkedList && y instanceof LinkedList) {
+                    return ((LinkedList<?>)x).equals(y) ? "#t" : "#f";
+                } else {
+                    return "#f"; // mismatched types
+                }
+            };
             default -> throw new IllegalStateException("Unexpected operator: " + op);
         };
     }
@@ -427,7 +438,7 @@ public class Evaluator {
         } else {       
             Object acc = args.get(0);
             for (int i = 1; i < args.size(); i++) {
-                acc = op.apply((Integer) acc, (Integer) args.get(i));
+                acc = op.apply((BigInteger) acc, (BigInteger) args.get(i));
             }
             return acc;
         }
