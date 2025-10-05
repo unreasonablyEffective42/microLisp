@@ -6,7 +6,7 @@ public class MicroLispTest {
         Environment env = MicroLisp.makeGlobalEnv();
         int passed = 0, failed = 0;
 
-        // Run all tests
+        // --- Core language features ---
         if (test("Lexer basic string", testLexerString())) passed++; else failed++;
         if (test("LinkedList size", testLinkedListSize())) passed++; else failed++;
         if (test("LinkedList toString", testLinkedListToString())) passed++; else failed++;
@@ -27,7 +27,38 @@ public class MicroLispTest {
         if (test("Lets sequential multiple bindings", testEval("(lets ((x 1) (y (+ x 1))) y)", 2, env))) passed++; else failed++;
         if (test("Lets shadowing variable", testEval("(lets ((x 10) (x (+ x 5))) x)", 15, env))) passed++; else failed++;
         if (test("Lets independent evaluation", testEval("(lets ((a 3) (b (* a 2)) (c (+ b 1))) c)", 7, env))) passed++; else failed++;
-        System.out.println("============================================="); 
+
+        // --- Empty list normalization tests ---
+        if (test("Empty list literal", testEval("()", "()", env))) passed++; else failed++;
+        if (test("Quoted empty list", testEval("'()", "()", env))) passed++; else failed++;
+        if (test("Quote form (quote ())", testEval("(quote ())", "()", env))) passed++; else failed++;
+        if (test("List form (list)", testEval("(list)", "()", env))) passed++; else failed++;
+        if (test("Null? on ()", testEval("(null? ())", "#t", env))) passed++; else failed++;
+        if (test("Null? on '()", testEval("(null? '())", "#t", env))) passed++; else failed++;
+        if (test("Eq? '() vs '()", testEval("(eq? '() '())", "#t", env))) passed++; else failed++;
+        if (test("Eq? () vs '()", testEval("(eq? () '())", "#t", env))) passed++; else failed++;
+        if (test("Cons onto empty list", testEval("(cons 1 '())", "(1)", env))) passed++; else failed++;
+        if (test("Nested cons with empty tail", testEval("(cons 1 (cons 2 ()))", "(1 2)", env))) passed++; else failed++;
+
+        // --- cond behavior with empty list ---
+        if (test("Cond returning '()", testEval("(cond (#t '()))", "()", env))) passed++; else failed++;
+        if (test("Cond true branch", testEval("(cond (#t 1))", "1", env))) passed++; else failed++;
+        if (test("Cond false branch triggers error", testCondFails("(cond (#f 2))", env))) passed++; else failed++;
+        if (test("Cond with no clauses triggers error", testCondFails("(cond)", env))) passed++; else failed++;
+
+        // --- lambda & let returning () ---
+        if (test("Lambda returning ()", testEval("((lambda (x) ())0)", "()", env))) passed++; else failed++;
+        if (test("Lambda returning '()", testEval("((lambda (x) '())0)", "()", env))) passed++; else failed++;
+        if (test("Let body returns ()", testEval("(let ((x 1)) ())", "()", env))) passed++; else failed++;
+        if (test("Lets body returns '()", testEval("(lets ((x 1)) '())", "()", env))) passed++; else failed++;
+
+        // --- print / printf of empty list ---
+        if (test("Print '() adds newline", testPrint("(print '())", "()\n", env))) passed++; else failed++;
+        if (test("Print () adds newline", testPrint("(print ())", "()\n", env))) passed++; else failed++;
+        if (test("Printf '() no newline", testPrint("(printf '())", "()", env))) passed++; else failed++;
+        if (test("Printf () no newline", testPrint("(printf ())", "()", env))) passed++; else failed++;
+
+        System.out.println("=============================================");
         System.out.println("Tests passed: " + passed);
         System.out.println("Tests failed: " + failed);
         System.out.println("=============================================");
@@ -36,15 +67,15 @@ public class MicroLispTest {
     // ---------- Individual Tests ----------
 
     static boolean test(String name, boolean result) {
-        System.out.println((result ? MicroLisp.GREEN + "PASS: " + name + MicroLisp.RESET : MicroLisp.RED + "FAIL: " + name + MicroLisp.RESET));
+        System.out.println((result ? MicroLisp.GREEN + "PASS: " + name + MicroLisp.RESET 
+                                   : MicroLisp.RED + "FAIL: " + name + MicroLisp.RESET));
         return result;
     }
 
     static boolean testLexerString() {
         Lexer l = new Lexer("\"abc\\n\"");
         Token t = l.getNextToken();
-        boolean ok = t.type().equals("STRING") && ((String)t.value()).equals("abc\n");
-        return ok;
+        return t.type().equals("STRING") && ((String)t.value()).equals("abc\n");
     }
 
     static boolean testLinkedListSize() {
@@ -96,6 +127,15 @@ public class MicroLispTest {
             return false; // should not reach here
         } catch (RuntimeException e) {
             return e.getMessage().contains("Unbound symbol: x");
+        }
+    }
+
+    static boolean testCondFails(String src, Environment env) {
+        try {
+            eval(src, env);
+            return false; // should not reach here
+        } catch (RuntimeException e) {
+            return e.getMessage().contains("cond: no true clause and no else clause");
         }
     }
 }

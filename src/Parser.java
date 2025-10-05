@@ -64,7 +64,7 @@ public class Parser {
                 throw new SyntaxException("Unexpected EOF encountered: '(' not matched with ')'");
             }
             if (current.type().equals("RPAREN")) {
-                return new Node<>(new Token("NULL", "()"));
+                return new Node<>(new Token("LIST", ""));
             }
             // Case 1: operator is a keyword (lambda, define, etc.)
             if (keywords.contains(current.type())) {
@@ -113,38 +113,52 @@ public class Parser {
                 }
                 // ---------- cond special form ----------
                 if (node.getValue().type().equals("COND")) {                    
-                  // Parse each clause until the closing RPAREN of cond
-                  while (!current.type().equals("RPAREN")) {
-                      if (!current.type().equals("LPAREN")) {
-                          throw new SyntaxException("cond clauses must be lists, found: " + current);
-                      }
+                    // Parse each clause until the closing RPAREN of cond
+                    while (!current.type().equals("RPAREN")) {
+                        if (!current.type().equals("LPAREN")) {
+                            throw new SyntaxException("cond clauses must be lists, found: " + current);
+                        }
 
-                      // Enter clause list
-                      current = lexer.getNextToken();
-                      Node<Token> clause = new Node<>(new Token("CLAUSE", null));
+                        // Enter clause list
+                        current = lexer.getNextToken();
+                        Node<Token> clause = new Node<>(new Token("CLAUSE", null));
 
-                      // Parse predicate
-                      if (current.type().equals("LPAREN")) {
-                          lexer.backUp();
-                          clause.addChild(this.parse());
-                          current = lexer.getNextToken();
-                      } else {
-                          clause.addChild(new Node<>(current));
-                          current = lexer.getNextToken();
-                      }
+                        
+                       
+                        // Parse predicate (allow any expression, including literals like #f or 1)
+                        if (current.type().equals("LPAREN")) {
+                            lexer.backUp();
+                            clause.addChild(this.parse());
+                            current = lexer.getNextToken();
+                        } else if (current.type().equals("QUOTE")) {
+                            clause.addChild(parseDatum());
+                            current = lexer.getNextToken();
+                        } else {
+                            // For literal atoms (NUMBER, BOOLEAN, STRING, SYMBOL, etc.)
+                            clause.addChild(new Node<>(current));
+                            current = lexer.getNextToken();
+                        }
 
-                      // Parse body expressions until RPAREN
-                      while (!current.type().equals("RPAREN")) {
-                          if (current.type().equals("LPAREN")) {
-                              lexer.backUp();
-                              clause.addChild(this.parse());
-                              current = lexer.getNextToken();
-                          } else {
-                              clause.addChild(new Node<>(current));
-                              current = lexer.getNextToken();
-                          }
-                      }
 
+                        // Advance if any trailing whitespace or comments before body
+                        while (current.type().equals("WHITESPACE") || current.type().equals("COMMENT")) {
+                            current = lexer.getNextToken();
+                        }
+                                            
+                        // Parse body expressions until RPAREN
+                        while (!current.type().equals("RPAREN")) {
+                            if (current.type().equals("LPAREN")) {
+                                lexer.backUp();
+                                clause.addChild(this.parse());
+                                current = lexer.getNextToken();
+                            } else if (current.type().equals("QUOTE")) {
+                                clause.addChild(parseDatum());   // handle 'datum (e.g., '())
+                                current = lexer.getNextToken();
+                            } else {
+                                clause.addChild(new Node<>(current));
+                                current = lexer.getNextToken();
+                            }
+                        }
                       // At this point, current == RPAREN for the clause
                       node.addChild(clause);
 
@@ -357,12 +371,37 @@ public class Parser {
                 }
                 return node;
             }
-            else {
-                throw new SyntaxException("Unexpected token after '(': " + current);
+            
+            // Case 5: operator is a literal (boolean, string, or character)
+            else if (current.type().equals("BOOLEAN") ||
+                    current.type().equals("STRING")  ||
+                    current.type().equals("CHARACTER")) {
+                Node<Token> node = new Node<>(new Token<>("LIST",""));
+                node.createChild(current);
+                current = lexer.getNextToken();
+                while (!current.type().equals("RPAREN")) {
+                    if (current.type().equals("LPAREN")) {
+                        lexer.backUp();
+                        node.addChild(this.parse());
+                        current = lexer.getNextToken();
+                    } else if (current.type().equals("QUOTE")) {
+                        node.addChild(parseDatum());
+                        current = lexer.getNextToken();
+                    } else {
+                        node.createChild(current);
+                        current = lexer.getNextToken();
+                    }
+                }
+                return node;
             }
         }
+        
         else {
             return parse(); // fallback
         }
-    }
+
+        // --- FINAL FALLBACK to satisfy compiler ---
+        return new Node<>(new Token<>("EOF","EOF"));
+    } // end of parse()
 }
+

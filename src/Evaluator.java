@@ -30,8 +30,7 @@ public class Evaluator {
     private static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
     private static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
     private static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
-    private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); }
-    private static boolean isNull      (Token<?, ?> t){ return isType(t, "NULL"); }
+    private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); } 
     private static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
     private static boolean isLet       (Token<?, ?> t){ return isType(t, "LET"); }
     private static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
@@ -75,7 +74,7 @@ public class Evaluator {
                 return eval(body, env);
             }
         }
-        return null; // or raise error if no clause matches
+        throw new RuntimeException("cond: no true clause and no else clause");
     }
     // Recursively convert quoted nodes into raw values or LinkedLists
     private static Object quoteToValue(Node<Token> node) {
@@ -184,7 +183,7 @@ public class Evaluator {
     public static Object eval(Node<Token> expr, Environment env){
         Token<?,?> t = expr.getValue();
         // Atoms
-        if (isNumber(t) || isBool(t) || isNull(t)) {
+        if (isNumber(t) || isBool(t) ) {
             return t.value();
         }
         // Special forms
@@ -399,8 +398,10 @@ public class Evaluator {
             // Bind args to params in new frame
             bind(params, normalizedArgs, newEnv);
 
-            // Evaluate body in extended env
-            return eval(body, newEnv);
+            
+            Object result = eval(body, newEnv);
+            return result == null ? new LinkedList<>() : result;
+
         }
         else {
             throw new SyntaxException("First position is not a procedure: " + proc);

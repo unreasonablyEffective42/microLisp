@@ -26,3 +26,15 @@
   (lambda (z)
     (z (lambda (p q) q))))
 
+(define sieve
+  (lambda (xs)
+    (cond ((null? xs) '())
+          (else (lets ((f (head xs))
+                       (fs (tail xs))
+                       (p (lambda (q) (not (eq? 0 (% q f))))))
+                      (cons f (sieve (filter p fs))))))))
+
+(define lcomp 
+  (lambda (n m)
+    (cond ((< n m) (cons n (lcomp (+ n 1) m)))
+          (else '())))) 

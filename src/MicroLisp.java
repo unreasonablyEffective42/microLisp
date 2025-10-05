@@ -101,7 +101,8 @@ public class MicroLisp {
                 new Pair<>("else", "#t"),
                 //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),
                 new Pair<>("even?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#t" : "#f"),
-                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),                
+                new Pair<>("odd?",(Function<Integer, String>) (x) -> x % 2 == 0 ? "#f" : "#t"),
+                new Pair<>("not",(Function<String, String>) (x) -> x.equals("#t") ? "#f" : "#t"),
                 new Pair<>("head", (Function<Object,Object>) (x) -> {
                     if (x instanceof LinkedList) {
                     return ((LinkedList<?>) x).head();
@@ -153,10 +154,8 @@ public class MicroLisp {
                 }),
 
                 new Pair<>("null?", (Function<Object,String>) (x) -> {
-                    if (x == null) return "#t";                     // treat Java null as empty
+                    if (x == null) return "#t";
                     if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
-                    if (x.toString().equals("()")) return "#t";
-                    if (x.toString().equals("")) return "#t";
                     return "#f";
                 })
             );
@@ -166,25 +165,22 @@ public class MicroLisp {
                 return Evaluator.eval(p.parse(), environment);
                 }),
 
-                new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
-                    if (fst == null || "()" .equals(fst.toString())) {
-                        throw new SyntaxException("First element of a pair cannot be null");
-                    }
-                    // Proper list tail: next cell
-                    if (snd instanceof LinkedList<?> tailList) {
-                        @SuppressWarnings("unchecked")
-                        LinkedList<Object> properTail = (LinkedList<Object>) (LinkedList<?>) tailList;
-                        return new LinkedList<>(fst, properTail);
-                    }
+                
+            new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
+                if (fst == null) {
+                    throw new SyntaxException("First element of a pair cannot be null");
+                }
+                if (snd == null) {
+                    return new LinkedList<>(fst, (LinkedList<Object>) null);
+                }
+                if (snd instanceof LinkedList<?> tailList) {
+                    @SuppressWarnings("unchecked")
+                    LinkedList<Object> properTail = (LinkedList<Object>) tailList;
+                    return new LinkedList<>(fst, properTail);
+                }
+                return new LinkedList<>(fst, snd);
+            })
 
-                    // Empty list tail
-                    if (snd == null || "()" .equals(snd.toString())) {
-                        return new LinkedList<>(fst, (LinkedList<Object>) null);
-                    }
-
-                    // Improper list tail (dotted pair)
-                    return new LinkedList<>(fst, snd);
-                })
             );
             return environment;
         }
