@@ -269,29 +269,76 @@ public class Evaluator {
         if (isLets(t)) {
             return evaluateLets(expr.getChildren(), env);
         }
-        if (isLambda(t)) {
-            // Expect children: [PARAMS, BODY, ...maybe args for IIFE...]
-            ArrayList<Node<Token>> children = expr.getChildren();
-            // Build closure (params list is first child, body is second)
-            ArrayList<Token> closureParts = new ArrayList<>();
-            @SuppressWarnings("unchecked")
-            ArrayList<Node<Token>> params = children.get(0).getChildren(); // "PARAMS" node’s children
-            closureParts.add(new Token<>("VARS", params));
-            Node<Token> body = children.get(1);
-            closureParts.add(new Token<>("BODY", body));
-            closureParts.add(new Token<>("ENV", env));
-            Token<String,Object> closureTok = new Token<>("CLOSURE", closureParts);
-            // If it's an IIFE, apply to remaining args
-            if (children.size() > 2) {
-                ArrayList<Object> argVals = new ArrayList<>();
-                for (int i = 2; i < children.size(); i++) {
-                    argVals.add(eval(children.get(i), env));
+        
+if (isLambda(t)) {
+    // children: [PARAMS, BODY, ...maybe CALL0 and/or args...]
+    ArrayList<Node<Token>> children = expr.getChildren();
+
+    // Build the closure (unchanged)
+    ArrayList<Token> closureParts = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    ArrayList<Node<Token>> params0 = children.get(0).getChildren(); // "PARAMS" node’s children
+    closureParts.add(new Token<>("VARS", params0));
+    Node<Token> body = children.get(1);
+    closureParts.add(new Token<>("BODY", body));
+    closureParts.add(new Token<>("ENV", env));
+    @SuppressWarnings("unchecked")
+    Token<String,Object> proc = new Token<>("CLOSURE", closureParts);
+
+    // NEW: staged application & CALL0 chaining
+    int i = 2;
+    while (i < children.size()) {
+        Node<Token> ch = children.get(i);
+        String cty = (String) ch.getValue().type();
+
+        if ("CALL0".equals(cty)) {
+            Object res = applyProcedure(proc, new ArrayList<>());
+            i++;
+            if (res instanceof Token<?,?> rt && isClosure(rt)) {
+                @SuppressWarnings("unchecked")
+                Token<String,Object> next = (Token<String,Object>) rt;
+                proc = next;                // keep chaining
+                continue;
+            } else {
+                if (i < children.size()) {
+                    throw new SyntaxException("CALL0 applied to non-procedure result with extra arguments remaining");
                 }
-                return applyProcedure(closureTok, argVals);
+                return res;                  // final value (e.g., 11)
             }
-            // otherwise just the closure literal
-            return closureTok;
+        } else {
+            // Determine current arity from the closure we’re holding
+            @SuppressWarnings("unchecked")
+            ArrayList<Token> parts = (ArrayList<Token>) proc.value();
+            @SuppressWarnings("unchecked")
+            ArrayList<Node<Token>> paramsNow = (ArrayList<Node<Token>>) parts.get(0).value();
+            int need = paramsNow.size();
+
+            // Collect exactly 'need' args (stop if we hit CALL0)
+            ArrayList<Object> batch = new ArrayList<>();
+            int taken = 0;
+            while (taken < need && i < children.size()) {
+                if ("CALL0".equals(children.get(i).getValue().type())) break;
+                batch.add(eval(children.get(i), env));
+                i++; taken++;
+            }
+
+            Object res = applyProcedure(proc, batch);
+
+            if (i >= children.size()) {
+                return res;                  // nothing left to apply
+            }
+            if (res instanceof Token<?,?> rt && isClosure(rt)) {
+                @SuppressWarnings("unchecked")
+                Token<String,Object> next = (Token<String,Object>) rt;
+                proc = next;                 // got a new closure; continue applying leftovers
+            } else {
+                throw new IllegalStateException("Too many arguments applied to a non-closure result");
+            }
         }
+    }
+    // No extra children: just the closure literal
+    return proc;
+}
         // Variable (symbol) — atom vs call
         if (isSymbol(t)) {
             if (expr.getChildren().isEmpty()) {
@@ -300,17 +347,25 @@ public class Evaluator {
             }
             // (symbol arg1 arg2 ...)
             String sym = (String) t.value();
-            Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
-
+            Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));            
             ArrayList<Object> argVals = new ArrayList<>();
             for (Node<Token> child : expr.getChildren()) {
+                if ("CALL0".equals(child.getValue().type())) continue; // ✅ zero-arg marker
                 argVals.add(eval(child, env));
-            }
+            } 
+
             if (op instanceof Token<?,?> opTok) {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) opTok;
+
+                // ✅ If it's a closure and this is a CALL0 form, apply with no args
+                if (argVals.isEmpty()) {
+                    return applyProcedure(procTok, new ArrayList<>()); 
+                }
+
                 return applyProcedure(procTok, argVals);
-            } else if (op instanceof Function<?,?> fn) {
+            }
+            else if (op instanceof Function<?,?> fn) {
                 if (argVals.size() != 1)
                     throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
                 @SuppressWarnings("unchecked")
@@ -375,6 +430,7 @@ public class Evaluator {
             String opName = (String) proc.value();
             return applyPrimitive(opName, args);
         }
+        
         else if (isClosure(proc)) {
             @SuppressWarnings("unchecked")
             ArrayList<Token> closureParts = (ArrayList<Token>) proc.value();
@@ -384,11 +440,9 @@ public class Evaluator {
             Node<Token> body = (Node<Token>) closureParts.get(1).value();
             Environment capturedEnv = (Environment) closureParts.get(2).value();
 
-            // New environment frame layered on captured environment
             Environment newEnv = new Environment();
             newEnv.frames.addAll(capturedEnv.frames);
 
-            // Normalize arguments: evaluate nodes if needed
             ArrayList<Object> normalizedArgs = new ArrayList<>();
             for (Object a : args) {
                 if (a instanceof Node) {
@@ -400,20 +454,23 @@ public class Evaluator {
                 }
             }
 
-            // Ensure param count matches arg count
+            // Allow zero-arg call
             if (params.size() != normalizedArgs.size()) {
-                throw new IllegalStateException(
-                    "Variable count mismatch: expected " + params.size() + " but got " + normalizedArgs.size());
+                if (!(params.isEmpty() && normalizedArgs.isEmpty())) {
+                    throw new IllegalStateException(
+                        "Variable count mismatch: expected " + params.size() + " but got " + normalizedArgs.size());
+                }
             }
 
-            // Bind args to params in new frame
-            bind(params, normalizedArgs, newEnv);
+            // Only bind if there are parameters
+            if (!params.isEmpty()) {
+                bind(params, normalizedArgs, newEnv);
+            }
 
-            
             Object result = eval(body, newEnv);
             return result == null ? new LinkedList<>() : result;
-
         }
+
         else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }

@@ -1,4 +1,6 @@
 import java.io.*;
+import java.math.BigInteger;
+
 
 public class MicroLispTest {
 
@@ -57,6 +59,28 @@ public class MicroLispTest {
         if (test("Print () adds newline", testPrint("(print ())", "()\n", env))) passed++; else failed++;
         if (test("Printf '() no newline", testPrint("(printf '())", "()", env))) passed++; else failed++;
         if (test("Printf () no newline", testPrint("(printf ())", "()", env))) passed++; else failed++;
+
+        // --- Zero-argument lambda tests (MicroLisp syntax) ---
+        if (test("Zero-arg lambda literal",
+                 testEval("((lambda () 42))", 42, env))) passed++; else failed++;
+        if (test("Zero-arg lambda via define + call",
+                 testEval("(do (define foo (lambda () 99)) (foo))", 99, env))) passed++; else failed++;
+        if (test("Zero-arg lambda returning empty list",
+                 testEval("((lambda () '()))", "()", env))) passed++; else failed++;
+        if (test("Zero-arg lambda returning computed expression",
+                 testEval("((lambda () (+ 2 3)))", 5, env))) passed++; else failed++;
+        if (test("Define + call zero-arg lambda returning computed expression",
+                 testEval("(do (define bar (lambda () (+ 1 2 3))) (bar))", 6, env))) passed++; else failed++;
+
+        // --- Mixed regression tests ---
+        if (test("Mixed arity: zero and one arg coexist",
+                 testEval("(do (define id (lambda (x) x)) (define f (lambda () 7)) (+ (id 5) (f)))", 12, env))) passed++; else failed++;
+        if (test("Nested zero-arg lambda inside another call",
+                 testEval("((lambda (x) (+ x ((lambda () 3)))) 4)", 7, env))) passed++; else failed++;
+        if (test("Higher-order: zero-arg lambda returned and invoked",
+                 testEval("(((lambda () (lambda () 11))))", 11, env))) passed++; else failed++;
+        if (test("Closure captures env in zero-arg lambda",
+                 testEval("((lambda (x) ((lambda () x))) 42)", 42, env))) passed++; else failed++;
 
         System.out.println("=============================================");
         System.out.println("Tests passed: " + passed);

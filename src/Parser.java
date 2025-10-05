@@ -10,7 +10,7 @@ public class Parser {
     Token eof = new Token("EOF", "EOF");
     List keywords = Arrays.asList(
             "COND", "QUOTE", "LAMBDA", 
-            "SYMBOL", "PRIMITIVE", "DEFINE", 
+            "PRIMITIVE", "DEFINE", 
             "LIST", "DO", "LET", "LETS", "LETR");
     boolean quoting = false;
     public Parser(String src) {
@@ -76,16 +76,23 @@ public class Parser {
                         throw new SyntaxException("Lambda must be followed by a parameter list in parentheses");
                     }
                     // Parse parameter list
+                   
+                    // Parse parameter list (possibly empty)
                     Node<Token> paramList = new Node<>(new Token("PARAMS", null));
                     current = lexer.getNextToken();
-                    while (!current.type().equals("RPAREN")) {
-                        if (!current.type().equals("SYMBOL")) {
-                            throw new SyntaxException("Parameter list must contain only symbols, found: " + current);
+                    if (current.type().equals("RPAREN")) {
+                        // No parameters at all — fine
+                        node.addChild(paramList);
+                    } else {
+                        while (!current.type().equals("RPAREN")) {
+                            if (!current.type().equals("SYMBOL")) {
+                                throw new SyntaxException("Parameter list must contain only symbols, found: " + current);
+                            }
+                            paramList.createChild(current);
+                            current = lexer.getNextToken();
                         }
-                        paramList.createChild(current);
-                        current = lexer.getNextToken();
+                        node.addChild(paramList);
                     }
-                    node.addChild(paramList);
                     
                     // Parse body expression
                     node.addChild(this.parse());
@@ -118,13 +125,9 @@ public class Parser {
                         if (!current.type().equals("LPAREN")) {
                             throw new SyntaxException("cond clauses must be lists, found: " + current);
                         }
-
                         // Enter clause list
                         current = lexer.getNextToken();
                         Node<Token> clause = new Node<>(new Token("CLAUSE", null));
-
-                        
-                       
                         // Parse predicate (allow any expression, including literals like #f or 1)
                         if (current.type().equals("LPAREN")) {
                             lexer.backUp();
@@ -138,7 +141,6 @@ public class Parser {
                             clause.addChild(new Node<>(current));
                             current = lexer.getNextToken();
                         }
-
 
                         // Advance if any trailing whitespace or comments before body
                         while (current.type().equals("WHITESPACE") || current.type().equals("COMMENT")) {
@@ -186,7 +188,6 @@ public class Parser {
                     }
                     return node;
                 }
-
                 // ---------- LET ----------
                 if (node.getValue().type().equals("LET") ||
                     node.getValue().type().equals("LETS") ||
@@ -195,9 +196,7 @@ public class Parser {
                     if (!current.type().equals("LPAREN")) {
                         throw new SyntaxException(node.getValue().type() + " must be followed by a binding list in parentheses");
                     }
-
                     Node<Token> bindings = new Node<>(new Token("BINDINGS", null));
-
                     current = lexer.getNextToken(); // enter the binding list
                     while (!current.type().equals("RPAREN")) {
                         if (!current.type().equals("LPAREN")) {
@@ -277,6 +276,12 @@ public class Parser {
                 lexer.backUp();
                 Node<Token> node = this.parse(); // parse operator expr
                 current = lexer.getNextToken();
+                if (current.type().equals("RPAREN")) {
+                    if (node.getValue().type().equals("LAMBDA")) {
+                        node.addChild(new Node<>(new Token("CALL0","")));
+                    }
+                    return node;
+                }
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
@@ -348,6 +353,10 @@ public class Parser {
                         node.createChild(current);
                         current = lexer.getNextToken();
                     }
+                }
+
+                if (node.getChildren().isEmpty()) {
+                    node.addChild(new Node<>(new Token("CALL0","")));
                 }
                 return node;
             }

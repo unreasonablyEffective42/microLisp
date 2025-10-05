@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.function.Supplier;
 import java.math.BigInteger;
 
 public class MicroLisp {
@@ -189,6 +190,11 @@ public class MicroLisp {
                         return new LinkedList<>(fst, properTail);
                     }
                     return new LinkedList<>(fst, snd);
+                }),
+                new Pair<>("read", (Supplier<String>) () -> {
+                    Scanner sc = new Scanner(System.in);
+                    String res = sc.nextLine();
+                    return res;
                 })
             );
             return environment;
