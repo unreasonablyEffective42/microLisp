@@ -304,5 +304,66 @@ a recursive call back to itself, then a function is said to be tail recursive. L
 Okay, that is pretty neat huh? Because we pass forward the value each time we recursively call `factorial-helper`, we don't grow the stack.
 In most languages, this still would not work as each recursive all adds to the stack, even though there is no unwinding needed to be done,
 but luckily, MicroLisp performs 'Tail Call Optimization'. TCO takes what would be repeated additions to the stack, and turns it into constant memory space usage in the heap. 
+#lets sweeten our syntax with `let` and `lets`
+`define` feels heavy, and should only really be used for top level definitions, sometimes we want to just
+hold onto a value(s) with a name for a moment. 
+```
+(let ((x1 expr1)
+      (x2 expr2)
+      ...
+      (xn exprn))
+  (body expression))
+```
+Gives us exactly that, we start with a list of labels, and expressions we want evaluated and then bound to the labels,
+which we can then use in the body expression. 
+```
+(let ((x 3)
+      (y 4)
+  (+ x y)) 
 
- 
+>7
+```
+`let` is really just syntactic sugar for `lambda`, because `((lambda (x) body) 2)` binds 2 to x in the body.
+The above example is equivalent to:
+```
+((lambda (x y)
+   (+ x y))
+ 3 4)
+```
+`let` just makes it much more convenient
+
+`let` performs bindings in parallel. 
+```
+(let ((x 2)  <- x = 2 
+      (y (+ x 3))) <- x is not yet bound in this context, so we throw an error
+  (* y 4))  <- we want 20, but this is an error 
+```
+if we turn this into the equivalent lambda expression 
+```
+(
+((lambda (x y)  -
+    (* y 4)      |-this is the scope x and y are bound in 
+  )             -
+2 (+ x 3)) <- x is not bound here, so we get an error
+```
+
+
+MicroLisp supports first class functions, meaning that we can use functions as arguments and return them as values.
+```
+(define foo 
+  (lambda (x)  <-  foo takes one argument 'x'
+    (lambda (y) <-  returns a new lambda of argument 'y' with x bound to a value 
+      (+ x y))))
+
+(define f (foo 1)) -> bind f to (lambda (y) (+ 1 y))
+             ↓                ↑
+          returns -> (lambda (y) (+ 1 y))
+>>> (f 2) 
+3
+```
+
+```
+
+```
+
+
