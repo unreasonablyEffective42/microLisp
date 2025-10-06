@@ -195,6 +195,7 @@ It will evaluate each expression in order, discarding their values, until the la
      (print 2)      ;prints 2, returns "", discard return value
      (* 2 10)       ;evaluates to 20, is discarded 
      (^ 2 4))        ;evaluates to 16, is returned
+2
 16 
 >>>
 ```
