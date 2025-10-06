@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="MicroLisp">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/MicroLisp.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

@@ -178,17 +178,14 @@ public class Evaluator {
         if (bindingPairs.isEmpty()) {
             return eval(bodyNode, env);
         }
-
         Node<Token> currentBody = bodyNode;
         for (int i = bindingPairs.size() - 1; i >= 0; i--) {
             Node<Token> binding = bindingPairs.get(i);
             if (binding.getChildren().size() != 2) {
                 throw new SyntaxException("Each lets binding must be a (symbol expr) pair");
             }
-
             Node<Token> labelNode = binding.getChildren().get(0);
             Node<Token> valueExpr = binding.getChildren().get(1);
-
             Node<Token> lambdaNode = new Node<>(new Token<>("LAMBDA", ""));
             Node<Token> paramsNode = new Node<>(new Token<>("PARAMS", null));
             paramsNode.addChild(labelNode);
@@ -198,10 +195,8 @@ public class Evaluator {
             lambdaNode.addChild(valueExpr);
             currentBody = lambdaNode;
         }
-
         return eval(currentBody, env);
     }
-
     // ---------- core eval ----------
     public static Object eval(Node<Token> expr, Environment env){
         Token<?,?> t = expr.getValue();
@@ -222,9 +217,7 @@ public class Evaluator {
             if (expr.getChildren().size() != 1) {
                 throw new SyntaxException("Quote only accepts one argument, received: " + expr.getChildren().size() + "args: "+expr.getChildren());
             }
-
             Node<Token> quoted = expr.getChildren().get(0);
-
             if (isList(quoted.getValue())) {
                 // Recursively turn children into a LinkedList of unevaluated literals
                 ArrayList<Object> elems = new ArrayList<>();
@@ -245,14 +238,12 @@ public class Evaluator {
         if (isCond(t)) {
             return evaluateCond(expr.getChildren(), env);
         }
-
         if (isList(t)) {
             ArrayList<Node<Token>> kids = expr.getChildren();
             int dot = -1;
             for (int i = 0; i < kids.size(); i++) {
                 if ("DOT".equals(kids.get(i).getValue().type())) { dot = i; break; }
             }
-
             if (dot >= 0) {
                 if (dot + 1 >= kids.size()) throw new SyntaxException("Dot without following cdr expression");
                 Object cdr = eval(kids.get(dot + 1), env);
@@ -265,7 +256,6 @@ public class Evaluator {
                 }
                 return cell; // the full (possibly improper) list
             }
-
             // proper list case unchanged
             ArrayList<Object> elems = evaluateList(expr.getChildren(), env);
             return new LinkedList<>(elems);
@@ -281,11 +271,9 @@ public class Evaluator {
         if (isLets(t)) {
             return evaluateLets(expr.getChildren(), env);
         }
-        
         if (isLambda(t)) {
             // children: [PARAMS, BODY, ...maybe CALL0 and/or args...]
             ArrayList<Node<Token>> children = expr.getChildren();
-
             // Build the closure (unchanged)
             ArrayList<Token> closureParts = new ArrayList<>();
             @SuppressWarnings("unchecked")
@@ -296,7 +284,6 @@ public class Evaluator {
             closureParts.add(new Token<>("ENV", env));
             @SuppressWarnings("unchecked")
             Token<String,Object> proc = new Token<>("CLOSURE", closureParts);
-
             // NEW: staged application & CALL0 chaining
             int i = 2;
             while (i < children.size()) {
@@ -324,7 +311,6 @@ public class Evaluator {
                     @SuppressWarnings("unchecked")
                     ArrayList<Node<Token>> paramsNow = (ArrayList<Node<Token>>) parts.get(0).value();
                     int need = paramsNow.size();
-
                     // Collect exactly 'need' args (stop if we hit CALL0)
                     ArrayList<Object> batch = new ArrayList<>();
                     int taken = 0;
@@ -333,9 +319,7 @@ public class Evaluator {
                         batch.add(eval(children.get(i), env));
                         i++; taken++;
                     }
-
                     Object res = applyProcedure(proc, batch);
-
                     if (i >= children.size()) {
                         return res;                  // nothing left to apply
                     }
@@ -362,19 +346,16 @@ public class Evaluator {
             Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));            
             ArrayList<Object> argVals = new ArrayList<>();
             for (Node<Token> child : expr.getChildren()) {
-                if ("CALL0".equals(child.getValue().type())) continue; // ✅ zero-arg marker
+                if ("CALL0".equals(child.getValue().type())) continue; // zero-arg marker
                 argVals.add(eval(child, env));
             } 
-
             if (op instanceof Token<?,?> opTok) {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) opTok;
-
                 //If it's a closure and this is a CALL0 form, apply with no args
                 if (argVals.isEmpty()) {
                     return applyProcedure(procTok, new ArrayList<>()); 
                 }
-
                 return applyProcedure(procTok, argVals);
             }
             else if (op instanceof Supplier<?> supplier) {
@@ -471,7 +452,6 @@ public class Evaluator {
                     normalizedArgs.add(a);
                 }
             }
-
             // Allow zero-arg call
             if (params.size() != normalizedArgs.size()) {
                 if (!(params.isEmpty() && normalizedArgs.isEmpty())) {
@@ -479,36 +459,30 @@ public class Evaluator {
                         "Variable count mismatch: expected " + params.size() + " but got " + normalizedArgs.size());
                 }
             }
-
             // Only bind if there are parameters
             if (!params.isEmpty()) {
                 bind(params, normalizedArgs, newEnv);
             }
-
             Object result = eval(body, newEnv);
             return result == null ? new LinkedList<>() : result;
         }
-
         else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }
     }        
-    
+ 
     private static Object applyPrimitive(String opName, ArrayList<Object> args) {
         Object primitive = getPrimitive(opName);
-
         // ---- BiFunction primitives (variadic support) ----
         if (primitive instanceof BiFunction<?, ?, ?> bi) {
             @SuppressWarnings("unchecked")
             BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bi;
-
             if (args.isEmpty()) {
                 // Optional identities
                 if (opName.equals("PLUS")) return BigInteger.ZERO;
                 if (opName.equals("MULTIPLY")) return BigInteger.ONE;
                 throw new IllegalStateException(opName + " requires at least one argument");
             }
-
             // fold left across all args
             Object acc = args.get(0);
             for (int i = 1; i < args.size(); i++) {
@@ -516,7 +490,7 @@ public class Evaluator {
             }
             return acc;
         }
-
+        //test 
         // ---- Function primitives (single-arg) ----
         else if (primitive instanceof Function<?, ?> fn) {
             if (args.size() != 1)
@@ -525,14 +499,12 @@ public class Evaluator {
             Function<Object, Object> op = (Function<Object, Object>) fn;
             return op.apply(args.get(0));
         }
-
         // ---- Supplier primitives (zero-arg) ----
         else if (primitive instanceof Supplier<?> supplier) {
             if (!args.isEmpty())
                 throw new IllegalStateException(opName + " expects 0 arguments, got " + args.size());
             return supplier.get();
         }
-
         throw new IllegalStateException("Unknown primitive type for operator: " + opName);
     }
 }
