@@ -14,7 +14,7 @@ public class Lexer {
     Character currentChar;
     //for comparing tokens to the EOF token
     static Token eof = new Token("EOF", "EOF");
-    List<Character> parsableSymbols = Arrays.asList('-','+','*','!','?','/','|','^','&','$','@','`','\\',':','[',']','_','=','.',',');
+    List<Character> parsableSymbols = Arrays.asList('-','+','*','!','?','/','|','^','&','$','@','`','\\',':','[',']','_','=','.',',','<','>');
     List<Token> tokens = new ArrayList<>();
     //Constructor
     Lexer (String src_){
