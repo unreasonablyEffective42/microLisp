@@ -8,15 +8,10 @@ import java.math.BigInteger;
 
 /*
  The evaluator walks the AST and evaluates expressions. This version focuses on
- getting primitive application working cleanly and predictably.
+ getting primitive application working cleanly and predictably, and adds trampolining
+ for tail-call safety across lambda bodies and special forms (cond, do, lets).
 
- Eval takes in an expression and attempts to reduce it, either returning values, looking up symbol values \
- in the environment or calling apply to an expression and some arguments
- Notes:
- - Primitives are sourced from PRIMITIVE tokens (Lexer emits PRIMITIVE type).
- - Symbols are looked up in the Environment and unwrapped.
- - (quote ...) returns the raw value without evaluation.
- - (cond ...) and (lambda ...) are to be implemented
+ Public eval(...) is a thin wrapper over evalT(...).run(), so call-sites don't change.
 */
 public class Evaluator {
     Evaluator() {}
@@ -39,8 +34,8 @@ public class Evaluator {
     private static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
     private static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
     private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
+
     // ---------- primitive table ----------
-   
     public static Object getPrimitive(String op) {
         return switch (op) {
             // ---- arithmetic ----
@@ -78,28 +73,17 @@ public class Evaluator {
             default -> throw new IllegalStateException("Unexpected operator: " + op);
         };
     }
-    // ---------- list evaluation ----------
+
+    // ---------- list evaluation (kept simple; calls eval which is trampolined) ----------
     private static ArrayList<Object> evaluateList(ArrayList<Node<Token>> list, Environment env){
         ArrayList<Object> out = new ArrayList<>(list.size());
         for (Node<Token> node : list) {
-            out.add(eval(node, env));
+            out.add(eval(node, env)); // eval -> evalT(...).run()
         }
         return out;
     }
-    // ---------- special forms ----------
-    private static Object evaluateCond(ArrayList<Node<Token>> clauses, Environment env) {
-        for (Node<Token> clause : clauses) {
-            Node<Token> predicate = clause.getChildren().get(0);
-            Node<Token> body      = clause.getChildren().get(1);
 
-            Object result = eval(predicate, env);
-            if ("#t".equals(result)) {
-                return eval(body, env);
-            }
-        }
-        throw new RuntimeException("cond: no true clause and no else clause");
-    }
-    // Recursively convert quoted nodes into raw values or LinkedLists
+    // ---------- QUOTE helper ----------
     private static Object quoteToValue(Node<Token> node) {
         Token<?,?> tok = node.getValue();
         if (isList(tok)) {
@@ -112,14 +96,95 @@ public class Evaluator {
             return tok.value();  // atom: number, symbol, string, boolean
         }
     }
-    private static Object evaluateDo(ArrayList<Node<Token>> todos, Environment env){ 
-        if (todos.isEmpty()) return null;
-        for (int i = 0; i < todos.size() - 1; i++){ 
-            eval(todos.get(i),env); 
-        } 
-        return eval(todos.get(todos.size()-1),env); 
+
+    // ========================================================================
+    // Trampolined special forms: COND, DO, LETS
+    // (We keep Object wrappers for backward-compat callers.)
+    // ========================================================================
+
+    // ----- COND -----
+    private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
+        return Trampoline.more(() -> loopCond(clauses, 0, env));
     }
-    // --- let special form helper ------  
+    private static Trampoline<Object> loopCond(ArrayList<Node<Token>> clauses, int i, Environment env) {
+        if (i >= clauses.size())
+            throw new RuntimeException("cond: no true clause and no else clause");
+        Node<Token> clause = clauses.get(i);
+        Node<Token> predicate = clause.getChildren().get(0);
+        Node<Token> body      = clause.getChildren().get(1);
+
+        Object result = eval(predicate, env); // trampolined under the hood
+        if ("#t".equals(result)) {
+            return Trampoline.more(() -> evalT(body, env)); // tail bounce
+        }
+        return Trampoline.more(() -> loopCond(clauses, i + 1, env));
+    }
+    // Legacy wrapper
+    private static Object evaluateCond(ArrayList<Node<Token>> clauses, Environment env) {
+        return evaluateCondT(clauses, env).run();
+    }
+
+    // ----- DO -----
+    private static Trampoline<Object> evaluateDoT(ArrayList<Node<Token>> todos, Environment env){ 
+        return Trampoline.more(() -> loopDo(todos, 0, env));
+    }
+    private static Trampoline<Object> loopDo(ArrayList<Node<Token>> todos, int i, Environment env) {
+        if (todos.isEmpty()) return Trampoline.done(null);
+        if (i < todos.size() - 1) {
+            eval(todos.get(i), env);                // effect; trampolined
+            return Trampoline.more(() -> loopDo(todos, i + 1, env));
+        } else {
+            return Trampoline.more(() -> evalT(todos.get(i), env)); // final value
+        }
+    }
+    // Legacy wrapper
+    private static Object evaluateDo(ArrayList<Node<Token>> todos, Environment env){ 
+        return evaluateDoT(todos, env).run();
+    }
+
+    // ----- LETS (sequential bindings) -----
+    private static Trampoline<Object> evaluateLetsT(ArrayList<Node<Token>> lets, Environment env){
+        if (lets.size() != 2) {
+            throw new SyntaxException("lets requires a binding list and one body expression");
+        }
+        Node<Token> bindingsNode = lets.get(0);
+        Node<Token> bodyNode = lets.get(1);
+        ArrayList<Node<Token>> bindingPairs = bindingsNode.getChildren();
+
+        if (bindingPairs.isEmpty()) {
+            return Trampoline.more(() -> evalT(bodyNode, env));
+        }
+
+        Node<Token> currentBody = bodyNode;
+        for (int i = bindingPairs.size() - 1; i >= 0; i--) {
+            Node<Token> binding = bindingPairs.get(i);
+            if (binding.getChildren().size() != 2) {
+                throw new SyntaxException("Each lets binding must be a (symbol expr) pair");
+            }
+            Node<Token> labelNode = binding.getChildren().get(0);
+            Node<Token> valueExpr = binding.getChildren().get(1);
+
+            Node<Token> lambdaNode = new Node<>(new Token<>("LAMBDA", ""));
+            Node<Token> paramsNode = new Node<>(new Token<>("PARAMS", null));
+            paramsNode.addChild(labelNode);
+            lambdaNode.addChild(paramsNode);
+            lambdaNode.addChild(currentBody);
+            // IIFE: directly attach arg as a child of the lambda node
+            lambdaNode.addChild(valueExpr);
+
+            currentBody = lambdaNode;
+        }
+        Node<Token> finalBody = currentBody;
+        return Trampoline.more(() -> evalT(finalBody, env));
+    }
+    // Legacy wrapper
+    private static Object evaluateLets(ArrayList<Node<Token>> lets, Environment env){
+        return evaluateLetsT(lets, env).run();
+    }
+
+    // ----- LET (parallel bindings) -----
+    // Leave as-is (builds a lambda and applies it). This stays stack-safe because
+    // it uses eval/apply, which are trampolined. We can add a T version later if desired.
     private static Object evaluateLet(ArrayList<Node<Token>> let, Environment env){
         if (let.size() != 2) {
             throw new SyntaxException("let requires a binding list and one body expression");
@@ -133,12 +198,11 @@ public class Evaluator {
             return eval(bodyNode, env);
         }
 
-        // --- Build a lambda that takes all bindings as parameters ---
+        // Build lambda that takes all bindings as parameters
         Node<Token> lambdaNode = new Node<>(new Token<>("LAMBDA", ""));
         Node<Token> paramsNode = new Node<>(new Token<>("PARAMS", null));
 
         ArrayList<Object> argVals = new ArrayList<>();
-
         for (Node<Token> binding : bindingPairs) {
             if (binding.getChildren().size() != 2) {
                 throw new SyntaxException("Each let binding must be a (symbol expr) pair");
@@ -154,7 +218,6 @@ public class Evaluator {
         lambdaNode.addChild(paramsNode);
         lambdaNode.addChild(bodyNode);
 
-        // Evaluate the lambda to a closure
         Object closureTok = eval(lambdaNode, env);
         if (!(closureTok instanceof Token<?,?> closure)) {
             throw new SyntaxException("let expansion did not produce a closure");
@@ -162,236 +225,218 @@ public class Evaluator {
 
         @SuppressWarnings("unchecked")
         Token<String,Object> closureToken = (Token<String,Object>) closure;
-        // Apply the closure to all binding values
         return applyProcedure(closureToken, argVals);
     }
-    //------   lets special form helper
-    private static Object evaluateLets(ArrayList<Node<Token>> lets, Environment env){
-        if (lets.size() != 2) {
-            throw new SyntaxException("lets requires a binding list and one body expression");
-        }
 
-        Node<Token> bindingsNode = lets.get(0);
-        Node<Token> bodyNode = lets.get(1);
-        ArrayList<Node<Token>> bindingPairs = bindingsNode.getChildren();
+    // ========================================================================
+    // Core eval: public wrapper + trampolined engine
+    // ========================================================================
 
-        if (bindingPairs.isEmpty()) {
-            return eval(bodyNode, env);
-        }
-        Node<Token> currentBody = bodyNode;
-        for (int i = bindingPairs.size() - 1; i >= 0; i--) {
-            Node<Token> binding = bindingPairs.get(i);
-            if (binding.getChildren().size() != 2) {
-                throw new SyntaxException("Each lets binding must be a (symbol expr) pair");
-            }
-            Node<Token> labelNode = binding.getChildren().get(0);
-            Node<Token> valueExpr = binding.getChildren().get(1);
-            Node<Token> lambdaNode = new Node<>(new Token<>("LAMBDA", ""));
-            Node<Token> paramsNode = new Node<>(new Token<>("PARAMS", null));
-            paramsNode.addChild(labelNode);
-            lambdaNode.addChild(paramsNode);
-            lambdaNode.addChild(currentBody);            
-            // NEW: make it an IIFE by putting the arg on the SAME lambda node
-            lambdaNode.addChild(valueExpr);
-            currentBody = lambdaNode;
-        }
-        return eval(currentBody, env);
-    }
-    // ---------- core eval ----------
+    // Public entrypoint: preserve API
     public static Object eval(Node<Token> expr, Environment env){
+        return evalT(expr, env).run();
+    }
+
+    // Trampolined evaluator
+    public static Trampoline<Object> evalT(Node<Token> expr, Environment env){
         Token<?,?> t = expr.getValue();
+
         // Atoms
-        if (isNumber(t) || isBool(t) ) {
-            return t.value();
+        if (isNumber(t) || isBool(t)) {
+            return Trampoline.done(t.value());
         }
-        // Special forms
         if (isString(t)) {
-            String str = (String) t.value();  
+            String str = (String) t.value();
             ArrayList<Object> chars = new ArrayList<>();
             for (int i = 0; i < str.length(); i++) {
                 chars.add(String.valueOf(str.charAt(i)));
             }
-            return new LinkedList<>(chars);
+            return Trampoline.done(new LinkedList<>(chars));
         }
+
+        // (quote …)
         if (isQuote(t)) {
             if (expr.getChildren().size() != 1) {
                 throw new SyntaxException("Quote only accepts one argument, received: " + expr.getChildren().size() + "args: "+expr.getChildren());
             }
             Node<Token> quoted = expr.getChildren().get(0);
             if (isList(quoted.getValue())) {
-                // Recursively turn children into a LinkedList of unevaluated literals
                 ArrayList<Object> elems = new ArrayList<>();
                 for (Node<Token> child : quoted.getChildren()) {
                     elems.add(quoteToValue(child));
                 }
-                return new LinkedList<>(elems);
+                return Trampoline.done(new LinkedList<>(elems));
             } else {
-                return quoted.getValue().value();
+                return Trampoline.done(quoted.getValue().value());
             }
         }
+
+        // (define name expr)
         if (isDefine(t)){
             String label = (String)expr.getChildren().get(0).getValue().value();
-            Object binding = eval(expr.getChildren().get(1), env);
+            Object binding = eval(expr.getChildren().get(1), env); // trampolined internally
             env.addFrame(new Pair<>(label, binding));
-            return env;
+            return Trampoline.done(env);
         }
-        if (isCond(t)) {
-            return evaluateCond(expr.getChildren(), env);
-        }
-        if (isList(t)) {
-            ArrayList<Node<Token>> kids = expr.getChildren();
-            int dot = -1;
-            for (int i = 0; i < kids.size(); i++) {
-                if ("DOT".equals(kids.get(i).getValue().type())) { dot = i; break; }
-            }
-            if (dot >= 0) {
-                if (dot + 1 >= kids.size()) throw new SyntaxException("Dot without following cdr expression");
-                Object cdr = eval(kids.get(dot + 1), env);
 
-                Object cell = cdr;
-                for (int i = dot - 1; i >= 0; i--) {
-                    cell = (cell instanceof LinkedList)
-                        ? new LinkedList<>(eval(kids.get(i), env), (LinkedList<?>) cell)
-                        : new LinkedList<>(eval(kids.get(i), env), cell); // improper tail stays raw
-                }
-                return cell; // the full (possibly improper) list
-            }
-            // proper list case unchanged
-            ArrayList<Object> elems = evaluateList(expr.getChildren(), env);
-            return new LinkedList<>(elems);
+        // Special forms (trampolined)
+        if (isCond(t)) {
+            return evaluateCondT(expr.getChildren(), env);
         }
         if (isDo(t)){ 
             if (expr.getChildren().size() < 1){ 
                 throw new SyntaxException("Do blocks require at least one expression"); 
-            } return evaluateDo(expr.getChildren(),env); 
+            }
+            return evaluateDoT(expr.getChildren(),env);
         }
-        if (isLet(t)){
-            return evaluateLet(expr.getChildren(),env);
+        if (isLet(t)) {
+            // evaluateLet builds/apply a lambda and uses trampolined eval/apply internally
+            return Trampoline.done(evaluateLet(expr.getChildren(), env));
         }
         if (isLets(t)) {
-            return evaluateLets(expr.getChildren(), env);
+            return evaluateLetsT(expr.getChildren(), env);
         }
+
+        // (lambda ...) — build closure, then staged application via applyProcedureT
         if (isLambda(t)) {
-            // children: [PARAMS, BODY, ...maybe CALL0 and/or args...]
             ArrayList<Node<Token>> children = expr.getChildren();
-            // Build the closure (unchanged)
             ArrayList<Token> closureParts = new ArrayList<>();
             @SuppressWarnings("unchecked")
-            ArrayList<Node<Token>> params0 = children.get(0).getChildren(); // "PARAMS" node’s children
+            ArrayList<Node<Token>> params0 = children.get(0).getChildren();
             closureParts.add(new Token<>("VARS", params0));
             Node<Token> body = children.get(1);
             closureParts.add(new Token<>("BODY", body));
             closureParts.add(new Token<>("ENV", env));
             @SuppressWarnings("unchecked")
             Token<String,Object> proc = new Token<>("CLOSURE", closureParts);
-            // NEW: staged application & CALL0 chaining
+
             int i = 2;
             while (i < children.size()) {
                 Node<Token> ch = children.get(i);
                 String cty = (String) ch.getValue().type();
 
                 if ("CALL0".equals(cty)) {
-                    Object res = applyProcedure(proc, new ArrayList<>());
+                    final Token<String,Object> currentProc = proc;
+                    Object res = applyProcedureT(currentProc, new ArrayList<>()).run();
                     i++;
                     if (res instanceof Token<?,?> rt && isClosure(rt)) {
                         @SuppressWarnings("unchecked")
                         Token<String,Object> next = (Token<String,Object>) rt;
-                        proc = next;                // keep chaining
+                        proc = next;
                         continue;
                     } else {
                         if (i < children.size()) {
                             throw new SyntaxException("CALL0 applied to non-procedure result with extra arguments remaining");
                         }
-                        return res;                  // final value (e.g., 11)
+                        return Trampoline.done(res);
                     }
                 } else {
-                    // Determine current arity from the closure we’re holding
                     @SuppressWarnings("unchecked")
                     ArrayList<Token> parts = (ArrayList<Token>) proc.value();
                     @SuppressWarnings("unchecked")
                     ArrayList<Node<Token>> paramsNow = (ArrayList<Node<Token>>) parts.get(0).value();
                     int need = paramsNow.size();
-                    // Collect exactly 'need' args (stop if we hit CALL0)
+
                     ArrayList<Object> batch = new ArrayList<>();
                     int taken = 0;
                     while (taken < need && i < children.size()) {
                         if ("CALL0".equals(children.get(i).getValue().type())) break;
-                        batch.add(eval(children.get(i), env));
+                        batch.add(eval(children.get(i), env)); // trampolined under the hood
                         i++; taken++;
                     }
-                    Object res = applyProcedure(proc, batch);
-                    if (i >= children.size()) {
-                        return res;                  // nothing left to apply
-                    }
+                    Object res = applyProcedureT(proc, batch).run();
+                    if (i >= children.size()) return Trampoline.done(res);
                     if (res instanceof Token<?,?> rt && isClosure(rt)) {
                         @SuppressWarnings("unchecked")
                         Token<String,Object> next = (Token<String,Object>) rt;
-                        proc = next;                 // got a new closure; continue applying leftovers
+                        proc = next;
                     } else {
                         throw new IllegalStateException("Too many arguments applied to a non-closure result");
                     }
                 }
             }
-            // No extra children: just the closure literal
-            return proc;
+            return Trampoline.done(proc);
         }
-        // Variable (symbol) — atom vs call
+
+        // Symbol
         if (isSymbol(t)) {
             if (expr.getChildren().isEmpty()) {
                 String sym = (String) t.value();
-                return env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
+                Object val = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
+                return Trampoline.done(val);
             }
             // (symbol arg1 arg2 ...)
             String sym = (String) t.value();
-            Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));            
+            Object op = env.lookup(sym).orElseThrow(() -> new RuntimeException("Unbound symbol: " + sym));
             ArrayList<Object> argVals = new ArrayList<>();
             for (Node<Token> child : expr.getChildren()) {
-                if ("CALL0".equals(child.getValue().type())) continue; // zero-arg marker
-                argVals.add(eval(child, env));
-            } 
+                if ("CALL0".equals(child.getValue().type())) continue;
+                argVals.add(eval(child, env)); // trampolined
+            }
             if (op instanceof Token<?,?> opTok) {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) opTok;
-                //If it's a closure and this is a CALL0 form, apply with no args
                 if (argVals.isEmpty()) {
-                    return applyProcedure(procTok, new ArrayList<>()); 
+                    return applyProcedureT(procTok, new ArrayList<>());
                 }
-                return applyProcedure(procTok, argVals);
-            }
-            else if (op instanceof Supplier<?> supplier) {
+                return applyProcedureT(procTok, argVals);
+            } else if (op instanceof Supplier<?> supplier) {
                 if (!argVals.isEmpty())
                     throw new SyntaxException("Procedure " + sym + " expects 0 arguments, got " + argVals.size());
-                return supplier.get();
-            }
-            else if (op instanceof Function<?,?> fn) {
+                return Trampoline.done(supplier.get());
+            } else if (op instanceof Function<?,?> fn) {
                 if (argVals.size() != 1)
                     throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
                 @SuppressWarnings("unchecked")
                 Function<Object,Object> f = (Function<Object,Object>) fn;
-                return f.apply(argVals.get(0));
-            } 
-            else if (op instanceof BiFunction<?,?,?> bfn) {
+                return Trampoline.done(f.apply(argVals.get(0)));
+            } else if (op instanceof BiFunction<?,?,?> bfn) {
                 if (argVals.size() != 2)
                     throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
                 @SuppressWarnings("unchecked")
                 BiFunction<Object,Object,Object> bf = (BiFunction<Object,Object,Object>) bfn;
-                return bf.apply(argVals.get(0), argVals.get(1));
+                return Trampoline.done(bf.apply(argVals.get(0), argVals.get(1)));
             } else {
                 throw new SyntaxException("First position is not a procedure: " + sym);
             }
         }
-        // Primitive-headed application: (+ 1 2), (< 3 4), etc.
+
+        // Primitive-headed application: (+ 1 2 3), etc.
         if (isPrimitive(t)){
             ArrayList<Object> argVals = new ArrayList<>();
             for (Node<Token> child : expr.getChildren()) {
-                argVals.add(eval(child, env));
+                argVals.add(eval(child, env)); // trampolined
             }
             @SuppressWarnings("unchecked")
             Token<String,Object> procTok = (Token<String,Object>) t;
-            return applyProcedure(procTok, argVals);
+            return applyProcedureT(procTok, argVals);
         }
+
+        // (list ...) literal node -> evaluate each element
+        if (isList(t)) {
+            int dot = -1;
+            ArrayList<Node<Token>> kids = expr.getChildren();
+            for (int i = 0; i < kids.size(); i++) {
+                if ("DOT".equals(kids.get(i).getValue().type())) { dot = i; break; }
+            }
+            if (dot >= 0) {
+                if (dot + 1 >= kids.size()) throw new SyntaxException("Dot without following cdr expression");
+                Object cdr = eval(kids.get(dot + 1), env);
+                Object cell = cdr;
+                for (int i = dot - 1; i >= 0; i--) {
+                    cell = (cell instanceof LinkedList)
+                        ? new LinkedList<>(eval(kids.get(i), env), (LinkedList<?>) cell)
+                        : new LinkedList<>(eval(kids.get(i), env), cell); // improper tail stays raw
+                }
+                return Trampoline.done(cell);
+            }
+            ArrayList<Object> elems = evaluateList(expr.getChildren(), env);
+            return Trampoline.done(new LinkedList<>(elems));
+        }
+
+        // General application: evaluate head, then apply if it's a closure
         if (!expr.getChildren().isEmpty()) {
-            Object headVal = eval(new Node<>(t), env);  // evaluate head
+            Object headVal = eval(new Node<>(t), env);
             ArrayList<Object> argVals = new ArrayList<>();
             for (Node<Token> child : expr.getChildren()) {
                 argVals.add(eval(child, env));
@@ -400,12 +445,16 @@ public class Evaluator {
             if (headVal instanceof Token<?,?> headTok) {
                 @SuppressWarnings("unchecked")
                 Token<String,Object> procTok = (Token<String,Object>) headTok;
-                return applyProcedure(procTok, argVals);
+                return applyProcedureT(procTok, argVals);
             }
         }
-        // If nothing above matched, this should be an application form we don't recognize
+
         throw new SyntaxException("Cannot evaluate expression with head: " + t);
     }
+
+    // ========================================================================
+    // Binding helpers + procedure application
+    // ========================================================================
 
     private static void bind (ArrayList<Node<Token>> vars, ArrayList<Object> args, Environment env){
         if (vars.size() == args.size()) {
@@ -413,9 +462,8 @@ public class Evaluator {
             for (int i = 0; i < vars.size(); i++) {
                 Node<Token> var = vars.get(i);
                 Object arg = args.get(i);
-                // Extract the symbol name from the Token
                 Token<?,?> varTok = var.getValue();
-                String name = (String) varTok.value();      // <— was var.value.toString()
+                String name = (String) varTok.value();
                 bindings.add(new Pair<>(name, arg));
             }
             env.addFrame(bindings);
@@ -424,13 +472,17 @@ public class Evaluator {
         }
     }
 
-    public static Object applyProcedure(Token<String,Object> proc, ArrayList<Object> args) {
+    // Legacy bridge for older sites (e.g., evaluateLet)
+    private static Object applyProcedure(Token<String,Object> proc, ArrayList<Object> args) {
+        return applyProcedureT(proc, args).run();
+    }
+
+    // Trampolined procedure application: lambda body is executed via bounce
+    public static Trampoline<Object> applyProcedureT(Token<String,Object> proc, ArrayList<Object> args) {
         if (isPrimitive(proc)) {
             String opName = (String) proc.value();
-            return applyPrimitive(opName, args);
-        }
-        
-        else if (isClosure(proc)) {
+            return Trampoline.done(applyPrimitive(opName, args));
+        } else if (isClosure(proc)) {
             @SuppressWarnings("unchecked")
             ArrayList<Token> closureParts = (ArrayList<Token>) proc.value();
 
@@ -447,30 +499,29 @@ public class Evaluator {
                 if (a instanceof Node) {
                     @SuppressWarnings("unchecked")
                     Node<Token> n = (Node<Token>) a;
-                    normalizedArgs.add(eval(n, newEnv));
+                    normalizedArgs.add(eval(n, newEnv)); // trampolined internally
                 } else {
                     normalizedArgs.add(a);
                 }
             }
-            // Allow zero-arg call
+            // Allow zero-arg call or exact match
             if (params.size() != normalizedArgs.size()) {
                 if (!(params.isEmpty() && normalizedArgs.isEmpty())) {
                     throw new IllegalStateException(
                         "Variable count mismatch: expected " + params.size() + " but got " + normalizedArgs.size());
                 }
             }
-            // Only bind if there are parameters
             if (!params.isEmpty()) {
                 bind(params, normalizedArgs, newEnv);
             }
-            Object result = eval(body, newEnv);
-            return result == null ? new LinkedList<>() : result;
-        }
-        else {
+
+            // Tail position bounce: evaluate the body via trampoline
+            return Trampoline.more(() -> evalT(body, newEnv));
+        } else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }
-    }        
- 
+    }
+
     private static Object applyPrimitive(String opName, ArrayList<Object> args) {
         Object primitive = getPrimitive(opName);
         // ---- BiFunction primitives (variadic support) ----
@@ -478,19 +529,16 @@ public class Evaluator {
             @SuppressWarnings("unchecked")
             BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bi;
             if (args.isEmpty()) {
-                // Optional identities
                 if (opName.equals("PLUS")) return BigInteger.ZERO;
                 if (opName.equals("MULTIPLY")) return BigInteger.ONE;
                 throw new IllegalStateException(opName + " requires at least one argument");
             }
-            // fold left across all args
             Object acc = args.get(0);
             for (int i = 1; i < args.size(); i++) {
                 acc = op.apply(acc, args.get(i));
             }
             return acc;
         }
-        //test 
         // ---- Function primitives (single-arg) ----
         else if (primitive instanceof Function<?, ?> fn) {
             if (args.size() != 1)

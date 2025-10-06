@@ -14,7 +14,7 @@ public class MicroLispTest {
         if (test("LinkedList toString", testLinkedListToString())) passed++; else failed++;
         if (test("Simple arithmetic", testEval("(+ 1 2 3)", 6, env))) passed++; else failed++;
         if (test("Lambda application", testEval("((lambda (x) (+ x 1)) 5)", 6, env))) passed++; else failed++;
-        if (test("Define and call", testDefine(env))) passed++; else failed++;
+        if (test("Define and call", testEval("(do (define foo (lambda (x) (* x 2))) (foo 5))", "10", env))) passed++; else failed++;
         if (test("Quote list", testEval("'(1 2 3)", "(1 2 3)", env))) passed++; else failed++;
         if (test("String literal", testEval("\"abc\"", "\"abc\"", env))) passed++; else failed++;
         if (test("Print output", testPrint("(print \"hello\")", "hello\n", env))) passed++; else failed++;
@@ -81,6 +81,8 @@ public class MicroLispTest {
                  testEval("(((lambda () (lambda () 11))))", 11, env))) passed++; else failed++;
         if (test("Closure captures env in zero-arg lambda",
                  testEval("((lambda (x) ((lambda () x))) 42)", 42, env))) passed++; else failed++;
+        // --- TCO depth test ---- 
+        if (test("Tail recursion: build huge list and get head", testTailRecursion(env))) passed++; else failed++;
 
         System.out.println("=============================================");
         System.out.println("Tests passed: " + passed);
@@ -161,5 +163,19 @@ public class MicroLispTest {
         } catch (RuntimeException e) {
             return e.getMessage().contains("cond: no true clause and no else clause");
         }
+    }
+
+    static boolean testTailRecursion(Environment env) {
+        // Define build-range first
+        eval("(define build-range " +
+            "  (lambda (n acc) " +
+            "    (cond ((eq? n 0) acc) " +
+            "          (else (build-range (- n 1) (cons n acc)))))))", env);
+
+        // Then evaluate a large tail-recursive call
+        Object result = eval("(let ((xs (build-range 1000000 '()))) (head xs))", env);
+
+        // Expect the first element (1)
+        return result != null && result.toString().equals("1");
     }
 }

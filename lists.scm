@@ -3,11 +3,13 @@
     (cond ((null? xs) xs)
           (else (cons (fn (head xs)) (map fn (tail xs)))))))
 
-(define filter
-  (lambda (pred xs)
-    (cond ((null? xs) xs)
-          ((pred (head xs)) (cons (head xs) (filter pred (tail xs))))
-          (else (filter pred (tail xs))))))
+(define filter (lambda (pred xs) (filterh pred xs '())))
+
+(define filterh
+  (lambda (pred xs ys)
+    (cond ((null? xs) (reverse ys)) 
+          ((pred (head xs)) (filterh pred (tail xs) (cons (head xs) ys)))
+          (else (filterh pred (tail xs) ys))))) 
 
 (define foldr
   (lambda (fn z xs)
@@ -21,6 +23,4 @@
 
 (define reverse (lambda (xs) (foldl cons '() xs)))
 
-(define xs '(1 2 3 4 5 6 7 8 9))
 
-(define st '("a" "b" "c" "d"))
