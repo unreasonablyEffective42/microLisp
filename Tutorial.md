@@ -1,7 +1,7 @@
 # Getting started 
 To run MicroLisp in interactive mode, do `microlisp -i` in your terminal.
 
-```
+```Scheme
 >>>"hello world!"
 "hello world!" 
 ```
@@ -9,7 +9,7 @@ To run MicroLisp in interactive mode, do `microlisp -i` in your terminal.
 MicroLisp is a dialect of Lisp that runs on the JVM. It is "purely" functional, in this case meaning that mutation is not just disallowed, but is not possible. Like Scheme, microLisp is lexically scoped.
 Everything in MicroLisp is an expression. We have atomics, which are the simplest, while all others are composites, and will be bound with parentheses.
 The atomic expressions are: numbers, booleans, integers and the empty list. These evaluate to themselves.
-```
+```Scheme
 >>>1
 1 
 >>>#t
@@ -19,7 +19,7 @@ The atomic expressions are: numbers, booleans, integers and the empty list. Thes
 ```
 Function application is a composite expression, Function application uses prefix notation. 
 Some built-in functions include +,-,*,/,^,%, even?, odd?, null?, eq?, >, <
-```
+```Scheme
 >>>(+ 1 2)
 3
 >>>(* 4 10)
@@ -30,12 +30,12 @@ Some built-in functions include +,-,*,/,^,%, even?, odd?, null?, eq?, >, <
 #f
 ```
 We can compose functions with nesting 
-```
+```Scheme
 >>>(+ (* 2 3) 4)   ;(2 * 3) + 4
 10
 ```
 Basic arithmetic is variadic in arguments
-```
+```Scheme
 >>>(+ 1 2 3)
 6 
 >>>(* 2 3 4)
@@ -43,7 +43,7 @@ Basic arithmetic is variadic in arguments
 ```
 The main(only) built in data structure is the `cons` cell. `cons`ing two expressions together produces a cons cell.
 The first element can be accessed with `head` and the second with `tail`.
-```
+```Scheme
 >>>(cons 1 2))
 (1 . 2)
 >>>(head (cons 1 2))
@@ -64,17 +64,17 @@ The first element can be accessed with `head` and the second with `tail`.
 
 Using cons cells we can build up composite structures like lists.
 An improper list ends in a value other than the empty list `'()`.
-```
+```Scheme
 >>>(cons 1 (cons 2 (cons 3 4)))
 (1 2 3 . 4)
 ```
 This would be in proper list form: 
-```
+```Scheme
 >>>(cons 1 (cons 2 (cons 3 (cons 4 '()))))
 (1 2 3 4)
 ```
 We can access the elements of a list using `head` and `tail` 
-```
+```Scheme 
 >>> (define xs (cons 1 (cons 2 (cons 3 (cons 4 '())))))
 >>> xs
 (1 2 3 4)
@@ -104,7 +104,7 @@ By chaining `cons`, we have built up this structure:
                                               '() <- (tail (tail (tail (tail xs))))
 ```
 We have much nicer syntax for creating lists using `list` or `quote`
-```
+```Scheme
 >>>(list 1 2 3 4)
 (1 2 3 4)
 >>>(quote (1 2 3 4))
@@ -116,33 +116,33 @@ We will talk more about `quote` and `'`
 
 
 We can use `cond` for conditional expressions
-```
+```Scheme
 (cond ((predicate1) expr)
       ((predicate2) expr)
       ...
       (else expr))
 ```
 For example
-```
+```Scheme
 >>>(cond ((even? 2) "first branch") 
          (else "second branch"))
 
 "first branch"
 ```
 `cond` only requires that one predicate is #t, so this is valid
-```
+```Scheme
 >>>(cond (else "single clause"))
 "single clause"
 ```
 But this will throw a runtime exception
-```
+```Scheme 
 >>>(cond (#f "this wont evaluate"))
 Exception in thread "main" java.lang.RuntimeException: cond: no true clause and no else clause
 ```
 So it is best practice to always have an else clause, unless the goal is to exit ungracefully when no clauses evaluate true
 
 Functions are created with `lambda`.
-```
+```Scheme
 ;single argument function
 (lambda (arg) body-expr)
 
@@ -150,7 +150,7 @@ Functions are created with `lambda`.
 (lambda (arg1 arg2 ... argn) body-expr)
 ```
 Lambdas are applied just like any other function, by having it at the head of a list 
-```
+```Scheme
 ;+ is at the head of the list 
 >>>(+ 1 2)
 3 
@@ -158,7 +158,7 @@ Lambdas are applied just like any other function, by having it at the head of a 
 4
 ```
 Using `define`, we can add a name to a function
-```
+```Scheme
 (define foo 
   (lambda (x) (* 2 (+ x 1))))
 
@@ -168,7 +168,7 @@ Using `define`, we can add a name to a function
 6
 ```
 Lambdas can only have a single body expression. To have multiple expressions evaluate in order, use `do`
-```
+```Scheme
 ;(print expr) is a built in function that prints the expression to the terminal, more later on specifics
 
 ;This is not allowed 
@@ -190,17 +190,17 @@ Lambdas can only have a single body expression. To have multiple expressions eva
 ```
 Because (do expr1 expr2 ... exprn) is within a pair of parentheses, it is just a single expression. 
 It will evaluate each expression in order, discarding their values, until the last expression which will return.
-```
->>>(do
-     (print 2)      ;prints 2, returns "", discard return value
-     (* 2 10)       ;evaluates to 20, is discarded 
-     (^ 2 4))        ;evaluates to 16, is returned
+```Scheme
+(do
+  (print 2)      ;prints 2, returns "", discard return value
+  (* 2 10)       ;evaluates to 20, is discarded 
+  (^ 2 4))        ;evaluates to 16, is returned
 2
 16 
 >>>
 ```
 We can use any expression as the body expression, so far we know `cons` `list` and `cond` 
-```
+```Scheme
 (define bar
   (lambda (x)
     (cond ((eq? x 2) "BANG!")
@@ -215,7 +215,7 @@ We can use any expression as the body expression, so far we know `cons` `list` a
 ```
 Unlike most languages, there are no built in constructs for repeating an action such as `while`,`for`,`for-each` etc.
 Instead to repeat actions we use recursion 
-```
+```Scheme
 (define baz
   (lambda (x)
     (cond ((< x 10) ; <- we need a base condition or the function will enter an infinite recursion
@@ -240,7 +240,7 @@ Instead to repeat actions we use recursion
 "done"
 ```
 The cannonical example of a recursive function is `factorial`
-```
+```Scheme
 (define factorial
   (lambda (n)
     (cond ((eq? n 1) 1)
@@ -276,7 +276,7 @@ meaning that `(factorial 10000)` is attempting to
 ```
 But that overflows the stack because each outer nesting takes up valuable stack space. 
 Lets look at a different way to write `factorial`
-```
+```Scheme
 (define factorial (lambda (n) (factorial-helper n 1)))
 
 (define factorial-helper
@@ -307,7 +307,7 @@ but luckily, MicroLisp performs 'Tail Call Optimization'. TCO takes what would b
 #lets sweeten our syntax with `let` and `lets`
 `define` feels heavy, and should only really be used for top level definitions, sometimes we want to just
 hold onto a value(s) with a name for a moment. 
-```
+```Scheme
 (let ((x1 expr1)
       (x2 expr2)
       ...
@@ -316,7 +316,7 @@ hold onto a value(s) with a name for a moment.
 ```
 Gives us exactly that, we start with a list of labels, and expressions we want evaluated and then bound to the labels,
 which we can then use in the body expression. 
-```
+```Scheme 
 (let ((x 3)
       (y 4)
   (+ x y)) 
@@ -325,7 +325,7 @@ which we can then use in the body expression.
 ```
 `let` is really just syntactic sugar for `lambda`, because `((lambda (x) body) 2)` binds 2 to x in the body.
 The above example is equivalent to:
-```
+```Scheme
 ((lambda (x y)
    (+ x y))
  3 4)
@@ -333,20 +333,20 @@ The above example is equivalent to:
 `let` just makes it much more convenient
 
 `let` performs bindings in parallel. 
-```
-(let ((x 2)  <- x = 2 
-      (y (+ x 3))) <- x is not yet bound in this context, so we throw an error
-  (* y 4))  <- we want 20, but this is an error 
+```Scheme
+(let ((x 2)  ; <- x = 2 
+      (y (+ x 3))) ; <- x is not yet bound in this context, so we throw an error
+  (* y 4)) ; <- we want 20, but this is an error 
 ```
 if we turn this into the equivalent lambda expression 
-```
-((lambda (x y)  -
-    (* y 4)      |-this is the scope x and y are bound in 
-  )             -
-2 (+ x 3)) <- x is not bound here, so we get an error
+```Scheme 
+((lambda (x y) ; -
+    (* y 4)    ; |-this is the scope x and y are bound in 
+  )            ; -
+2 (+ x 3)) ;<- x is not bound here, so we get an error
 ```
 What we need is `lets`. Instead of doing parallel binding, `lets` does binding sequentially
-```
+```Scheme
 (lets ((x 2)
        (y (+ x 3)))
   (* y 4))
@@ -354,13 +354,13 @@ What we need is `lets`. Instead of doing parallel binding, `lets` does binding s
 20
 ```
 This is equivalent to nested `let`
-```
+```Scheme
 (let ((x 2))
   (let (y (+ x 3))
     (* y 4)))
 ```
 Which expands to 
-```
+```Scheme
 ((lambda (x)
   ((lambda (y)
     (* y 4))
@@ -368,20 +368,20 @@ Which expands to
 2)
 ```
 Using let and lets allows us to write functional programs in an imperative style 
-```
-(lets ((x 2)              <- x = 2
-       (y (* x 3))        <- y = 6 
-       (z (+ 1 (^ y 2))))  <- z = 37
+```Scheme 
+(lets ((x 2)              ; x = 2
+       (y (* x 3))        ; y = 6 
+       (z (+ 1 (^ y 2)))) ; z = 37
   (cond ((even? z) "Success!")
         (else "fail"))) 
 
 "fail"
 ```
 MicroLisp supports first class functions, meaning that we can use functions as arguments and return them as values.
-```
+```Scheme
 (define foo 
-  (lambda (x)  <-  foo takes one argument 'x'
-    (lambda (y) <-  returns a new lambda of argument 'y' with x bound to a value 
+  (lambda (x)  ; <-  foo takes one argument 'x'
+    (lambda (y) ; <-  returns a new lambda of argument 'y' with x bound to a value 
       (+ x y))))
 
 (define f (foo 1)) -> bind f to (lambda (y) (+ 1 y))
