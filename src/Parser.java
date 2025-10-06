@@ -193,6 +193,54 @@ public class Parser {
                     node.getValue().type().equals("LETS") ||
                     node.getValue().type().equals("LETR")) {
 
+                    // --- Named let detection ---
+                    if (current.type().equals("SYMBOL")) {
+                        Node<Token> nameNode = new Node<>(current); // the let name
+                        current = lexer.getNextToken();
+                        if (!current.type().equals("LPAREN")) {
+                            throw new SyntaxException("Named let must be followed by a binding list in parentheses");
+                        }
+
+                        // Parse binding list
+                        Node<Token> bindings = new Node<>(new Token("BINDINGS", null));
+                        current = lexer.getNextToken();
+                        while (!current.type().equals("RPAREN")) {
+                            if (!current.type().equals("LPAREN")) {
+                                throw new SyntaxException("each let binding must be enclosed in parentheses");
+                            }
+                            current = lexer.getNextToken();
+                            if (!current.type().equals("SYMBOL")) {
+                                throw new SyntaxException("binding must start with a symbol, found: " + current);
+                            }
+                            Node<Token> pair = new Node<>(new Token("BINDING", null));
+                            pair.createChild(current);
+                            Node<Token> valueExpr = this.parse();
+                            pair.addChild(valueExpr);
+
+                            Token closer = lexer.getNextToken();
+                            if (!closer.type().equals("RPAREN")) {
+                                throw new SyntaxException("binding must end with ')', found: " + closer);
+                            }
+                            bindings.addChild(pair);
+                            current = lexer.getNextToken();
+                        }
+
+                        // After bindings list, parse body
+                        Node<Token> body = this.parse();
+
+                        Token closer = lexer.getNextToken();
+                        if (!closer.type().equals("RPAREN")) {
+                            throw new SyntaxException("Named let must end with ')', found: " + closer);
+                        }
+
+                        // Wrap as (LET-NAMED name bindings body)
+                        Node<Token> namedNode = new Node<>(new Token("LET-NAMED", ""));
+                        namedNode.addChild(nameNode);
+                        namedNode.addChild(bindings);
+                        namedNode.addChild(body);
+                        return namedNode;
+                    }
+                    // ---- regular let parsing ----- 
                     if (!current.type().equals("LPAREN")) {
                         throw new SyntaxException(node.getValue().type() + " must be followed by a binding list in parentheses");
                     }

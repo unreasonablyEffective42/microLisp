@@ -14,7 +14,7 @@ public class MicroLispTest {
         if (test("LinkedList toString", testLinkedListToString())) passed++; else failed++;
         if (test("Simple arithmetic", testEval("(+ 1 2 3)", 6, env))) passed++; else failed++;
         if (test("Lambda application", testEval("((lambda (x) (+ x 1)) 5)", 6, env))) passed++; else failed++;
-        if (test("Define and call", testDefine(env))) passed++; else failed++;
+        if (test("Define and call", testEval("(do (define foo (lambda (x) (* x 2))) (foo 5))", "10", env))) passed++; else failed++;
         if (test("Quote list", testEval("'(1 2 3)", "(1 2 3)", env))) passed++; else failed++;
         if (test("String literal", testEval("\"abc\"", "\"abc\"", env))) passed++; else failed++;
         if (test("Print output", testPrint("(print \"hello\")", "hello\n", env))) passed++; else failed++;
@@ -29,7 +29,10 @@ public class MicroLispTest {
         if (test("Lets sequential multiple bindings", testEval("(lets ((x 1) (y (+ x 1))) y)", 2, env))) passed++; else failed++;
         if (test("Lets shadowing variable", testEval("(lets ((x 10) (x (+ x 5))) x)", 15, env))) passed++; else failed++;
         if (test("Lets independent evaluation", testEval("(lets ((a 3) (b (* a 2)) (c (+ b 1))) c)", 7, env))) passed++; else failed++;
-
+        if (test("Named let simple recursion to 10",
+                 testEval("(let loop ((a 0)) (cond ((eq? a 10) \"done\") (else (loop (+ a 1)))))", "\"done\"", env))) passed++; else failed++;
+        if (test("Named let accumulates sum to 45",
+                 testEval("(let loop ((a 0) (sum 0)) (cond ((eq? a 10) sum) (else (loop (+ a 1) (+ sum a)))))", 45, env))) passed++; else failed++;
         // --- Empty list normalization tests ---
         if (test("Empty list literal", testEval("()", "()", env))) passed++; else failed++;
         if (test("Quoted empty list", testEval("'()", "()", env))) passed++; else failed++;
@@ -41,47 +44,32 @@ public class MicroLispTest {
         if (test("Eq? () vs '()", testEval("(eq? () '())", "#t", env))) passed++; else failed++;
         if (test("Cons onto empty list", testEval("(cons 1 '())", "(1)", env))) passed++; else failed++;
         if (test("Nested cons with empty tail", testEval("(cons 1 (cons 2 ()))", "(1 2)", env))) passed++; else failed++;
-
         // --- cond behavior with empty list ---
         if (test("Cond returning '()", testEval("(cond (#t '()))", "()", env))) passed++; else failed++;
         if (test("Cond true branch", testEval("(cond (#t 1))", "1", env))) passed++; else failed++;
         if (test("Cond false branch triggers error", testCondFails("(cond (#f 2))", env))) passed++; else failed++;
         if (test("Cond with no clauses triggers error", testCondFails("(cond)", env))) passed++; else failed++;
-
         // --- lambda & let returning () ---
         if (test("Lambda returning ()", testEval("((lambda (x) ())0)", "()", env))) passed++; else failed++;
         if (test("Lambda returning '()", testEval("((lambda (x) '())0)", "()", env))) passed++; else failed++;
         if (test("Let body returns ()", testEval("(let ((x 1)) ())", "()", env))) passed++; else failed++;
         if (test("Lets body returns '()", testEval("(lets ((x 1)) '())", "()", env))) passed++; else failed++;
-
         // --- print / printf of empty list ---
         if (test("Print '() adds newline", testPrint("(print '())", "()\n", env))) passed++; else failed++;
         if (test("Print () adds newline", testPrint("(print ())", "()\n", env))) passed++; else failed++;
         if (test("Printf '() no newline", testPrint("(printf '())", "()", env))) passed++; else failed++;
         if (test("Printf () no newline", testPrint("(printf ())", "()", env))) passed++; else failed++;
-
         // --- Zero-argument lambda tests (MicroLisp syntax) ---
-        if (test("Zero-arg lambda literal",
-                 testEval("((lambda () 42))", 42, env))) passed++; else failed++;
-        if (test("Zero-arg lambda via define + call",
-                 testEval("(do (define foo (lambda () 99)) (foo))", 99, env))) passed++; else failed++;
-        if (test("Zero-arg lambda returning empty list",
-                 testEval("((lambda () '()))", "()", env))) passed++; else failed++;
-        if (test("Zero-arg lambda returning computed expression",
-                 testEval("((lambda () (+ 2 3)))", 5, env))) passed++; else failed++;
-        if (test("Define + call zero-arg lambda returning computed expression",
-                 testEval("(do (define bar (lambda () (+ 1 2 3))) (bar))", 6, env))) passed++; else failed++;
-
+        if (test("Zero-arg lambda literal", testEval("((lambda () 42))", 42, env))) passed++; else failed++;
+        if (test("Zero-arg lambda via define + call", testEval("(do (define foo (lambda () 99)) (foo))", 99, env))) passed++; else failed++;
+        if (test("Zero-arg lambda returning empty list", testEval("((lambda () '()))", "()", env))) passed++; else failed++;
+        if (test("Zero-arg lambda returning computed expression", testEval("((lambda () (+ 2 3)))", 5, env))) passed++; else failed++;
+        if (test("Define + call zero-arg lambda returning computed expression", testEval("(do (define bar (lambda () (+ 1 2 3))) (bar))", 6, env))) passed++; else failed++;
         // --- Mixed regression tests ---
-        if (test("Mixed arity: zero and one arg coexist",
-                 testEval("(do (define id (lambda (x) x)) (define f (lambda () 7)) (+ (id 5) (f)))", 12, env))) passed++; else failed++;
-        if (test("Nested zero-arg lambda inside another call",
-                 testEval("((lambda (x) (+ x ((lambda () 3)))) 4)", 7, env))) passed++; else failed++;
-        if (test("Higher-order: zero-arg lambda returned and invoked",
-                 testEval("(((lambda () (lambda () 11))))", 11, env))) passed++; else failed++;
-        if (test("Closure captures env in zero-arg lambda",
-                 testEval("((lambda (x) ((lambda () x))) 42)", 42, env))) passed++; else failed++;
-
+        if (test("Mixed arity: zero and one arg coexist", testEval("(do (define id (lambda (x) x)) (define f (lambda () 7)) (+ (id 5) (f)))", 12, env))) passed++; else failed++;
+        if (test("Nested zero-arg lambda inside another call", testEval("((lambda (x) (+ x ((lambda () 3)))) 4)", 7, env))) passed++; else failed++;
+        if (test("Higher-order: zero-arg lambda returned and invoked", testEval("(((lambda () (lambda () 11))))", 11, env))) passed++; else failed++;
+        if (test("Closure captures env in zero-arg lambda", testEval("((lambda (x) ((lambda () x))) 42)", 42, env))) passed++; else failed++;
         System.out.println("=============================================");
         System.out.println("Tests passed: " + passed);
         System.out.println("Tests failed: " + failed);
@@ -89,7 +77,6 @@ public class MicroLispTest {
     }
 
     // ---------- Individual Tests ----------
-
     static boolean test(String name, boolean result) {
         System.out.println((result ? MicroLisp.GREEN + "PASS: " + name + MicroLisp.RESET 
                                    : MicroLisp.RED + "FAIL: " + name + MicroLisp.RESET));
