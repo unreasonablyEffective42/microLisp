@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.Objects;
 
+
 public class LinkedList<T> {
   Pair<T, Object> list;
 
@@ -112,47 +113,83 @@ public class LinkedList<T> {
     }
   }
 
-  @Override
-  public String toString() {
-    if (list == null) return "()";  
+  
+
+
+@Override
+public String toString() {
+    if (list == null) return "()";
+
     StringBuilder sb = new StringBuilder();
-    if (this.allString()){
-      sb.append("\"");
-      LinkedList current = this;
-      while (current != null && current.head() != null){
-        sb.append(current.head());
-        current = (LinkedList) current.tail();
-      }
-      sb.append("\"");
-      return sb.toString();
+
+    // Detect "string literal" lists, like ("a" "b" "c")
+    boolean isCharList = this.allString() && allSingleCharStrings();
+
+    if (isCharList) {
+        sb.append("\"");
+        LinkedList<?> current = this;
+        while (current != null && current.head() != null) {
+            sb.append(current.head());
+            current = (LinkedList<?>) current.tail();
+        }
+        sb.append("\"");
+        return sb.toString();
     }
-    Object current = this;
+
+    // Otherwise print as normal list
     sb.append("(");
-    while (current instanceof LinkedList) { 
-      LinkedList<?> cell = (LinkedList<?>) current;
-      if (cell.list == null) {
-        break;
-      }
-      sb.append(cell.head());
-      Object tail = cell.tail();
-      if (tail == null) {
-        break;
-      }
-      if (tail instanceof LinkedList) {
-        sb.append(" ");
-        current = tail;
-      } else {
-        // dotted pair
-        sb.append(" . ").append(tail);
-        break;
-      }
+    Object current = this;
+    boolean first = true;
+
+    while (current instanceof LinkedList) {
+        LinkedList<?> cell = (LinkedList<?>) current;
+        if (cell.list == null) break;
+
+        Object head = cell.head();
+        if (!first) sb.append(" ");
+        first = false;
+
+        // Handle each element type properly
+        if (head instanceof Symbol sym) {
+            sb.append(sym.name);
+        } else if (head instanceof String s) {
+            sb.append("\"").append(s).append("\"");
+        } else if (head instanceof LinkedList<?> sublist) {
+            sb.append(sublist.toString());
+        } else {
+            sb.append(String.valueOf(head));
+        }
+
+        Object tail = cell.tail();
+        if (tail == null) break;
+        if (tail instanceof LinkedList) {
+            current = tail;
+        } else {
+            sb.append(" . ").append(tail);
+            break;
+        }
     }
-    if (sb.charAt(sb.length()-1) == ' '){
-      sb.deleteCharAt(sb.length()-1);
-    }
+
     sb.append(")");
     return sb.toString();
-  }
+}
+
+/** Helper to detect if every element is a single-character Java String. */
+private boolean allSingleCharStrings() {
+    LinkedList<?> current = this;
+    while (current != null && current.head() != null) {
+        Object h = current.head();
+        if (!(h instanceof String s) || s.length() != 1) {
+            return false;
+        }
+        Object t = current.tail();
+        if (!(t instanceof LinkedList<?>)) break;
+        current = (LinkedList<?>) t;
+    }
+    return true;
+}
+
+
 
   public void setHead(T newHead){
     this.list.first = newHead;

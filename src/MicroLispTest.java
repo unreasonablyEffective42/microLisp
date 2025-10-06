@@ -15,7 +15,17 @@ public class MicroLispTest {
         if (test("Simple arithmetic", testEval("(+ 1 2 3)", 6, env))) passed++; else failed++;
         if (test("Lambda application", testEval("((lambda (x) (+ x 1)) 5)", 6, env))) passed++; else failed++;
         if (test("Define and call", testEval("(do (define foo (lambda (x) (* x 2))) (foo 5))", "10", env))) passed++; else failed++;
-        if (test("Quote list", testEval("'(1 2 3)", "(1 2 3)", env))) passed++; else failed++;
+        // --- Quote and symbol semantics ---
+        if (test("Quote simple symbol", testEval("'x", "x", env))) passed++; else failed++;
+        if (test("Quote list of symbols", testEval("'(x y)", "(x y)", env))) passed++; else failed++;
+        if (test("Quote nested list", testEval("'((a b) (c d))", "((a b) (c d))", env))) passed++; else failed++;
+        if (test("Quote empty list", testEval("'()", "()", env))) passed++; else failed++;
+        if (test("Quote numeric list", testEval("'(1 2 3)", "(1 2 3)", env))) passed++; else failed++;
+        if (test("Quote string list", testEval("'(\"a\" \"b\" \"c\")", "\"abc\"", env))) passed++; else failed++;
+        if (test("Quote lambda form", testEval("'(lambda (x) (+ x 1))", "(lambda (x) (+ x 1))", env))) passed++; else failed++;
+        if (test("Quote define form", testEval("'(define foo 5)", "(define foo 5)", env))) passed++; else failed++;
+        if (test("Quote cond form", testEval("'(cond (#t 1) (else 2))", "(cond (#t 1) (else 2))", env))) passed++; else failed++; 
+        // ---
         if (test("String literal", testEval("\"abc\"", "\"abc\"", env))) passed++; else failed++;
         if (test("Print output", testPrint("(print \"hello\")", "hello\n", env))) passed++; else failed++;
         if (test("Printf output", testPrint("(printf \"abc\")", "abc", env))) passed++; else failed++;

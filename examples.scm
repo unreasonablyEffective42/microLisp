@@ -28,17 +28,13 @@
 
 (define sieve
   (lambda (xs)
-    (cond ((null? xs) '())
-          (else (lets ((f (head xs))
-                       (fs (tail xs))
-                       (p (lambda (q) (not (eq? 0 (% q f))))))
-                      (cons f (sieve (filter p fs))))))))
+    (let loop ((rest xs) (acc '()))
+      (cond
+        ((null? rest) (reverse acc))
+        (else
+          (lets ((f  (head rest))
+                 (fs (tail rest)))
+            (loop (filter (lambda (q) (not (eq? 0 (% q f)))) fs)
+                  (cons f acc))))))))
 
-(define lcomp 
-  (lambda (n m)
-    (cond ((< n m) (cons n (lcomp (+ n 1) m)))
-          (else '())))) 
 
-(let loop ((a 0))
-  (cond ((eq? a 100) "done")
-        (else (loop (+ a 1)))))

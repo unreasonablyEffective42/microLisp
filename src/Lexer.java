@@ -52,57 +52,35 @@ public class Lexer {
     }
     //This detects contiguous letters and symbols, and creates a string, these could be keywords, variable names
     //or functions. Returns a LABEL token with the label
-    private Token symbol(){
+    
+    private Token symbol() {
         StringBuilder res = new StringBuilder();
-        while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)){
+        while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)) {
             res.append(currentChar);
             this.advance();
         }
         String res2 = res.toString();
-        if (res2.equals("lambda")){
-            Token tok = new Token("LAMBDA", "");
-            return tok;
+        // --- special keywords ---
+        switch (res2) {
+            case "lambda": return new Token("LAMBDA", "");
+            case "cond":   return new Token("COND", "");
+            case "quote":  return new Token("QUOTE", "");
+            case "define": return new Token("DEFINE", "");
+            case "list":   return new Token("LIST", "");
+            case "do":     return new Token("DO", "");
+            case "let":    return new Token("LET", "");
+            case "lets":   return new Token("LETS", "");
+            case "letr":   return new Token("LETR", "");
+            case "eq?":    return new Token("SYMBOL", "eq?"); // eq? now just a symbol
         }
-        else if (res2.equals("cond")){
-            Token tok = new Token("COND", "");
-            return tok;
+
+        // --- arithmetic and logical operators as symbols ---
+        if ("+-*/%^<>=!".contains(res2)) {
+            return new Token("SYMBOL", res2);
         }
-        else if (res2.equals("quote")){
-            Token tok = new Token("QUOTE", "");
-            return tok;
-        }
-        else if (res2.equals("define")){
-            Token tok = new Token("DEFINE", "");
-            return tok;
-        }
-        else if (res2.equals("eq?")){
-            Token tok = new Token("PRIMITIVE", "EQ");
-            return tok;
-        }
-        else if (res2.equals("list")){
-            Token tok = new Token("LIST","");
-            return tok;
-        }
-        else if (res2.equals("do")){ 
-            Token tok = new Token("DO",""); 
-            return tok;
-        }
-        else if (res2.equals("let")){
-            Token tok = new Token("LET","");
-            return tok;
-        }
-        else if (res2.equals("lets")){
-            Token tok = new Token("LETS","");
-            return tok;
-        }
-        else if (res2.equals("letr")){
-            Token tok = new Token("LETR","");
-            return tok;
-        }
-        else {
-            Token tok = new Token("SYMBOL", res.toString());
-            return tok;
-        }
+
+        // --- default symbol ---
+        return new Token("SYMBOL", res2);
     }
     //Lexing booleans #t,#f, or chars #\c
     private Token special(){
@@ -166,75 +144,51 @@ public class Lexer {
 
     //This is where the magic happens, depending on what the current character is
     //the conditionals will choose the correct kind of token to produce
+    
     public Token getNextToken() {
-        // Always handle sentinel first
         if (this.currentChar == '~') {
             return new Token<>("EOF", "EOF");
         }
-        // Skip whitespace
+
         if (Character.isWhitespace(this.currentChar)) {
             this.skipWhitespace();
             return this.getNextToken();
         }
+
         if (Character.isDigit(this.currentChar)) {
             return this.number();
-        } else if (Character.isLetter(this.currentChar)) {
-            return this.symbol();
-        } else if (this.currentChar == '\"') {
-            return this.string();
-        } else if (this.currentChar == '#') {
-            return this.special();
-        } else if (this.currentChar == '(') {
-            this.advance();
-            return new Token<>("LPAREN", null);
-        } else if (this.currentChar == ')') {
-            this.advance();
-            return new Token<>("RPAREN", null);
-        } else if (this.currentChar == '+') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "PLUS");
-        } else if (this.currentChar == '-') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "MINUS");
-        } else if (this.currentChar == '*') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "MULTIPLY");
-        } else if (this.currentChar == '/') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "DIVIDE");
-        } else if (this.currentChar == '%') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "MODULO");
-        } else if (this.currentChar == '^') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "EXPONENT");
-        } else if (this.currentChar == '=') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "EQUALS");
-        } else if (this.currentChar == '<') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "LT");
-        } else if (this.currentChar == '>') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "GT");
-        } else if (this.currentChar == '!') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "NOT");
-        } else if (this.currentChar == ':') {
-            this.advance();
-            return new Token<>("PRIMITIVE", "COLON");
-        } else if (this.currentChar == '\''){
-            this.advance();
-            return new Token<>("QUOTE", "");
-        } else if (this.currentChar == '.'){
-            this.advance();
-            return new Token<>("DOT",".");
         }
 
-        // If we get here, it's truly an illegal char (not '~')
-        throw new SyntaxException(
-                "Unexpected character '" + currentChar + "' at position " + pos
-        );
+        // NEW: treat parsable symbols (like +, -, *) as symbols
+        else if (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)) {
+            return this.symbol();
+        }
+
+        else if (this.currentChar == '\"') {
+            return this.string();
+        }
+        else if (this.currentChar == '#') {
+            return this.special();
+        }
+        else if (this.currentChar == '(') {
+            this.advance();
+            return new Token<>("LPAREN", null);
+        }
+        else if (this.currentChar == ')') {
+            this.advance();
+            return new Token<>("RPAREN", null);
+        }
+        else if (this.currentChar == '\'') {
+            this.advance();
+            return new Token<>("QUOTE", "");
+        }
+        else if (this.currentChar == '.') {
+            this.advance();
+            return new Token<>("DOT", ".");
+        }
+
+        // --- fallback ---
+        throw new SyntaxException("Unexpected character '" + currentChar + "' at position " + pos);
     }
     //for testing purposes, returns a list of all tokens that can be extracted from the source
     public List<Token<String,String>> getTokens(){

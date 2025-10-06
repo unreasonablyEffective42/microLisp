@@ -85,14 +85,17 @@ public class MicroLisp {
                             result = Evaluator.eval(current, environment);
                             current = parser.parse();
                         }                        
+                        
                         if (result != null) {
                             String out = result.toString();
                             if (out.isBlank()) {
-                                System.out.print("\u001b[1A\u001b[2K"); // clear extra line
+                                // Clear current (blank) line but stay put
+                                System.out.print("\u001b[2K\r");
                             } else {
                                 System.out.println(out);
                             }
                         }
+
                     }
                     catch (IOException e){
                         System.out.println(RED +"Could not load file "+ RESET + args[i]);
@@ -150,7 +153,7 @@ public class MicroLisp {
                 new Pair<>("odd?", (Function<BigInteger, String>) (x) ->
                     x.mod(BigInteger.valueOf(2)).equals(BigInteger.ZERO) ? "#f" : "#t"
                 ),
-                new Pair<>("not",(Function<String, String>) (x) -> x.equals("#t") ? "#f" : "#t"),
+                new Pair<>("!",(Function<String, String>) (x) -> x.equals("#t") ? "#f" : "#t"),
                 new Pair<>("and", (BiFunction<String, String, String>) (p, q) ->
                     (p.equals("#t") && q.equals("#t")) ? "#t" : "#f"
                 ),
@@ -234,6 +237,102 @@ public class MicroLisp {
                     }
                     return new LinkedList<>(fst, snd);
                 }) 
+            );
+            environment.addFrame(
+                new Pair<>("+", (Function<LinkedList<?>, Object>) (args) -> {
+                    BigInteger sum = BigInteger.ZERO;
+                    LinkedList<?> current = args;
+                    while (current != null && current.head() != null) {
+                        sum = sum.add((BigInteger) current.head());
+                        Object tail = current.tail();
+                        if (!(tail instanceof LinkedList<?> next)) break;
+                        current = next;
+                    }
+                    return sum;
+                }),
+                new Pair<>("-", (Function<LinkedList<?>, Object>) (args) -> {
+                    if (args == null || args.head() == null)
+                        return BigInteger.ZERO;
+                    BigInteger result = (BigInteger) args.head();
+                    Object tail = args.tail();
+                    if (tail == null) return result.negate();
+                    if (!(tail instanceof LinkedList<?> current)) return result;
+                    while (current.head() != null) {
+                        result = result.subtract((BigInteger) current.head());
+                        Object nextTail = current.tail();
+                        if (!(nextTail instanceof LinkedList<?> next)) break;
+                        current = next;
+                    }
+                    return result;
+                }),
+                new Pair<>("*", (Function<LinkedList<?>, Object>) (args) -> {
+                    BigInteger prod = BigInteger.ONE;
+                    LinkedList<?> current = args;
+                    while (current != null && current.head() != null) {
+                        prod = prod.multiply((BigInteger) current.head());
+                        Object tail = current.tail();
+                        if (!(tail instanceof LinkedList<?> next)) break;
+                        current = next;
+                    }
+                    return prod;
+                }),
+                new Pair<>("/", (Function<LinkedList<?>, Object>) (args) -> {
+                    if (args == null || args.head() == null)
+                        throw new SyntaxException("/ expects at least one argument");
+                    BigInteger result = (BigInteger) args.head();
+                    Object tail = args.tail();
+                    if (!(tail instanceof LinkedList<?> current))
+                        return result;
+                    while (current.head() != null) {
+                        result = result.divide((BigInteger) current.head());
+                        Object nextTail = current.tail();
+                        if (!(nextTail instanceof LinkedList<?> next)) break;
+                        current = next;
+                    }
+                    return result;
+                }),               
+                new Pair<>("%", (BiFunction<Object, Object, Object>) (x, y) ->
+                    ((BigInteger)x).mod((BigInteger)y)
+                ),
+                new Pair<>("^", (BiFunction<Object, Object, Object>) (x, y) ->
+                    ((BigInteger)x).pow(((BigInteger)y).intValue())
+                ),
+                new Pair<>("<", (BiFunction<Object, Object, String>) (x, y) ->
+                    ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f"
+                ),
+                new Pair<>(">", (BiFunction<Object, Object, String>) (x, y) ->
+                    ((BigInteger)x).compareTo((BigInteger)y) > 0 ? "#t" : "#f"
+                ),
+                new Pair<>("=", (BiFunction<Object, Object, String>) (x, y) ->
+                    ((BigInteger)x).equals((BigInteger)y) ? "#t" : "#f"
+                ),
+
+                new Pair<>("eq?", (Function<LinkedList<?>, Object>) (args) -> {
+                    if (args == null || args.head() == null)
+                        return "#f";
+
+                    // eq? must take exactly two arguments
+                    LinkedList<?> rest = (LinkedList<?>) args.tail();
+                    if (rest == null || rest.head() == null)
+                        throw new SyntaxException("eq? expects 2 arguments");
+
+                    Object a = args.head();
+                    Object b = rest.head();
+
+                    if (a == b) return "#t";
+                    if (a == null || b == null) return "#f";
+
+                    if (a instanceof BigInteger && b instanceof BigInteger)
+                        return ((BigInteger) a).equals(b) ? "#t" : "#f";
+                    if (a instanceof String && b instanceof String)
+                        return ((String) a).equals(b) ? "#t" : "#f";
+                    if (a instanceof Symbol sa && b instanceof Symbol sb)
+                        return sa.name.equals(sb.name) ? "#t" : "#f";
+                    if (a instanceof LinkedList<?> la && b instanceof LinkedList<?> lb)
+                        return la.equals(lb) ? "#t" : "#f";
+
+                    return "#f";
+                })
             );
             return environment;
         }

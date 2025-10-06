@@ -7,7 +7,7 @@
 (define filter
   (lambda (pred xs)
     (let loop ((xs xs) (ys '()))
-      (cond ((null? xs) ys)
+      (cond ((null? xs) (reverse ys))
             ((pred (head xs)) (loop (tail xs) (cons (head xs) ys)))
             (else (loop (tail xs) ys))))))
 
@@ -23,7 +23,9 @@
 (define lcomp 
   (lambda (n m)
     (let loop ((n n) (m m) (xs '()))
-      (cond ((eq? m n) (reverse (cons m xs)))
+      (cond ((eq? m n) (cons m xs))
             (else (loop n (- m 1) (cons m xs)))))))
+
+
 
 

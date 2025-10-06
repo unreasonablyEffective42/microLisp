@@ -17,24 +17,24 @@ public class Evaluator {
     Evaluator() {}
 
     // ---------- token helpers ----------
-    private static boolean isType      (Token<?, ?> t, String ty) { return ty.equals(t.type()); }
-    private static boolean isNumber    (Token<?, ?> t){ return isType(t, "NUMBER"); }
-    private static boolean isString    (Token<?, ?> t){ return isType(t, "STRING"); }
-    private static boolean isSymbol    (Token<?, ?> t){ return isType(t, "SYMBOL"); }
-    private static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
-    private static boolean isList      (Token<?, ?> t){ return isType(t, "LIST"); }
-    private static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
-    private static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE"); }
-    private static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
-    private static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
-    private static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
-    private static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); } 
-    private static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
-    private static boolean isLet       (Token<?, ?> t){ return isType(t, "LET"); }
-    private static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
-    private static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
-    private static boolean isLetNamed (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
-    private static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
+    public static boolean isType      (Token<?, ?> t, String ty) { return ty.equals(t.type()); }
+    public static boolean isNumber    (Token<?, ?> t){ return isType(t, "NUMBER"); }
+    public static boolean isString    (Token<?, ?> t){ return isType(t, "STRING"); }
+    public static boolean isSymbol    (Token<?, ?> t){ return isType(t, "SYMBOL"); }
+    public static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
+    public static boolean isList      (Token<?, ?> t){ return isType(t, "LIST"); }
+    public static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
+    public static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE"); }
+    public static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
+    public static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
+    public static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
+    public static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); } 
+    public static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
+    public static boolean isLet       (Token<?, ?> t){ return isType(t, "LET"); }
+    public static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
+    public static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
+    public static boolean isLetNamed  (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
+    public static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
 
     // ---------- primitive table ----------
     public static Object getPrimitive(String op) {
@@ -98,17 +98,42 @@ public class Evaluator {
     // ---------- QUOTE helper ----------
     private static Object quoteToValue(Node<Token> node) {
         Token<?,?> tok = node.getValue();
+        // Lists recurse
         if (isList(tok)) {
             ArrayList<Object> elems = new ArrayList<>();
             for (Node<Token> child : node.getChildren()) {
                 elems.add(quoteToValue(child));
             }
             return new LinkedList<>(elems);
-        } else {
-            return tok.value();  // atom: number, symbol, string, boolean
         }
+        // Strings stay literal
+        if (isString(tok)) {
+            return (String) tok.value();
+        }
+        // Special forms and primitives should preserve their keyword symbol
+        if (isLambda(tok))  return new Symbol("lambda");
+        if (isCond(tok))    return new Symbol("cond");
+        if (isDo(tok))      return new Symbol("do");
+        if (isLet(tok))     return new Symbol("let");
+        if (isLets(tok))    return new Symbol("lets");
+        if (isLetr(tok))    return new Symbol("letr");
+        if (isDefine(tok))  return new Symbol("define");
+        if (isPrimitive(tok)) return new Symbol(((String) tok.value()).toLowerCase());
+        if (isQuote(tok))   return new Symbol("quote");
+        // Regular symbols
+        if (isSymbol(tok)) {
+            return new Symbol((String) tok.value());
+        }        
+        // Booleans behave like symbols when quoted (#t -> #t)
+        if (isBool(tok)) {
+            return new Symbol((String) tok.value());
+        }
+        // Numbers are just numbers
+        if (isNumber(tok)) {
+            return tok.value();
+        }
+        return tok.value();
     }
-
     // ----- COND -----
     private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
         return Trampoline.more(() -> loopCond(clauses, 0, env));
@@ -450,18 +475,37 @@ public class Evaluator {
                 if (!argVals.isEmpty())
                     throw new SyntaxException("Procedure " + sym + " expects 0 arguments, got " + argVals.size());
                 return Trampoline.done(supplier.get());
-            } else if (op instanceof Function<?,?> fn) {
-                if (argVals.size() != 1)
-                    throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
+            } else if (op instanceof Function<?,?>) {
+                // Could be unary Function<Object,Object> or variadic Function<LinkedList<?>,Object>
+                // We'll try unary first, and fall back to variadic if the arity doesn't match.
                 @SuppressWarnings("unchecked")
-                Function<Object,Object> f = (Function<Object,Object>) fn;
-                return Trampoline.done(f.apply(argVals.get(0)));
-            } else if (op instanceof BiFunction<?,?,?> bfn) {
+                Function<Object,Object> f1 = (Function<Object,Object>) op;
+
+                if (argVals.size() == 1) {
+                    // standard single-argument function
+                    return Trampoline.done(f1.apply(argVals.get(0)));
+                } else {
+                    // assume it's a variadic function that expects the entire argument list
+                    @SuppressWarnings("unchecked")
+                    Function<LinkedList<?>,Object> fvar = (Function<LinkedList<?>,Object>) op;
+                    LinkedList<Object> listArgs = new LinkedList<>(argVals);
+                    return Trampoline.done(fvar.apply(listArgs));
+                }
+
+            } else if (op instanceof BiFunction<?,?,?>) {
                 if (argVals.size() != 2)
                     throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
                 @SuppressWarnings("unchecked")
-                BiFunction<Object,Object,Object> bf = (BiFunction<Object,Object,Object>) bfn;
+                BiFunction<Object,Object,Object> bf = (BiFunction<Object,Object,Object>) op;
                 return Trampoline.done(bf.apply(argVals.get(0), argVals.get(1)));
+
+            } else if (op instanceof Supplier<?>) {
+                if (!argVals.isEmpty())
+                    throw new SyntaxException("Procedure " + sym + " expects 0 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                Supplier<Object> sup = (Supplier<Object>) op;
+                return Trampoline.done(sup.get());
+
             } else {
                 throw new SyntaxException("First position is not a procedure: " + sym);
             }
