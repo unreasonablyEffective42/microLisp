@@ -340,14 +340,43 @@ The above example is equivalent to:
 ```
 if we turn this into the equivalent lambda expression 
 ```
-(
 ((lambda (x y)  -
     (* y 4)      |-this is the scope x and y are bound in 
   )             -
 2 (+ x 3)) <- x is not bound here, so we get an error
 ```
+What we need is `lets`. Instead of doing parallel binding, `lets` does binding sequentially
+```
+(lets ((x 2)
+       (y (+ x 3)))
+  (* y 4))
 
+20
+```
+This is equivalent to nested `let`
+```
+(let ((x 2))
+  (let (y (+ x 3))
+    (* y 4)))
+```
+Which expands to 
+```
+((lambda (x)
+  ((lambda (y)
+    (* y 4))
+  (+ x 3)))
+2)
+```
+Using let and lets allows us to write functional programs in an imperative style 
+```
+(lets ((x 2)              <- x = 2
+       (y (* x 3))        <- y = 6 
+       (z (+ 1 (^ y 2))))  <- z = 37
+  (cond ((even? z) "Success!")
+        (else "fail"))) 
 
+"fail"
+```
 MicroLisp supports first class functions, meaning that we can use functions as arguments and return them as values.
 ```
 (define foo 
