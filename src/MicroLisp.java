@@ -45,6 +45,7 @@ public class MicroLisp {
                         src = Files.readString(Path.of(args[i]));
                         Parser parser = new Parser(src);
                         Node current = parser.parse();
+                        Object result = null;
                         while(!((Token) current.value).type().equals("EOF")){
                             Evaluator.eval(current, environment);
                             current = parser.parse();
