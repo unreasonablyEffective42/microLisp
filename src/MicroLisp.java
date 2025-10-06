@@ -20,45 +20,86 @@ public class MicroLisp {
         // ----- Create Initial Environment --------- 
         Environment environment = makeGlobalEnv();
         // ----- Load and display the banner and text ---------
-        InputStream in = MicroLisp.class.getResourceAsStream("/banner.txt");
-        if (in != null) {
-            try {
-                String banner = new String(in.readAllBytes()).replaceAll("\\s+$", "");
-                System.out.print(banner); 
-                in.close();
-            } catch (IOException e) {
-                System.out.println(RED+"Error reading banner: "+RESET + e.getMessage());
+        if (args[0].equals("-i")){
+            InputStream in = MicroLisp.class.getResourceAsStream("/banner.txt");
+            if (in != null) {
+                try {
+                    String banner = new String(in.readAllBytes()).replaceAll("\\s+$", "");
+                    System.out.print(banner); 
+                    in.close();
+                } catch (IOException e) {
+                    System.out.println(RED+"Error reading banner: "+RESET + e.getMessage());
+                }
+            } else {
+                System.out.println(RED+ "Could not find banner"+RESET);
+            }
+            System.out.println("\n"+YELLOW + "              MicroLisp v1.0 - ©Jordan Jacobson 2025" + RESET);
+            System.out.println("Type "+BLUE+":exit"+RESET+" to quit, "+BLUE+":load filename"+RESET+" to load a file");
+            
+            // ------ Load files on opening if passed file names ----- 
+            Token eof = new Token<>("EOF","EOF");
+            String src; 
+            if (args.length > 1){
+                for (int i=1;i<args.length;i++){
+                    try {
+                        src = Files.readString(Path.of(args[i]));
+                        Parser parser = new Parser(src);
+                        Node current = parser.parse();
+                        while(!((Token) current.value).type().equals("EOF")){
+                            Evaluator.eval(current, environment);
+                            current = parser.parse();
+                        }
+                        if (result != null) {
+                            String out = result.toString();
+                            if (out.isBlank()) {
+                                System.out.print("\u001b[1A\u001b[2K"); // clear extra line
+                            } else {
+                                System.out.println(out);
+                            }
+                        }
+                        System.out.println(args[i]+ GREEN + " loaded successfully" + RESET); 
+                    }
+                    catch (IOException e){
+                        System.out.println(RED +"Could not load file "+ RESET + args[i]);
+                        System.out.println(e);
+                    }
+                }
+                repl(environment);
+            }
+            else {
+                repl(environment);
             }
         } else {
-            System.out.println(RED+ "Could not find banner"+RESET);
-        }
-        System.out.println("\n"+YELLOW + "              MicroLisp v1.0 - ©Jordan Jacobson 2025" + RESET);
-        System.out.println("Type "+BLUE+":exit"+RESET+" to quit, "+BLUE+":load filename"+RESET+" to load a file");
-        
-        // ------ Load files on opening if passed file names ----- 
-        Token eof = new Token<>("EOF","EOF");
-        String src; 
-        if (args.length > 0){
-            for (int i=0;i<args.length;i++){
-                try {
-                    src = Files.readString(Path.of(args[i]));
-                    Parser parser = new Parser(src);
-                    Node current = parser.parse();
-                    while(!((Token) current.value).type().equals("EOF")){
-                        Evaluator.eval(current, environment);
-                        current = parser.parse();
+            // ------ Load files on opening if passed file names ----- 
+            Token eof = new Token<>("EOF","EOF");
+            String src; 
+            if (args.length > 0){
+                for (int i=0;i<args.length;i++){
+                    try {
+                        src = Files.readString(Path.of(args[i]));
+                        Parser parser = new Parser(src);
+                        Node current = parser.parse();
+                        Object result = null;
+                        while(!((Token) current.value).type().equals("EOF")){
+                            result = Evaluator.eval(current, environment);
+                            current = parser.parse();
+                        }                        
+                        if (result != null) {
+                            String out = result.toString();
+                            if (out.isBlank()) {
+                                System.out.print("\u001b[1A\u001b[2K"); // clear extra line
+                            } else {
+                                System.out.println(out);
+                            }
+                        }
                     }
-                    System.out.println(args[i]+ GREEN + " loaded successfully" + RESET); 
-                }
-                catch (IOException e){
-                    System.out.println(RED +"Could not load file "+ RESET + args[i]);
-                    System.out.println(e);
-                }
+                    catch (IOException e){
+                        System.out.println(RED +"Could not load file "+ RESET + args[i]);
+                        System.out.println(e);
+                    }
+                } 
             }
-            repl(environment);
-        }
-        else {
-            repl(environment);
+
         }
     }
 

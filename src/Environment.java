@@ -46,6 +46,10 @@ public class Environment {
         frames.add(0,new Frame(bindings));
     }
 
+    @Override 
+    public String toString(){
+        return "";
+    }
 
     public Optional<Object> lookup(String key){
         for (Frame frame : frames){
@@ -56,3 +60,5 @@ public class Environment {
         return Optional.empty();
     }
 }
+
+

@@ -1,18 +1,17 @@
 (define map 
   (lambda (fn xs)
-    (cond ((null? xs) xs)
-          (else (cons (fn (head xs)) (map fn (tail xs)))))))
+    (let loop ((xs xs) (ys '()))
+      (cond ((null? xs) (reverse ys))
+            (else (loop (tail xs) (cons (fn (head xs)) ys)))))))
 
 (define filter
   (lambda (pred xs)
-    (cond ((null? xs) xs)
-          ((pred (head xs)) (cons (head xs) (filter pred (tail xs))))
-          (else (filter pred (tail xs))))))
+    (let loop ((xs xs) (ys '()))
+      (cond ((null? xs) ys)
+            ((pred (head xs)) (loop (tail xs) (cons (head xs) ys)))
+            (else (loop (tail xs) ys))))))
 
-(define foldr
-  (lambda (fn z xs)
-    (cond ((null? xs) z)
-          (else (fn (head xs) (foldr fn z (tail xs)))))))
+(define foldr (lambda (fn z xs) (reverse (foldl fn z xs))))
 
 (define foldl
   (lambda (fn z xs)
@@ -21,6 +20,10 @@
 
 (define reverse (lambda (xs) (foldl cons '() xs)))
 
-(define xs '(1 2 3 4 5 6 7 8 9))
+(define lcomp 
+  (lambda (n m)
+    (let loop ((n n) (m m) (xs '()))
+      (cond ((eq? m n) (reverse (cons m xs)))
+            (else (loop n (- m 1) (cons m xs)))))))
 
-(define st '("a" "b" "c" "d"))
+

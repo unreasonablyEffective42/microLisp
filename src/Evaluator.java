@@ -45,8 +45,19 @@ public class Evaluator {
             case "MULTIPLY"  -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).multiply((BigInteger)y));
             case "DIVIDE"    -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).divide((BigInteger)y));
             case "MODULO"    -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).mod((BigInteger)y));
-            case "EXPONENT"  -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).pow(((BigInteger)y).intValue()));
-
+            case "EXPONENT" -> (BiFunction<Object, Object, Object>) ((x, y) -> {
+                BigInteger base = (BigInteger) x;
+                BigInteger exp  = (BigInteger) y;
+                if (exp.signum() < 0) throw new IllegalArgumentException("Exponent must be non-negative");
+                BigInteger result = BigInteger.ONE;
+                BigInteger two = BigInteger.valueOf(2);
+                while (!exp.equals(BigInteger.ZERO)) {
+                    if (exp.testBit(0)) result = result.multiply(base);
+                    base = base.multiply(base);
+                    exp = exp.divide(two);
+                }
+                return result;
+            });
             // ---- comparison ----
             case "LT" -> (BiFunction<Object, Object, Object>) ((x, y) ->
                 ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f");

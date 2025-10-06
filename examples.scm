@@ -38,3 +38,7 @@
   (lambda (n m)
     (cond ((< n m) (cons n (lcomp (+ n 1) m)))
           (else '())))) 
+
+(let loop ((a 0))
+  (cond ((eq? a 100) "done")
+        (else (loop (+ a 1)))))
