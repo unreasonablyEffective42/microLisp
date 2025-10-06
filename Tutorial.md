@@ -377,6 +377,44 @@ Using let and lets allows us to write functional programs in an imperative style
 
 "fail"
 ```
+Doing explicit recursions while powerful, might be visually hard to parse, so when we want something like a loop, 
+`let` is great syntactic sugar as well, letting us write recursion that looks like a loop 
+```
+(let loop ((v1 b1) 
+           (v2 b2)
+           ...
+           (vn bn))
+  (do 
+    (expr1)
+    (expr2)
+    ...
+    (loop v1 v2 ... vn)))
+```
+We still only have one body expression, so we need some kind of expression that we can call loop again
+it can be named anything, here is a more concrete example 
+```Scheme
+(let foo ((x 0) (y '()))
+  (cond ((eq? x 10) y)
+        (else (foo (+ x 1) (cons x y)))))
+
+-> (9 8 7 6 5 4 3 2 1)
+```
+As you can see, we can name the let anything we want to 
+Let also gives us a good way to examine how lexical scoping works 
+```Scheme 
+(let ((x 1))     ; <- this is the outermost scope, here x is bound to 1 
+  (do      
+    (print x)    ; x = 1 so we print 1 
+    (let ((x 2)) ; <- Making a new lexical scope, where x is bound to 2
+      (print x)
+    )            ; printing x prints 2 
+    (print x)))  ; we have exited the inner lexical scope, so x is now bound to 1 and we print 1 again 
+
+1 
+2 
+1 
+
+```
 MicroLisp supports first class functions, meaning that we can use functions as arguments and return them as values.
 ```Scheme
 (define foo 
