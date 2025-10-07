@@ -43,3 +43,34 @@ This would be in proper list form:
 >>>(cons 1 (cons 2 (cons 3 (cons 4 '()))))
 (1 2 3 4)
 ```
+We can access the elements of a list using `head` and `tail` 
+```
+>>> (define xs (cons 1 (cons 2 (cons 3 (cons 4 '())))))
+>>> xs
+(1 2 3 4)
+>>> (head xs)
+1 
+>>> (tail xs)
+(2 3 4)
+```
+By chaining `cons`s, we have built up this structure:
+``` 
+(define xs (cons 1 (cons 2 (cons 3 (cons 4 '())))))
+                   ------- 
+                  | 1 |   |
+                   ------- 
+                   /     \
+          (head xs)      ------- 
+                        | 2 |   |
+                         ------- 
+                       /       \
+                      /        ------- 
+          (tail xs)  -        | 3 |   |
+                      \        ------- 
+                       \             \
+                        \            ------- 
+                         \          | 4 |'()|
+                                     ------- 
+
+```
+
