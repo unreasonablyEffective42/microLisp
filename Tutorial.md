@@ -582,19 +582,19 @@ we can define it in terms of `foldl`
 And because `foldl` is tail recursive, so is this definition of `foldr` 
 We can also implement `map` and `filter` in terms of `foldr`
 ```Scheme 
-(define map (f xs)
-  (foldr (lambda (x acc)
-           (cons (f x) acc))
-         '()
-         xs))
+(define map 
+  (lambda (f xs)  
+    (foldr (lambda (x acc) (cons (f x) acc))
+           '()
+           xs))) 
  
-(define (filter pred xs)
-  (foldr (lambda (x acc)
-           (if (pred x)
-               (cons x acc)
-               acc))
-         '()
-         xs))
+(define filter 
+  (lambda (pred xs)
+    (foldr (lambda (x acc)
+             (cond ((pred x) (cons x acc))
+                   (else acc)))
+           '()
+           xs)))
 ```
 Though these implementations are not as efficient as they could be.
 Check out their tail recursive definitions in `lists.scm` 
