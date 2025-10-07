@@ -511,7 +511,7 @@ we reach the end of the list.
 (define foldl
   (lambda (fn z xs)
     (cond ((null? xs) z)
-          (else (foldl fn (fn z (head xs) z) (tail xs))))))
+          (else (foldl fn (fn z (head xs)) (tail xs))))))
 ```
 
 ```
