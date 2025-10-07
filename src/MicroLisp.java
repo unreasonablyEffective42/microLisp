@@ -157,7 +157,7 @@ public class MicroLisp {
                 new Pair<>("and", (BiFunction<String, String, String>) (p, q) ->
                     (p.equals("#t") && q.equals("#t")) ? "#t" : "#f"
                 ),
-
+                new Pair<>("not", (Function<String,String>) (x) -> x.equals("#t") ? "#f" : "#t"),
                 new Pair<>("or", (BiFunction<String, String, String>) (p, q) ->
                     (p.equals("#t") || q.equals("#t")) ? "#t" : "#f"
                 ),
