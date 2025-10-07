@@ -51,8 +51,7 @@ public class Lexer {
         return tok;
     }
     //This detects contiguous letters and symbols, and creates a string, these could be keywords, variable names
-    //or functions. Returns a LABEL token with the label
-    
+    //or functions. Returns a LABEL token with the label 
     private Token symbol() {
         StringBuilder res = new StringBuilder();
         while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)) {
@@ -108,13 +107,10 @@ public class Lexer {
             return null;
         }
 
-    }
-
-    
+    }    
     private Token string() {
         this.advance(); // skip the opening quote
         StringBuilder res = new StringBuilder();
-
         while (this.currentChar != '\"') {
             if (this.currentChar == '\\') {
                 this.advance();
@@ -133,31 +129,25 @@ public class Lexer {
         }
 
     this.advance(); // consume closing quote
-    return new Token("STRING", res.toString());
-}
+    return new Token("STRING", res.toString());}
     //advances past any detected whitespaces
     private void skipWhitespace(){
         while (Character.isWhitespace((this.currentChar))) {
             this.advance();
         }
     }
-    
-    
-private void discardComment() {
-    // Advance until newline or EOF sentinel (~)
-    while (this.currentChar != '\n' && this.currentChar != '~') {
-        this.advance();
+    private void discardComment() {
+        // Advance until newline or EOF sentinel (~)
+        while (this.currentChar != '\n' && this.currentChar != '~') {
+            this.advance();
+        }
+        // Optionally skip the newline itself
+        if (this.currentChar == '\n') {
+            this.advance();
+        }
     }
-    // Optionally skip the newline itself
-    if (this.currentChar == '\n') {
-        this.advance();
-    }
-}
-
-
     //This is where the magic happens, depending on what the current character is
-    //the conditionals will choose the correct kind of token to produce
-    
+    //the conditionals will choose the correct kind of token to produce  
     public Token getNextToken() {
         if (this.currentChar == '~') {
             return new Token<>("EOF", "EOF");
@@ -172,7 +162,6 @@ private void discardComment() {
             return this.number();
         }
 
-        // NEW: treat parsable symbols (like +, -, *) as symbols
         else if (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)) {
             return this.symbol();
         }
@@ -206,18 +195,5 @@ private void discardComment() {
 
         // --- fallback ---
         throw new SyntaxException("Unexpected character '" + currentChar + "' at position " + pos);
-    }
-    //for testing purposes, returns a list of all tokens that can be extracted from the source
-    public List<Token<String,String>> getTokens(){
-        Token currentToken =  this.getNextToken();
-        List<Token<String,String>> res = new ArrayList<>();
-        if (currentToken == Lexer.eof){
-            throw new SyntaxException("File is empty!");
-        }
-        do{
-            res.add(currentToken);
-            currentToken = this.getNextToken();
-        }while (!currentToken.equals(Lexer.eof));
-        return res;
     }
 }

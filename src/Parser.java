@@ -74,9 +74,7 @@ public class Parser {
                 if (node.getValue().type().equals("LAMBDA")) {
                     if (!current.type().equals("LPAREN")) {
                         throw new SyntaxException("Lambda must be followed by a parameter list in parentheses");
-                    }
-                    // Parse parameter list
-                   
+                    }                    
                     // Parse parameter list (possibly empty)
                     Node<Token> paramList = new Node<>(new Token("PARAMS", null));
                     current = lexer.getNextToken();
@@ -92,19 +90,15 @@ public class Parser {
                             current = lexer.getNextToken();
                         }
                         node.addChild(paramList);
-                    }
-                    
+                    }                    
                     // Parse body expression
                     node.addChild(this.parse());
-
                     // NEW: consume the closing ')' of the (lambda …) form
                     Token closer = lexer.getNextToken();
                     if (!closer.type().equals("RPAREN")) {
                         throw new SyntaxException("Lambda must end with ')', found: " + closer);
                     }
-
                     return node;
-
                 }
                 // ---------- quote special form ----------
                 if (node.getValue().type().equals("QUOTE")) {
@@ -145,8 +139,7 @@ public class Parser {
                         // Advance if any trailing whitespace or comments before body
                         while (current.type().equals("WHITESPACE") || current.type().equals("COMMENT")) {
                             current = lexer.getNextToken();
-                        }
-                                            
+                        }                                            
                         // Parse body expressions until RPAREN
                         while (!current.type().equals("RPAREN")) {
                             if (current.type().equals("LPAREN")) {
@@ -192,7 +185,6 @@ public class Parser {
                 if (node.getValue().type().equals("LET") ||
                     node.getValue().type().equals("LETS") ||
                     node.getValue().type().equals("LETR")) {
-
                     // --- Named let detection ---
                     if (current.type().equals("SYMBOL")) {
                         Node<Token> nameNode = new Node<>(current); // the let name
@@ -200,7 +192,6 @@ public class Parser {
                         if (!current.type().equals("LPAREN")) {
                             throw new SyntaxException("Named let must be followed by a binding list in parentheses");
                         }
-
                         // Parse binding list
                         Node<Token> bindings = new Node<>(new Token("BINDINGS", null));
                         current = lexer.getNextToken();
@@ -216,7 +207,6 @@ public class Parser {
                             pair.createChild(current);
                             Node<Token> valueExpr = this.parse();
                             pair.addChild(valueExpr);
-
                             Token closer = lexer.getNextToken();
                             if (!closer.type().equals("RPAREN")) {
                                 throw new SyntaxException("binding must end with ')', found: " + closer);
@@ -224,15 +214,12 @@ public class Parser {
                             bindings.addChild(pair);
                             current = lexer.getNextToken();
                         }
-
                         // After bindings list, parse body
                         Node<Token> body = this.parse();
-
                         Token closer = lexer.getNextToken();
                         if (!closer.type().equals("RPAREN")) {
                             throw new SyntaxException("Named let must end with ')', found: " + closer);
                         }
-
                         // Wrap as (LET-NAMED name bindings body)
                         Node<Token> namedNode = new Node<>(new Token("LET-NAMED", ""));
                         namedNode.addChild(nameNode);
@@ -320,37 +307,37 @@ public class Parser {
                 return node;
             }
             
-// Case 2: operator itself is a subexpression — e.g. ((foo 1) 2)
-else if (current.type().equals("LPAREN")) {
-    lexer.backUp();
+            // Case 2: operator itself is a subexpression — e.g. ((foo 1) 2)
+            else if (current.type().equals("LPAREN")) {
+                lexer.backUp();
 
-    // Parse the operator expression fully
-    Node<Token> opExpr = this.parse();
+                // Parse the operator expression fully
+                Node<Token> opExpr = this.parse();
 
-    // Create an APPLY node to represent (APPLY opExpr arg1 arg2 ...)
-    Node<Token> apply = new Node<>(new Token("APPLY", ""));
+                // Create an APPLY node to represent (APPLY opExpr arg1 arg2 ...)
+                Node<Token> apply = new Node<>(new Token("APPLY", ""));
 
-    // First child is the operator expression itself
-    apply.addChild(opExpr);
+                // First child is the operator expression itself
+                apply.addChild(opExpr);
 
-    // Now gather arguments until closing RPAREN
-    current = lexer.getNextToken();
-    while (!current.type().equals("RPAREN")) {
-        if (current.type().equals("LPAREN")) {
-            lexer.backUp();
-            apply.addChild(this.parse());
-            current = lexer.getNextToken();
-        } else if (current.type().equals("QUOTE")) {
-            apply.addChild(parseDatum());
-            current = lexer.getNextToken();
-        } else {
-            apply.createChild(current);
-            current = lexer.getNextToken();
-        }
-    }
+                // Now gather arguments until closing RPAREN
+                current = lexer.getNextToken();
+                while (!current.type().equals("RPAREN")) {
+                    if (current.type().equals("LPAREN")) {
+                        lexer.backUp();
+                        apply.addChild(this.parse());
+                        current = lexer.getNextToken();
+                    } else if (current.type().equals("QUOTE")) {
+                        apply.addChild(parseDatum());
+                        current = lexer.getNextToken();
+                    } else {
+                        apply.createChild(current);
+                        current = lexer.getNextToken();
+                    }
+                }
 
-    return apply;
-}
+                return apply;
+            }
 
             // Case 3: operator is a plain symbol
             else if (current.type().equals("SYMBOL")) {
