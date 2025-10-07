@@ -436,6 +436,7 @@ This works because (foo 1) -> (lambda (y) (+ 1 y))
 (define f (foo 1)) -> bind f to (lambda (y) (+ 1 y))
              ↓                ↑
           returns -> (lambda (y) (+ 1 y))
+
 (f 2) -> (lambda (2) (+ 1 y)) -> 3 
 ```
 We can also pass functions as inputs to other functions
