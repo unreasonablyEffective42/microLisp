@@ -343,7 +343,7 @@ if we turn this into the equivalent lambda expression
 ((lambda (x y) ; -
     (* y 4)    ; |-this is the scope x and y are bound in 
   )            ; -
-2 (+ x 3)) ;<- x is not bound here, so we get an error
+2 (+ x 3))  ;<- x is not bound here, so we get an error
 ```
 What we need is `lets`. Instead of doing parallel binding, `lets` does binding sequentially
 ```Scheme
@@ -390,10 +390,11 @@ Doing explicit recursions while powerful, might be visually hard to parse, so wh
     ...
     (loop v1 v2 ... vn)))
 ```
-We still only have one body expression, so we need some kind of expression that we can call loop again
-it can be named anything, here is a more concrete example 
+We still only have one body expression, so we need some kind of expression from which we can call loop again
+Named `let` can be named anything, here is a more concrete example 
 ```Scheme
-(let foo ((x 0) (y '()))
+(let foo ((x 0) 
+          (y '()))
   (cond ((eq? x 10) y)
         (else (foo (+ x 1) (cons x y)))))
 
@@ -406,9 +407,11 @@ Let also gives us a good way to examine how lexical scoping works
   (do      
     (print x)    ; x = 1 so we print 1 
     (let ((x 2)) ; <- Making a new lexical scope, where x is bound to 2
-      (print x)
-    )            ; printing x prints 2 
+      (print x)  ; printing x prints 2 
+    )            
     (print x)))  ; we have exited the inner lexical scope, so x is now bound to 1 and we print 1 again 
+;if we attempted to (print x) from here, we would get a runtime exception: x is not bound
+;because we are outside of the scope of the let block
 
 1 
 2 
@@ -420,17 +423,134 @@ MicroLisp supports first class functions, meaning that we can use functions as a
 (define foo 
   (lambda (x)  ; <-  foo takes one argument 'x'
     (lambda (y) ; <-  returns a new lambda of argument 'y' with x bound to a value 
-      (+ x y))))
-
+      (+ x y)))) 
+```
+If we define the above, and then:
+```
+>>>(define f (foo 1))
+>>>(f 2)
+3 
+```
+This works because (foo 1) -> (lambda (y) (+ 1 y))
+```
 (define f (foo 1)) -> bind f to (lambda (y) (+ 1 y))
              ↓                ↑
           returns -> (lambda (y) (+ 1 y))
->>> (f 2) 
-3
+(f 2) -> (lambda (2) (+ 1 y)) -> 3 
+```
+We can also pass functions as inputs to other functions
+```
+(define map
+  (lambda (fn xs)
+    (cond ((null? xs) '())                    ;if xs is empty, finish the recursion
+          (else (cons (fn (head xs)) (map fn (tail xs)))))))
+                     ;    |                     |
+        ; apply fn to the head of xs     recurse with the rest of the list 
+```
+Then if we :
+```
+>>>(map even? '(1 2 3 4 5 6))
+(#f #t #f #t #f #t)
+```
+Using higher order functions like map is an effective strategy for solving problems
+in a functional language like MicroLisp. Another common pattern we can solve is 
+filtering a list 
+```
+(define filter
+  (lambda (pred xs)
+    (cond ((null? xs) '())    ;if we reach the end of the list, end the recursion
+          ((pred (head xs))   ;if true, keep the head and process the rest of the list 
+           (cons (head xs) (filter pred (tail xs))))
+          (else (filter pred (tail xs)))))) ;discard the head and process the rest
 ```
 
 ```
+>>>(filter even? '(1 2 3 4 5 6))
+(2 4 6)
+```
+We can even combine the two
+```
+>>>(filter even? (map (lambda (x) (^ x 2)) '(1 2 3 4 5 6)))
+(4 16 36)
+```
+The last higher order function pattern we will look at is `foldl` and `foldr`
+We will use `:` as a shorthand for `cons`
+```
+(define xs '(1 2 3 4 5))
+;This is one way we can think about the list xs
+ 
+   cons
+   /  \
+  1  cons
+     /  \
+    2  cons 
+       /  \
+      3  cons
+         /  \ 
+        4  cons 
+           /  \ 
+          5   '()  
+```
+In both map and filer, we had to visit each element of the
+list and do something with it. Folding a list is a way to 
+traverse a list and apply a function to its members 
+left folding, or `foldl`, starts at the left, or front of a list 
+and consumes the elements one by one with a binary function,
+where the result of the previous application is passed forward 
+to be used as the second argument to the function, going until
+we reach the end of the list. 
+```
+;foldl takes a binary (two argument) function fn
+;a 'default' value z, and a list to fold over, xs
+;and then fold from the left most element of the list,
+;with the first call consuming the default value and
+;the head, and then using the result as the default for 
+;each recursion after 
+
+(define foldl
+  (lambda (fn z xs)
+    (cond ((null? xs) z) 
+          (else (foldl fn (fn z (head xs)) (tail xs))))))
+```
 
 ```
+>>>(foldl + 0 '(1 2 3 4 5)) ;sum up the elements of a list 
+15
+>>>(foldl cons '() '(1 2 3 4 5)) ;reverse a list
+(5 4 3 2 1)
+```
+
+To better understand foldl, we can see how it transforms the structure of a list
+```
+(foldl + 0 '(1 2 3 4 5))
+
+   cons                       +
+   /  \                      / \ 
+  1  cons                   +   5
+     /  \                  / \
+    2  cons       ->      +   4
+       /  \              / \
+      3  cons           +   3 
+         /  \          / \
+        4  cons       +   2 
+           /  \      / \
+          5   '()   0   1 
+
+(foldl cons '() '(1 2 3 4 5))
+
+   cons                      cons 
+   /  \                      /  \ 
+  1  cons                   cons 5
+     /  \                  /  \
+    2  cons       ->     cons  4
+       /  \              /  \
+      3  cons          cons  3 
+         /  \          /  \
+        4  cons      cons  2 
+           /  \      /  \
+          5   '()  '()   1 
+
+```
+
 
 

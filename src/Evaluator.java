@@ -136,22 +136,48 @@ public class Evaluator {
         return tok.value();
     }
     // ----- COND -----
-    private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
-        return Trampoline.more(() -> loopCond(clauses, 0, env));
-    }
-    private static Trampoline<Object> loopCond(ArrayList<Node<Token>> clauses, int i, Environment env) {
-        if (i >= clauses.size())
-            throw new RuntimeException("cond: no true clause and no else clause");
-        Node<Token> clause = clauses.get(i);
-        Node<Token> predicate = clause.getChildren().get(0);
-        Node<Token> body      = clause.getChildren().get(1);
+    
+// ----- COND -----
+private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
+    return Trampoline.more(() -> loopCond(clauses, 0, env));
+}
 
-        Object result = eval(predicate, env); // trampolined under the hood
-        if ("#t".equals(result)) {
-            return Trampoline.more(() -> evalT(body, env)); // tail bounce
-        }
+private static Trampoline<Object> loopCond(ArrayList<Node<Token>> clauses, int i, Environment env) {
+    if (i >= clauses.size())
+        throw new RuntimeException("cond: no true clause and no else clause");
+
+    Node<Token> clause = clauses.get(i);
+    ArrayList<Node<Token>> kids = clause.getChildren();
+    if (kids.isEmpty())
         return Trampoline.more(() -> loopCond(clauses, i + 1, env));
+
+    Node<Token> predNode = kids.get(0);
+    ArrayList<Node<Token>> bodies = new ArrayList<>(kids.subList(1, kids.size()));
+
+    // Handle (else ...)
+    Token<?, ?> tok = predNode.getValue();
+    boolean isElse = "SYMBOL".equals(tok.type()) && "else".equals(tok.value());
+    if (isElse) {
+        if (bodies.isEmpty())
+            throw new SyntaxException("cond else clause requires at least one body expression");
+        return bodies.size() == 1
+                ? Trampoline.more(() -> evalT(bodies.get(0), env))
+                : evaluateDoT(bodies, env);
     }
+
+    // Evaluate predicate
+    Object predValue = eval(predNode, env);
+    if ("#t".equals(predValue)) {
+        if (bodies.isEmpty())
+            return Trampoline.done(predValue);
+        return bodies.size() == 1
+                ? Trampoline.more(() -> evalT(bodies.get(0), env))
+                : evaluateDoT(bodies, env);
+    }
+
+    // Try next clause
+    return Trampoline.more(() -> loopCond(clauses, i + 1, env));
+}
     // Legacy wrapper
     private static Object evaluateCond(ArrayList<Node<Token>> clauses, Environment env) {
         return evaluateCondT(clauses, env).run();
@@ -644,8 +670,16 @@ if (isApply(t)) {
             Node<Token> body = (Node<Token>) closureParts.get(1).value();
             Environment capturedEnv = (Environment) closureParts.get(2).value();
 
-            Environment newEnv = new Environment();
-            newEnv.frames.addAll(capturedEnv.frames);
+            
+Environment newEnv = new Environment();
+for (Frame f : capturedEnv.frames) {
+    List<Pair<String,Object>> copied = new ArrayList<>();
+    for (Pair<String,Object> p : f.bindings) {
+        copied.add(new Pair<>(p.first, p.second));
+    }
+    newEnv.frames.add(new Frame(copied));
+}
+
 
             ArrayList<Object> normalizedArgs = new ArrayList<>();
             for (Object a : args) {
