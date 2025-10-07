@@ -11,14 +11,20 @@
             ((pred (head xs)) (loop (tail xs) (cons (head xs) ys)))
             (else (loop (tail xs) ys))))))
 
-(define foldr (lambda (fn z xs) (reverse (foldl fn z xs))))
-
 (define foldl
   (lambda (fn z xs)
     (cond ((null? xs) z)
-          (else (foldl fn (fn (head xs) z) (tail xs))))))
+          (else (foldl fn (fn z (head xs)) (tail xs))))))
 
-(define reverse (lambda (xs) (foldl cons '() xs)))
+(define foldr 
+  (lambda (f z xs)
+    ((foldl (lambda (g x) 
+              (lambda (acc) (g (f x acc))))
+            (lambda (acc) acc)
+            xs)
+     z)))
+
+(define reverse (lambda (xs) (foldl (lambda (x y) (cons y x)) '() xs)))
 
 (define lcomp 
   (lambda (n m)

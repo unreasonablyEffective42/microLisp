@@ -379,7 +379,7 @@ Using let and lets allows us to write functional programs in an imperative style
 ```
 Doing explicit recursions while powerful, might be visually hard to parse, so when we want something like a loop, 
 `let` is great syntactic sugar as well, letting us write recursion that looks like a loop 
-```
+```Scheme 
 (let loop ((v1 b1) 
            (v2 b2)
            ...
@@ -432,20 +432,20 @@ If we define the above, and then:
 3 
 ```
 This works because (foo 1) -> (lambda (y) (+ 1 y))
-```
+```Scheme 
 (define f (foo 1)) -> bind f to (lambda (y) (+ 1 y))
              ↓                ↑
           returns -> (lambda (y) (+ 1 y))
 (f 2) -> (lambda (2) (+ 1 y)) -> 3 
 ```
 We can also pass functions as inputs to other functions
-```
+```Scheme 
 (define map
   (lambda (fn xs)
     (cond ((null? xs) '())                    ;if xs is empty, finish the recursion
           (else (cons (fn (head xs)) (map fn (tail xs)))))))
-                     ;    |                     |
-        ; apply fn to the head of xs     recurse with the rest of the list 
+;                          |                     |
+;         apply fn to the head of xs     recurse with the rest of the list 
 ```
 Then if we :
 ```
@@ -455,7 +455,7 @@ Then if we :
 Using higher order functions like map is an effective strategy for solving problems
 in a functional language like MicroLisp. Another common pattern we can solve is 
 filtering a list 
-```
+```Scheme 
 (define filter
   (lambda (pred xs)
     (cond ((null? xs) '())    ;if we reach the end of the list, end the recursion
@@ -475,7 +475,7 @@ We can even combine the two
 ```
 The last higher order function pattern we will look at is `foldl` and `foldr`
 We will use `:` as a shorthand for `cons`
-```
+```Scheme 
 (define xs '(1 2 3 4 5))
 ;This is one way we can think about the list xs
  
@@ -499,7 +499,7 @@ and consumes the elements one by one with a binary function,
 where the result of the previous application is passed forward 
 to be used as the second argument to the function, going until
 we reach the end of the list. 
-```
+```Scheme 
 ;foldl takes a binary (two argument) function fn
 ;a 'default' value z, and a list to fold over, xs
 ;and then fold from the left most element of the list,
@@ -509,14 +509,16 @@ we reach the end of the list.
 
 (define foldl
   (lambda (fn z xs)
-    (cond ((null? xs) z) 
-          (else (foldl fn (fn z (head xs)) (tail xs))))))
+    (cond ((null? xs) z)
+          (else (foldl fn (fn z (head xs) z) (tail xs))))))
 ```
 
 ```
 >>>(foldl + 0 '(1 2 3 4 5)) ;sum up the elements of a list 
 15
->>>(foldl cons '() '(1 2 3 4 5)) ;reverse a list
+>>>(foldl cons '() '(1 2 3 4 5))
+(((((() . 1) . 2) . 3) . 4) . 5)
+>>>(foldl (lambda (x y) (cons y x)) '() '(1 2 3 4 5))
 (5 4 3 2 1)
 ```
 
@@ -551,6 +553,84 @@ To better understand foldl, we can see how it transforms the structure of a list
           5   '()  '()   1 
 
 ```
+`foldl` is inherently tail recursive, while its sister `foldr` is not.
+```Scheme 
+(define foldr
+  (lambda (fn z xs)
+    (cond ((null? xs) z)
+          (else (fn (head xs) (foldr fn z (tail xs)))))))
+```
 
+```
+>>>(foldr + 0 '(1 2 3 4 5))
+15
+>>>(foldr cons '() '(1 2 3 4 5))
+(1 2 3 4 5)
+```
+Even though the naive implementation of `foldr` is not tail recursive 
+we can define it in terms of `foldl`
+```Scheme 
+(define foldr 
+  (lambda (f z xs)
+    ((foldl (lambda (g x) 
+              (lambda (acc) (g (f x acc))))
+            (lambda (acc) acc)
+            xs)
+     z)))
+```
+And because `foldl` is tail recursive, so is this definition of `foldr` 
+We can also implement `map` and `filter` in terms of `foldr`
+```Scheme 
+(define map (f xs)
+  (foldr (lambda (x acc)
+           (cons (f x) acc))
+         '()
+         xs))
+ 
+(define (filter pred xs)
+  (foldr (lambda (x acc)
+           (if (pred x)
+               (cons x acc)
+               acc))
+         '()
+         xs))
+```
+Though these implementations are not as efficient as they could be.
+Check out their tail recursive definitions in `lists.scm` 
+
+Higher order functions can even be used to make data types,
+while the internal representation of `cons` is not in terms
+of functions, we can implement `cons` with nothing but `lambda` 
+```Scheme 
+(define cons
+  (lambda (x y)
+    (lambda (m) (m x y))))
+
+(define head
+  (lambda (z)
+    (z (lambda (p q) p))))
+
+(define tail
+  (lambda (z)
+    (z (lambda (p q) q))))
+```
+Walking through this ...
+```
+(cons 'a 'b) returns -> (lambda (m) (m 'a 'b'))
+(head (cons 'a 'b)) returns -> 'a
+Expand     -> ((lambda (z) (z (lambda (p q) p))) (lambda (m) (m 'a 'b)))
+Substitute -> ((lambda (m) (m 'a 'b)) (lambda (p q) p))
+Substitute -> ((lambda (p q) p) 'a 'b)
+'a
+
+(tail (cons 'a 'b)) returns -> 'a
+Expand     -> ((lambda (z) (z (lambda (p q) p))) (lambda (m) (m 'a 'b)))
+Substitute -> ((lambda (m) (m 'a 'b)) (lambda (p q) q))
+Substitute -> ((lambda (p q) q) 'a 'b)
+'b
+```
+Pretty magical eh? 
+In fact, we can even define numbers, boolean values, conditional statements, etc.
+just in terms of lambda application.
 
 
