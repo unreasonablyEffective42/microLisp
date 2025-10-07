@@ -634,4 +634,36 @@ Pretty magical eh?
 In fact, we can even define numbers, boolean values, conditional statements, etc.
 just in terms of lambda application.
 
-
+So we have to talk about `quote`. Quote is a special form that lets us take a Microlisp expresssion
+and instead of evaluating it, return it back unchanged. This is almost like returning a string with
+literal expression in it, but it is more subtle. 
+```
+>>>(define q (quote (+ 1 2)))
+>>>q 
+(+ 1 2)
+>>>(head q)
++ 
+>>>(tail q)
+(1 2)
+```
+If `quote` just returned the string "(+ 1 2)" then:
+```
+>>>(head q)
+"("
+>>>(tail q)
+"+ 1 2)"
+```
+So `quote` and `'` preserve the structure of the quoted expression while still processing it 
+We can use `eval` to evaluate a quoted expression 
+```
+>>>q 
+(+ 1 2)
+>>>(eval q)
+3
+```
+When we use `'()`, we are quoting the empty list (), so that we can pass it as a value instead of evaluating it.
+Because the literal structure of MicroLisp code takes the form of nested linked lists, and MicroLisp is made to 
+process lists using `head` and `tail`,  we get the neat property of `Homoiconicity`, which is that the code itself
+is exactly the kind of data we process. This means that MicroLisp programs can easily modify another MicroLisp program.
+Using `quote` and `unquote`, we can do structural transformations on code, and then evaluate them after all while in 
+the runtime. 
