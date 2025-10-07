@@ -34,6 +34,7 @@ public class Evaluator {
     public static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
     public static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
     public static boolean isLetNamed  (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
+    public static boolean isApply     (Token<?, ?> t){ return "APPLY".equals(t.type()); }
     public static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
 
     // ---------- primitive table ----------
@@ -543,6 +544,48 @@ public class Evaluator {
             ArrayList<Object> elems = evaluateList(expr.getChildren(), env);
             return Trampoline.done(new LinkedList<>(elems));
         }
+
+// (apply op-expr arg1 arg2 ...)
+if (isApply(t)) {
+    if (expr.getChildren().isEmpty()) {
+        throw new SyntaxException("APPLY requires an operator expression");
+    }
+
+    Node<Token> opNode = expr.getChildren().get(0);
+    Object opVal = eval(opNode, env);
+
+    ArrayList<Object> argVals = new ArrayList<>();
+    for (int i = 1; i < expr.getChildren().size(); i++) {
+        argVals.add(eval(expr.getChildren().get(i), env));
+    }
+
+    if (opVal instanceof Token<?, ?> tok) {
+        @SuppressWarnings("unchecked")
+        Token<String, Object> procTok = (Token<String, Object>) tok;
+        return applyProcedureT(procTok, argVals);
+    }
+
+    if (opVal instanceof Supplier<?> s) {
+        if (!argVals.isEmpty())
+            throw new SyntaxException("Procedure expects 0 arguments, got " + argVals.size());
+        return Trampoline.done(s.get());
+    } else if (opVal instanceof Function<?, ?> f) {
+        @SuppressWarnings("unchecked")
+        Function<Object, Object> f1 = (Function<Object, Object>) f;
+        if (argVals.size() == 1) return Trampoline.done(f1.apply(argVals.get(0)));
+        @SuppressWarnings("unchecked")
+        Function<LinkedList<?>, Object> fvar = (Function<LinkedList<?>, Object>) f;
+        return Trampoline.done(fvar.apply(new LinkedList<>(argVals)));
+    } else if (opVal instanceof BiFunction<?, ?, ?> bf) {
+        if (argVals.size() != 2)
+            throw new SyntaxException("Procedure expects 2 arguments, got " + argVals.size());
+        @SuppressWarnings("unchecked")
+        BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bf;
+        return Trampoline.done(op.apply(argVals.get(0), argVals.get(1)));
+    }
+
+    throw new SyntaxException("First position is not a procedure: " + opVal);
+}
 
         // General application: evaluate head, then apply if it's a closure
         if (!expr.getChildren().isEmpty()) {

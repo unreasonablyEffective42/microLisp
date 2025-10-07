@@ -319,52 +319,39 @@ public class Parser {
                 }
                 return node;
             }
-            // Case 2: operator itself is a subexpression
-            else if (current.type().equals("LPAREN")) {
-                lexer.backUp();
-                Node<Token> node = this.parse(); // parse operator expr
-                current = lexer.getNextToken();
-                if (current.type().equals("RPAREN")) {
-                    if (node.getValue().type().equals("LAMBDA")) {
-                        node.addChild(new Node<>(new Token("CALL0","")));
-                    }
-                    return node;
-                }
-                while (!current.type().equals("RPAREN")) {
-                    if (current.type().equals("LPAREN")) {
-                        lexer.backUp();
-                        node.addChild(this.parse());
-                        current = lexer.getNextToken();
-                    } else if (current.type().equals("DOT")) {
-                        // Parse dotted pair
-                        Node<Token> dotNode = new Node<>(current);
-                        Token next = lexer.getNextToken();
-                        if (next.type().equals("RPAREN")) {
-                            throw new SyntaxException("Dot must be followed by an element");
-                        }
-                        if (next.type().equals("LPAREN")) {
-                            lexer.backUp();
-                            dotNode.addChild(this.parse());
-                        } else {
-                            dotNode.addChild(new Node<>(next));
-                        }
-                        node.addChild(dotNode);
-                        // after parsing dotted cdr, require a closing RPAREN
-                        current = lexer.getNextToken();
-                        if (!current.type().equals("RPAREN")) {
-                            throw new SyntaxException("Dotted pair must end the list");
-                        }
-                        return node;
-                    } else if (current.type().equals("QUOTE")) {
-                        node.addChild(parseDatum());
-                        current = lexer.getNextToken();
-                    } else {
-                        node.createChild(current);
-                        current = lexer.getNextToken();
-                    }
-                }
-                return node;
-            }
+            
+// Case 2: operator itself is a subexpression — e.g. ((foo 1) 2)
+else if (current.type().equals("LPAREN")) {
+    lexer.backUp();
+
+    // Parse the operator expression fully
+    Node<Token> opExpr = this.parse();
+
+    // Create an APPLY node to represent (APPLY opExpr arg1 arg2 ...)
+    Node<Token> apply = new Node<>(new Token("APPLY", ""));
+
+    // First child is the operator expression itself
+    apply.addChild(opExpr);
+
+    // Now gather arguments until closing RPAREN
+    current = lexer.getNextToken();
+    while (!current.type().equals("RPAREN")) {
+        if (current.type().equals("LPAREN")) {
+            lexer.backUp();
+            apply.addChild(this.parse());
+            current = lexer.getNextToken();
+        } else if (current.type().equals("QUOTE")) {
+            apply.addChild(parseDatum());
+            current = lexer.getNextToken();
+        } else {
+            apply.createChild(current);
+            current = lexer.getNextToken();
+        }
+    }
+
+    return apply;
+}
+
             // Case 3: operator is a plain symbol
             else if (current.type().equals("SYMBOL")) {
                 Node<Token> node = new Node<>(current);
