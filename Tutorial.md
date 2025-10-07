@@ -44,7 +44,7 @@ Basic arithmetic is variadic in arguments
 The main(only) built in data structure is the `cons` cell. `cons`ing two expressions together produces a cons cell.
 The first element can be accessed with `head` and the second with `tail`.
 ```Scheme
->>>(cons 1 2))
+>>>(cons 1 2)
 (1 . 2)
 >>>(head (cons 1 2))
 1
@@ -436,6 +436,7 @@ This works because (foo 1) -> (lambda (y) (+ 1 y))
 (define f (foo 1)) -> bind f to (lambda (y) (+ 1 y))
              ↓                ↑
           returns -> (lambda (y) (+ 1 y))
+
 (f 2) -> (lambda (2) (+ 1 y)) -> 3 
 ```
 We can also pass functions as inputs to other functions
@@ -510,7 +511,7 @@ we reach the end of the list.
 (define foldl
   (lambda (fn z xs)
     (cond ((null? xs) z)
-          (else (foldl fn (fn z (head xs) z) (tail xs))))))
+          (else (foldl fn (fn z (head xs)) (tail xs))))))
 ```
 
 ```
@@ -581,19 +582,19 @@ we can define it in terms of `foldl`
 And because `foldl` is tail recursive, so is this definition of `foldr` 
 We can also implement `map` and `filter` in terms of `foldr`
 ```Scheme 
-(define map (f xs)
-  (foldr (lambda (x acc)
-           (cons (f x) acc))
-         '()
-         xs))
+(define map 
+  (lambda (f xs)  
+    (foldr (lambda (x acc) (cons (f x) acc))
+           '()
+           xs))) 
  
-(define (filter pred xs)
-  (foldr (lambda (x acc)
-           (if (pred x)
-               (cons x acc)
-               acc))
-         '()
-         xs))
+(define filter 
+  (lambda (pred xs)
+    (foldr (lambda (x acc)
+             (cond ((pred x) (cons x acc))
+                   (else acc)))
+           '()
+           xs)))
 ```
 Though these implementations are not as efficient as they could be.
 Check out their tail recursive definitions in `lists.scm` 
