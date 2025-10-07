@@ -141,6 +141,19 @@ public class Lexer {
             this.advance();
         }
     }
+    
+    
+private void discardComment() {
+    // Advance until newline or EOF sentinel (~)
+    while (this.currentChar != '\n' && this.currentChar != '~') {
+        this.advance();
+    }
+    // Optionally skip the newline itself
+    if (this.currentChar == '\n') {
+        this.advance();
+    }
+}
+
 
     //This is where the magic happens, depending on what the current character is
     //the conditionals will choose the correct kind of token to produce
@@ -185,6 +198,10 @@ public class Lexer {
         else if (this.currentChar == '.') {
             this.advance();
             return new Token<>("DOT", ".");
+        }
+        else if (this.currentChar == ';'){
+            this.discardComment();
+            return this.getNextToken();
         }
 
         // --- fallback ---
