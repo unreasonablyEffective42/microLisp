@@ -44,7 +44,7 @@ Basic arithmetic is variadic in arguments
 The main(only) built in data structure is the `cons` cell. `cons`ing two expressions together produces a cons cell.
 The first element can be accessed with `head` and the second with `tail`.
 ```Scheme
->>>(cons 1 2))
+>>>(cons 1 2)
 (1 . 2)
 >>>(head (cons 1 2))
 1
