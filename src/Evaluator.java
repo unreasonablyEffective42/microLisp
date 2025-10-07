@@ -33,7 +33,7 @@ public class Evaluator {
     public static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
     public static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
     public static boolean isLetNamed  (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
-    public static boolean isApply     (Token<?, ?> t){ return "APPLY".equals(t.type()); }
+    public static boolean isApply     (Token<?, ?> t){ return isType(t, "APPLY"); }
     public static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
 
     // ---------- primitive table ----------
