@@ -171,11 +171,11 @@ public class MicroLisp {
                 System.out.print("");
             }
             else {
-                int mismatch = lParens(input);
+                int mismatch = ParenCounter.lParens(input);
                 if (mismatch > 0){
                   StringBuilder sb = new StringBuilder(input);
                   while (mismatch > 0){
-                    System.out.printf("  |");
+                    System.out.printf("  |"+ParenCounter.tabs(input, mismatch));
                     input = scanner.nextLine();
                     mismatch += lParens(input);
                     sb.append(input);
