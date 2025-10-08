@@ -126,7 +126,22 @@ public class MicroLisp {
 
         }
     }
-
+    public static int lParens(String src){
+      int lparens = 0;
+      for (int i = 0; i < src.length(); i++){
+        switch (src.charAt(i)){
+          case '(':
+            lparens++;
+            break;
+          case ')':
+            lparens--;
+            break;
+          default:
+            break;
+        }
+      }
+      return lparens;
+    }
     static void repl(Environment environment) {
         Scanner scanner = new Scanner(System.in); 
         while(true){
@@ -156,6 +171,17 @@ public class MicroLisp {
                 System.out.print("");
             }
             else {
+                int mismatch = lParens(input);
+                if (mismatch > 0){
+                  StringBuilder sb = new StringBuilder(input);
+                  while (mismatch > 0){
+                    System.out.printf("  |");
+                    input = scanner.nextLine();
+                    mismatch += lParens(input);
+                    sb.append(input);
+                  }
+                  input = sb.toString();
+                }
                 Lexer l = new Lexer(input);
                 Parser p = new Parser(input);
                 Node parsed = p.parse();

@@ -37,4 +37,4 @@
             (loop (filter (lambda (q) (not (eq? 0 (% q f)))) fs)
                   (cons f acc))))))))
 
-
+(sieve (lcomp 2 5000))
