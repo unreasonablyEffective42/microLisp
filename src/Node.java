@@ -54,7 +54,7 @@ public class Node<T> implements Comparable<Node<Token>> {
 
     //for debugging, traverses the tree and prints all values
     public void printNodes(int ind){
-        System.out.println(" ".repeat(ind)+value);
+        System.out.println("   ".repeat(ind)+value);
         for(Node<Token> child : children){
             child.printNodes(ind + 1);
         }

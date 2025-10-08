@@ -23,7 +23,7 @@ public class Evaluator {
     public static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
     public static boolean isList      (Token<?, ?> t){ return isType(t, "LIST"); }
     public static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
-    public static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE"); }
+    public static boolean isQuote     (Token<?, ?> t){ return "QUOTE".equals(t.type()) ||("SYMBOL".equals(t.type()) && "quote".equals(t.value())); }
     public static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
     public static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
     public static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
@@ -98,6 +98,9 @@ public class Evaluator {
     // ---------- QUOTE helper ----------
     private static Object quoteToValue(Node<Token> node) {
         Token<?,?> tok = node.getValue();
+        if (tok == null && node.getChildren().isEmpty()){
+          return new LinkedList<>();
+        }
         // Lists recurse
         if (isList(tok)) {
             ArrayList<Object> elems = new ArrayList<>();

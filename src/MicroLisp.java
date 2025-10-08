@@ -15,12 +15,32 @@ public class MicroLisp {
     public static final String BLUE = "\u001B[38;2;45;199;193m";
     public static final String YELLOW = "\u001b[0;93m";
     public static final String ORANGE = "\u001b[38;2;255;140;0m";
+    private static int debugLevel = 0;
+    private static boolean interactive = false;
+    private static String availableFlags = "ilh";
 
     public static void main(String[] args){
         // ----- Create Initial Environment --------- 
         Environment environment = makeGlobalEnv();
+        if (args[0].charAt(0) == '-'){
+          for (int i = 1; i < args[0].length(); i++){
+            switch (args[0].charAt(i)) {
+              case 'i': 
+                interactive = true;
+                break;
+              case 'l':
+                debugLevel = 1;
+                break;
+              case 'h':
+                debugLevel = 2;
+                break;
+              default:
+                break;
+            }       
+          }
+        }
         // ----- Load and display the banner and text ---------
-        if (args[0].equals("-i")){
+        if (interactive) {
             InputStream in = MicroLisp.class.getResourceAsStream("/banner.txt");
             if (in != null) {
                 try {
@@ -136,9 +156,36 @@ public class MicroLisp {
                 System.out.print("");
             }
             else {
+                Lexer l = new Lexer(input);
                 Parser p = new Parser(input);
-                Object result = Evaluator.eval(p.parse(),environment);
-                System.out.println(result.toString());
+                Node parsed = p.parse();
+                Object result;
+                switch (debugLevel) {
+                  case 1:
+                    System.out.println("DEBUG LOW\nAST:");
+                    parsed.printNodes(0);
+                    System.out.println("\nOUTPUT:");
+                    result = Evaluator.eval(parsed, environment);
+                    System.out.println(result.toString());
+                    break;
+                  case 2:
+                    System.out.println("DEBUG HIGH\nTOKEN STREAM");
+                    Token current = l.getNextToken();
+                    while (!current.type().equals("EOF")) {
+                      System.out.println(current);
+                      current = l.getNextToken();
+                    }
+                    System.out.println("\nAST:");
+                    parsed.printNodes(0);
+                    System.out.println("\nOUTPUT:");
+                    result = Evaluator.eval(parsed, environment);
+                    System.out.println(result.toString());
+                    break;
+                  default:
+                    result = Evaluator.eval(parsed, environment);
+                    System.out.println(result.toString());
+                    break;
+                }
             }
         }
     }

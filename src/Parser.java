@@ -17,8 +17,15 @@ public class Parser {
         this.lexer = new Lexer(src);
     }
     // Parses a raw datum (used inside quoted expressions).
+
     private Node<Token> parseDatum() {
         Token tok = lexer.getNextToken();
+
+        // 'datum at datum level: produce a QUOTE node
+        if (tok.type().equals("QUOTE")) {
+            return parseQuoted();
+        }
+
         if (tok.type().equals("LPAREN")) {
             Node<Token> listNode = new Node<>(new Token("LIST",""));
             Token inner = lexer.getNextToken();
@@ -26,6 +33,9 @@ public class Parser {
                 if (inner.type().equals("LPAREN")) {
                     lexer.backUp();
                     listNode.addChild(parseDatum());
+                } else if (inner.type().equals("QUOTE")) {
+                    // Support nested quotes inside quoted data: '(a '(b c))
+                    listNode.addChild(parseQuoted());
                 } else {
                     listNode.createChild(inner);
                 }
@@ -37,6 +47,26 @@ public class Parser {
             return new Node<>(tok);
         }
     }
+
+
+    // Build (QUOTE <datum>) as a node
+    
+    private Node<Token> parseQuoted() {
+        Node<Token> q = new Node<>(new Token("QUOTE", ""));
+        Token next = lexer.getNextToken();
+        if (next.type().equals("QUOTE")) {
+            // handle nested quotes ''x → (quote (quote x))
+            lexer.backUp();
+            q.addChild(parseQuoted());
+        } else if (next.type().equals("LPAREN")) {
+            lexer.backUp();
+            q.addChild(parseDatum());
+        } else {
+            q.addChild(new Node<>(next));
+        }
+        return q;
+    }
+
     
     public Node<Token> parse() {
         //Get the first token for this recursive call
@@ -102,15 +132,20 @@ public class Parser {
                 }
                 // ---------- quote special form ----------
                 if (node.getValue().type().equals("QUOTE")) {
+                    // at this point, `current` is already the first token after QUOTE
                     if (current.type().equals("LPAREN")) {
-                        lexer.backUp();
-                        node.addChild(parseDatum());   // parse raw datum inside (quote …)
-                        lexer.getNextToken();          // consume closing RPAREN
-                        return node;
+                        // parse the datum (list or whatever) without skipping past it
+                        lexer.backUp();                   // step back onto '('
+                        node.addChild(parseDatum());      // parse the raw datum
+                        lexer.getNextToken();             // consume the closing ')' of (quote …)
+                    } else if (current.type().equals("QUOTE")) {
+                        // handle (quote ''x) etc.
+                        node.addChild(parseQuoted());
                     } else {
+                        // atom after quote
                         node.addChild(new Node<>(current));
-                        return node;
                     }
+                    return node;
                 }
                 // ---------- cond special form ----------
                 if (node.getValue().type().equals("COND")) {                    
@@ -128,7 +163,7 @@ public class Parser {
                             clause.addChild(this.parse());
                             current = lexer.getNextToken();
                         } else if (current.type().equals("QUOTE")) {
-                            clause.addChild(parseDatum());
+                            clause.addChild(parseQuoted());
                             current = lexer.getNextToken();
                         } else {
                             // For literal atoms (NUMBER, BOOLEAN, STRING, SYMBOL, etc.)
@@ -147,7 +182,7 @@ public class Parser {
                                 clause.addChild(this.parse());
                                 current = lexer.getNextToken();
                             } else if (current.type().equals("QUOTE")) {
-                                clause.addChild(parseDatum());   // handle 'datum (e.g., '())
+                                clause.addChild(parseQuoted());   // handle 'datum (e.g., '())
                                 current = lexer.getNextToken();
                             } else {
                                 clause.addChild(new Node<>(current));
@@ -170,7 +205,7 @@ public class Parser {
                             node.addChild(this.parse()); 
                             current = lexer.getNextToken(); 
                         } else if (current.type().equals("QUOTE")) { 
-                            node.addChild(parseDatum()); 
+                            node.addChild(parseQuoted()); 
                             current = lexer.getNextToken(); 
                         } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") 
                                 || current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") 
@@ -295,7 +330,7 @@ public class Parser {
                         }
                         return node;
                     } else if (current.type().equals("QUOTE")) {
-                        node.addChild(parseDatum());
+                        node.addChild(parseQuoted());
                         current = lexer.getNextToken();
                     } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") ||
                               current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") ||
@@ -328,7 +363,7 @@ public class Parser {
                         apply.addChild(this.parse());
                         current = lexer.getNextToken();
                     } else if (current.type().equals("QUOTE")) {
-                        apply.addChild(parseDatum());
+                        apply.addChild(parseQuoted());
                         current = lexer.getNextToken();
                     } else {
                         apply.createChild(current);
@@ -369,7 +404,7 @@ public class Parser {
                         }
                         return node;
                     } else if (current.type().equals("QUOTE")) {
-                        node.addChild(parseDatum());
+                        node.addChild(parseQuoted());
                         current = lexer.getNextToken();
                     } else {
                         node.createChild(current);
@@ -393,7 +428,7 @@ public class Parser {
                         node.addChild(this.parse());
                         current = lexer.getNextToken();
                     } else if (current.type().equals("QUOTE")) {
-                        node.addChild(parseDatum());
+                        node.addChild(parseQuoted());
                         current = lexer.getNextToken();
                     } else {
                         node.createChild(current);
@@ -416,7 +451,7 @@ public class Parser {
                         node.addChild(this.parse());
                         current = lexer.getNextToken();
                     } else if (current.type().equals("QUOTE")) {
-                        node.addChild(parseDatum());
+                        node.addChild(parseQuoted());
                         current = lexer.getNextToken();
                     } else {
                         node.createChild(current);
