@@ -51,21 +51,38 @@ public class Parser {
 
     // Build (QUOTE <datum>) as a node
     
-    private Node<Token> parseQuoted() {
-        Node<Token> q = new Node<>(new Token("QUOTE", ""));
-        Token next = lexer.getNextToken();
-        if (next.type().equals("QUOTE")) {
-            // handle nested quotes ''x → (quote (quote x))
-            lexer.backUp();
-            q.addChild(parseQuoted());
-        } else if (next.type().equals("LPAREN")) {
-            lexer.backUp();
-            q.addChild(parseDatum());
-        } else {
-            q.addChild(new Node<>(next));
-        }
-        return q;
+// Handles quote shorthand: 'x, ''x, '''x, etc.  Never uses backUp().
+private Node<Token> parseQuoted() {
+    // Count consecutive QUOTE tokens: '''x  => depth = 3
+    int depth = 1;
+    while (lexer.peekNextToken().type().equals("QUOTE")) {
+        lexer.getNextToken(); // consume the extra ' token
+        depth++;
     }
+
+    // After consuming all leading quotes, there MUST be a datum
+    Token<?,?> look = lexer.peekNextToken();
+    if (look.type().equals("EOF")) {
+        throw new SyntaxException("Unexpected EOF while parsing quote");
+    }
+
+    // Parse the innermost datum *without* consuming '(' here
+    Node<Token> inner;
+    if (look.type().equals("LPAREN")) {
+        // parseDatum() itself will pull the '(' and read the list datum
+        inner = parseDatum();
+    } else {
+        inner = new Node<>(lexer.getNextToken());
+    }
+
+    // Wrap it depth times: x -> (quote x) -> (quote (quote x)) -> ...
+    for (int i = 0; i < depth; i++) {
+        Node<Token> q = new Node<>(new Token<>("QUOTE", ""));
+        q.addChild(inner);
+        inner = q;
+    }
+    return inner;
+}
 
     
     public Node<Token> parse() {
@@ -130,23 +147,39 @@ public class Parser {
                     }
                     return node;
                 }
-                // ---------- quote special form ----------
-                if (node.getValue().type().equals("QUOTE")) {
-                    // at this point, `current` is already the first token after QUOTE
-                    if (current.type().equals("LPAREN")) {
-                        // parse the datum (list or whatever) without skipping past it
-                        lexer.backUp();                   // step back onto '('
-                        node.addChild(parseDatum());      // parse the raw datum
-                        lexer.getNextToken();             // consume the closing ')' of (quote …)
-                    } else if (current.type().equals("QUOTE")) {
-                        // handle (quote ''x) etc.
-                        node.addChild(parseQuoted());
-                    } else {
-                        // atom after quote
-                        node.addChild(new Node<>(current));
-                    }
-                    return node;
-                }
+// ---------- quote special form ----------
+if (node.getValue().type().equals("QUOTE")) {
+    // 'current' is already the first token after QUOTE
+    if (current.type().equals("LPAREN")) {
+        // Let parseDatum() consume the entire datum *and* its closing ')'
+        node.addChild(parseDatum());
+
+        // Now consume the single ')' that closes the (quote …) form
+        Token<?,?> outerClose = lexer.getNextToken();
+        if (!outerClose.type().equals("RPAREN")) {
+            throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
+        }
+        return node;
+    }
+
+    // If the datum starts with a shorthand quote again: (quote 'x), (quote ''x), …
+    if (current.type().equals("QUOTE")) {
+        node.addChild(parseQuoted());  // handles 'x, ''x, etc.
+        Token<?,?> outerClose = lexer.getNextToken();
+        if (!outerClose.type().equals("RPAREN")) {
+            throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
+        }
+        return node;
+    }
+
+    // Atom after QUOTE (symbol/number/string/boolean/character)
+    node.createChild(current);
+    Token<?,?> outerClose = lexer.getNextToken();
+    if (!outerClose.type().equals("RPAREN")) {
+        throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
+    }
+    return node;
+}
                 // ---------- cond special form ----------
                 if (node.getValue().type().equals("COND")) {                    
                     // Parse each clause until the closing RPAREN of cond

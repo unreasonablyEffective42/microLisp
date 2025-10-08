@@ -146,6 +146,17 @@ public class Lexer {
             this.advance();
         }
     }
+
+    // Peek ahead without consuming a token.
+    // Restores BOTH character index and currentChar sentinels.
+    public Token<?,?> peekNextToken() {
+        int oldPos = this.pos;
+        Character oldCh = this.currentChar;
+        Token<?,?> tok = this.getNextToken();
+        this.pos = oldPos;
+        this.currentChar = oldCh;
+        return tok;
+    }
     //This is where the magic happens, depending on what the current character is
     //the conditionals will choose the correct kind of token to produce  
     public Token getNextToken() {

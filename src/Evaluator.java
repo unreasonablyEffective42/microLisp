@@ -95,48 +95,60 @@ public class Evaluator {
         return out;
     }
 
-    // ---------- QUOTE helper ----------
-    private static Object quoteToValue(Node<Token> node) {
-        Token<?,?> tok = node.getValue();
-        if (tok == null && node.getChildren().isEmpty()){
-          return new LinkedList<>();
+private static Object quoteToValue(Node<Token> node) {
+    Token<?,?> tok = node.getValue();
+
+    // Empty list
+    if ((tok == null || tok.type() == null) && node.getChildren().isEmpty()) {
+        return new LinkedList<>();
+    }
+
+    // Quoted list
+    if (tok != null && "LIST".equals(tok.type())) {
+        ArrayList<Object> elems = new ArrayList<>();
+        for (Node<Token> child : node.getChildren()) {
+            elems.add(quoteToValue(child));
         }
-        // Lists recurse
-        if (isList(tok)) {
-            ArrayList<Object> elems = new ArrayList<>();
-            for (Node<Token> child : node.getChildren()) {
-                elems.add(quoteToValue(child));
-            }
-            return new LinkedList<>(elems);
-        }
-        // Strings stay literal
-        if (isString(tok)) {
-            return (String) tok.value();
-        }
-        // Special forms and primitives should preserve their keyword symbol
-        if (isLambda(tok))  return new Symbol("lambda");
-        if (isCond(tok))    return new Symbol("cond");
-        if (isDo(tok))      return new Symbol("do");
-        if (isLet(tok))     return new Symbol("let");
-        if (isLets(tok))    return new Symbol("lets");
-        if (isLetr(tok))    return new Symbol("letr");
-        if (isDefine(tok))  return new Symbol("define");
-        if (isPrimitive(tok)) return new Symbol(((String) tok.value()).toLowerCase());
-        if (isQuote(tok))   return new Symbol("quote");
-        // Regular symbols
-        if (isSymbol(tok)) {
-            return new Symbol((String) tok.value());
-        }        
-        // Booleans behave like symbols when quoted (#t -> #t)
-        if (isBool(tok)) {
-            return new Symbol((String) tok.value());
-        }
-        // Numbers are just numbers
-        if (isNumber(tok)) {
-            return tok.value();
-        }
+        return new LinkedList<>(elems);
+    }
+
+// Nested quote nodes → build (quote <datum>) recursively
+if (tok != null && "QUOTE".equals(tok.type())) {
+    ArrayList<Object> elems = new ArrayList<>();
+    elems.add(new Symbol("quote"));
+    if (!node.getChildren().isEmpty()) {
+        elems.add(quoteToValue(node.getChildren().get(0)));
+    }
+    return new LinkedList<>(elems);
+}
+
+    // Strings stay literal
+    if (tok != null && "STRING".equals(tok.type())) {
         return tok.value();
     }
+
+    // Primitives and symbols stay as symbols/numbers
+    if (tok != null) {
+        String ttype = String.valueOf(tok.type());
+        Object tval  = tok.value();
+        switch (ttype) {
+            case "LAMBDA":    return new Symbol("lambda");
+            case "COND":      return new Symbol("cond");
+            case "DO":        return new Symbol("do");
+            case "LET":       return new Symbol("let");
+            case "LETS":      return new Symbol("lets");
+            case "LETR":      return new Symbol("letr");
+            case "DEFINE":    return new Symbol("define");
+            case "PRIMITIVE": return new Symbol(((String) tval).toLowerCase());
+            case "SYMBOL":    return new Symbol((String) tval);
+            case "BOOLEAN":   return new Symbol((String) tval);
+            case "NUMBER":    return tval;
+        }
+    }
+
+    // Default
+    return tok == null ? null : tok.value();
+}
     // ----- COND -----
     private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
         return Trampoline.more(() -> loopCond(clauses, 0, env));
@@ -357,22 +369,16 @@ public class Evaluator {
             }
             return Trampoline.done(new LinkedList<>(chars));
         }
-
+ 
         // (quote …)
         if (isQuote(t)) {
             if (expr.getChildren().size() != 1) {
-                throw new SyntaxException("Quote only accepts one argument, received: " + expr.getChildren().size() + "args: "+expr.getChildren());
+                throw new SyntaxException("quote takes exactly one argument, got: " + expr.getChildren().size());
             }
+            // Convert the quoted *datum* (which may itself be a QUOTE node, a LIST, or an atom)
+            // into a runtime value using quoteToValue for all cases.
             Node<Token> quoted = expr.getChildren().get(0);
-            if (isList(quoted.getValue())) {
-                ArrayList<Object> elems = new ArrayList<>();
-                for (Node<Token> child : quoted.getChildren()) {
-                    elems.add(quoteToValue(child));
-                }
-                return Trampoline.done(new LinkedList<>(elems));
-            } else {
-                return Trampoline.done(quoted.getValue().value());
-            }
+            return Trampoline.done(quoteToValue(quoted));
         }
 
         // (define name expr)
