@@ -28,9 +28,7 @@ public class Stack<T>{
     T res = stack.head();
     Object tail = stack.tail();
     Object t = stack.tail();
-    if (!(t instanceof LinkedList)) {
-        throw new RuntimeException("Stack corrupted: improper tail");
-    } 
+    
     stack = (LinkedList<T>) t;
     size--;
     return res; 
