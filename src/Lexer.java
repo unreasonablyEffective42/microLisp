@@ -136,16 +136,16 @@ public class Lexer {
             this.advance();
         }
     }
+    
     private void discardComment() {
-        // Advance until newline or EOF sentinel (~)
-        while (this.currentChar != '\n' && this.currentChar != '~') {
+        while (pos < src.length() && this.currentChar != '\n' && this.currentChar != '~') {
             this.advance();
         }
-        // Optionally skip the newline itself
         if (this.currentChar == '\n') {
             this.advance();
         }
     }
+
 
     // Peek ahead without consuming a token.
     // Restores BOTH character index and currentChar sentinels.
@@ -199,8 +199,12 @@ public class Lexer {
             this.advance();
             return new Token<>("DOT", ".");
         }
-        else if (this.currentChar == ';'){
+        else if (this.currentChar == ';') {
+            // Discard everything after ';' until newline
             this.discardComment();
+            // After discarding, also skip any trailing whitespace or newlines
+            this.skipWhitespace();
+            // Then continue lexing
             return this.getNextToken();
         }
 

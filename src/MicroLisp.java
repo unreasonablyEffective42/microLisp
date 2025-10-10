@@ -249,8 +249,8 @@ public class MicroLisp{
                       }
                     } else{
                       innermismatch = 0;
-                    }
-                    sb.append(input);
+                    } 
+                    sb.append('\n').append(input);
                   }while(mismatchtotal > 0);
                 }
                 input = sb.toString();

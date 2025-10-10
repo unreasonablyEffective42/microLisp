@@ -1,4 +1,4 @@
-(define map 
+(define map   ;apply fn to each element of xs
   (lambda (fn xs)
     (let loop ((xs xs) (ys '()))
       (cond ((null? xs) (reverse ys))
