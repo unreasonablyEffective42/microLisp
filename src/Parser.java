@@ -150,50 +150,50 @@ public class Parser {
                     return node;
                 }
 
-// ---------- quote special form ----------
-if (node.getValue().type().equals("QUOTE")) {
-    // 'current' is already the first token after QUOTE
-    if (current.type().equals("LPAREN")) {
-        //empty list handling 
-            
-        lexer.backUp();
-        // Parse the quoted datum — may be (), (x), or nested structures
-        Node<Token> datum = parseDatum();
+                // ---------- quote special form ----------
+                if (node.getValue().type().equals("QUOTE")) {
+                    // 'current' is already the first token after QUOTE
+                    if (current.type().equals("LPAREN")) {
+                        //empty list handling 
+                            
+                        lexer.backUp();
+                        // Parse the quoted datum — may be (), (x), or nested structures
+                        Node<Token> datum = parseDatum();
 
-        // Peek to see if there's a closing ')' for the (quote …)
-        Token<?, ?> maybeCloser = lexer.peekNextToken();
-        if (maybeCloser.type().equals("RPAREN")) {
-            lexer.getNextToken(); // consume it normally
-        } else if (!maybeCloser.type().equals("EOF")) {
-            throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + maybeCloser);
-        }
+                        // Peek to see if there's a closing ')' for the (quote …)
+                        Token<?, ?> maybeCloser = lexer.peekNextToken();
+                        if (maybeCloser.type().equals("RPAREN")) {
+                            lexer.getNextToken(); // consume it normally
+                        } else if (!maybeCloser.type().equals("EOF")) {
+                            throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + maybeCloser);
+                        }
 
-        node.addChild(datum);
-        return node;
-    }
+                        node.addChild(datum);
+                        return node;
+                    }
 
-    // If the datum starts with a shorthand quote again: (quote 'x), (quote ''x), …
-    if (current.type().equals("QUOTE")) {
-        node.addChild(parseQuoted());
-        Token<?, ?> outerClose = lexer.peekNextToken();
-        if (outerClose.type().equals("RPAREN")) {
-            lexer.getNextToken();
-        } else if (!outerClose.type().equals("EOF")) {
-            throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
-        }
-        return node;
-    }
+                    // If the datum starts with a shorthand quote again: (quote 'x), (quote ''x), …
+                    if (current.type().equals("QUOTE")) {
+                        node.addChild(parseQuoted());
+                        Token<?, ?> outerClose = lexer.peekNextToken();
+                        if (outerClose.type().equals("RPAREN")) {
+                            lexer.getNextToken();
+                        } else if (!outerClose.type().equals("EOF")) {
+                            throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
+                        }
+                        return node;
+                    }
 
-    // Atom after QUOTE (symbol/number/string/boolean)
-    node.createChild(current);
-    Token<?, ?> outerClose = lexer.peekNextToken();
-    if (outerClose.type().equals("RPAREN")) {
-        lexer.getNextToken();
-    } else if (!outerClose.type().equals("EOF")) {
-        throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
-    }
-    return node;
-}
+                    // Atom after QUOTE (symbol/number/string/boolean)
+                    node.createChild(current);
+                    Token<?, ?> outerClose = lexer.peekNextToken();
+                    if (outerClose.type().equals("RPAREN")) {
+                        lexer.getNextToken();
+                    } else if (!outerClose.type().equals("EOF")) {
+                        throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
+                    }
+                    return node;
+                }
                 // ---------- cond special form ----------
                 if (node.getValue().type().equals("COND")) {                    
                     // Parse each clause until the closing RPAREN of cond

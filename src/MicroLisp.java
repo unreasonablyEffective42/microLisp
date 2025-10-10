@@ -18,7 +18,8 @@ public class MicroLisp{
     public static final String ORANGE = "\u001b[38;2;255;140;0m";
     private static int debugLevel = 0;
     private static boolean interactive = false;
-    private static String availableFlags = "ilh";
+    private static boolean prettyprint = false;
+    private static String availableFlags = "ilhp";
 
     public static void main(String[] args){
         // ----- Create Initial Environment --------- 
@@ -35,6 +36,8 @@ public class MicroLisp{
               case 'h':
                 debugLevel = 2;
                 break;
+              case 'p':
+                prettyprint = true;
               default:
                 break;
             }       
@@ -171,7 +174,7 @@ public class MicroLisp{
             } else if(input.equals("")){
                 System.out.print("");
             }
-            else {
+            else if (prettyprint) {
                 int mismatchtotal = ParenCounter.lParens(input);
                 StringBuilder sb = new StringBuilder(input);
                 if (mismatchtotal != 0){ 
@@ -179,6 +182,61 @@ public class MicroLisp{
                   int innermismatch = 0;
                   do{  
                     System.out.printf("  |" + " ".repeat(ParenCounter.indent(open)));
+                    input = scanner.nextLine();
+                    innermismatch = ParenCounter.lParens(input);
+                    if (innermismatch > 0){
+                      open.addAll(ParenCounter.openToks(input));
+                      mismatchtotal += innermismatch;
+                    } else if (innermismatch < 0){
+                      mismatchtotal += innermismatch;
+                      for (int i = innermismatch; i < 0; i++){
+                        open.remove(open.size()-1);
+                      }
+                    } else{
+                      innermismatch = 0;
+                    }
+                    sb.append(input);
+                  }while(mismatchtotal > 0);
+                }
+                input = sb.toString();
+                Lexer l = new Lexer(input);
+                Parser p = new Parser(input);
+                Node parsed = p.parse();
+                Object result;
+                switch (debugLevel) {
+                  case 1:
+                    System.out.println("DEBUG LOW\nAST:");
+                    parsed.printNodes(0);
+                    System.out.println("\nOUTPUT:");
+                    result = Evaluator.eval(parsed, environment);
+                    System.out.println(result.toString());
+                    break;
+                  case 2:
+                    System.out.println("DEBUG HIGH\nTOKEN STREAM");
+                    Token current = l.getNextToken();
+                    while (!current.type().equals("EOF")) {
+                      System.out.println(current);
+                      current = l.getNextToken();
+                    }
+                    System.out.println("\nAST:");
+                    parsed.printNodes(0);
+                    System.out.println("\nOUTPUT:");
+                    result = Evaluator.eval(parsed, environment);
+                    System.out.println(result.toString());
+                    break;
+                  default:
+                    result = Evaluator.eval(parsed, environment);
+                    System.out.println(result.toString());
+                    break;
+                }
+            } 
+            else {
+                int mismatchtotal = ParenCounter.lParens(input);
+                StringBuilder sb = new StringBuilder(input);
+                if (mismatchtotal != 0){ 
+                  ArrayList<Token> open = ParenCounter.openToks(input); 
+                  int innermismatch = 0;
+                  do{   
                     input = scanner.nextLine();
                     innermismatch = ParenCounter.lParens(input);
                     if (innermismatch > 0){
