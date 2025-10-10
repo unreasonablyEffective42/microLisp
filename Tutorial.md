@@ -318,7 +318,7 @@ Gives us exactly that, we start with a list of labels, and expressions we want e
 which we can then use in the body expression. 
 ```Scheme 
 (let ((x 3)
-      (y 4)
+      (y 4))
   (+ x y)) 
 
 >7
