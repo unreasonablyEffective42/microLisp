@@ -7,8 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.function.Supplier;
 import java.math.BigInteger;
+import java.util.ArrayList;
 
-public class MicroLisp {
+public class MicroLisp{
     public static final String RESET = "\u001B[0m";
     public static final String RED = "\u001B[31m";
     public static final String GREEN = "\u001B[32m";
@@ -171,17 +172,30 @@ public class MicroLisp {
                 System.out.print("");
             }
             else {
-                int mismatch = ParenCounter.lParens(input);
-                if (mismatch > 0){
-                  StringBuilder sb = new StringBuilder(input);
-                  while (mismatch > 0){
-                    System.out.printf("  |"+ParenCounter.tabs(input, mismatch));
+                int mismatchtotal = ParenCounter.lParens(input);
+                StringBuilder sb = new StringBuilder(input);
+                if (mismatchtotal != 0){ 
+                  ArrayList<Token> open = ParenCounter.openToks(input); 
+                  int innermismatch = 0;
+                  do{  
+                    System.out.printf("  |" + " ".repeat(ParenCounter.indent(open)));
                     input = scanner.nextLine();
-                    mismatch += lParens(input);
+                    innermismatch = ParenCounter.lParens(input);
+                    if (innermismatch > 0){
+                      open.addAll(ParenCounter.openToks(input));
+                      mismatchtotal += innermismatch;
+                    } else if (innermismatch < 0){
+                      mismatchtotal += innermismatch;
+                      for (int i = innermismatch; i < 0; i++){
+                        open.remove(open.size()-1);
+                      }
+                    } else{
+                      innermismatch = 0;
+                    }
                     sb.append(input);
-                  }
-                  input = sb.toString();
+                  }while(mismatchtotal > 0);
                 }
+                input = sb.toString();
                 Lexer l = new Lexer(input);
                 Parser p = new Parser(input);
                 Node parsed = p.parse();

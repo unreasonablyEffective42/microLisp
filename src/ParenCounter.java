@@ -83,17 +83,21 @@ public static ArrayList<Token> openToks(String src){
 }
 
 public static int indent(ArrayList<Token> openToks){
-    int ret = 0;
-
-    // Only treat the FIRST (outermost) LET/LETS specially.
-    int firstLetIdx  = -1;
-    int firstLetsIdx = -1;
-    for (int i = 0; i < openToks.size(); i++){
-        String t = (String) openToks.get(i).type();
-        if (firstLetIdx  < 0 && "LET".equals(t))  firstLetIdx  = i;
-        if (firstLetsIdx < 0 && "LETS".equals(t)) firstLetsIdx = i;
+    int ret = 0;   
+    //check if let is outermost token, if so we only indent once for that token
+    //check if lets is outermost token, if so we only indent once
+    boolean let = false;
+    boolean lets = false;
+    boolean namedlet = false;
+   
+    if (openToks.size() >2) {
+        namedlet = openToks.get(openToks.size()-1).type().equals("LPAREN") && openToks.get(openToks.size()-2).type().equals("SYMBOL") && openToks.get(openToks.size()-3).type().equals("LET"); 
+        
     }
-
+    else if (openToks.size() >1) {
+        let = openToks.get(openToks.size()-1).type().equals("LPAREN") && openToks.get(openToks.size()-2).type().equals("LET");
+        lets = openToks.get(openToks.size()-1).type().equals("LPAREN") && openToks.get(openToks.size()-2).type().equals("LETS");
+    } 
     for (int i = 0; i < openToks.size(); i++){
         String type = (String) openToks.get(i).type();
         switch (type){
@@ -104,19 +108,35 @@ public static int indent(ArrayList<Token> openToks){
 
             case "LET":
                 // outermost LET: align just after the '(' that starts the form
-                if (i == firstLetIdx) ret++; else ret += 4;  // "let "
+                if (let) {
+                    ret+=5;
+                    let = false;
+                }
+                else {
+                    ret+=2;
+                }
                 break;
 
             case "LETS":
-                if (i == firstLetsIdx) ret++; else ret += 5; // "lets "
+                if (lets) { 
+                    ret+=6;
+                    lets = false;
+                }
+                else {
+                    ret+=2; 
+                }// "lets "
                 break;
 
             case "COND":
-                ret += 5; // "cond "
+                ret += 6; // "cond "
                 break;
 
             case "SYMBOL":
-                ret += ((String) openToks.get(i).value()).length() + 1;
+                if (namedlet ) {
+                    ret += ((String) openToks.get(i).value()).length() + 4;
+                    namedlet = false;
+                    let = false;
+                }
                 break;
 
             case "NUMBER":
@@ -124,7 +144,7 @@ public static int indent(ArrayList<Token> openToks){
                 break;
 
             default:
-                ret++;
+                ret+=1;
                 break;
         }
     }
