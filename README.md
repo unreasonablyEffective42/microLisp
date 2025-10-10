@@ -17,9 +17,11 @@ The syntax and semantics almost entirely follow from Scheme. Some differences in
 To build, clone the repository  
 `git clone [https://github.com/unreasonablyeffective42/microlisp` 
 and from the directory ./MicroLisp, enter: `./BUILD` 
-Then you can run from a new terminal with `microlisp -ip` Optionally you can pass it a file to load as well `microlisp -i file.scm`
+Then you can run from a new terminal with `microlisp -ip` Optionally you can pass it a file to load as well `microlisp -flags file.scm`
 
 To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + optional files to be loaded.
+
+After building try `microlisp ./examples/lists.scm ./examples/examples.scm ./examples/primetest.scm`
 
 Currently there are two example files, use `microlisp -ip lists.scm examples.scm` to use the examples in examples.scm 
 The flags to pass are: 
