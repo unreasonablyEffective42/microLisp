@@ -176,13 +176,15 @@ Lambdas can only have a single body expression. To have multiple expressions eva
   (lambda (x)
     (print x) <-expr 1 
     (+ x 1))) <-expr 2
-
+```
+```Scheme
 ;use do
 (define foo 
   (lambda (x) 
     (do (print x)
         (+ x 1)))) 
-
+```
+```terminal
 >>> (foo 1)
 1 
 2
@@ -356,7 +358,7 @@ What we need is `lets`. Instead of doing parallel binding, `lets` does binding s
 This is equivalent to nested `let`
 ```Scheme
 (let ((x 2))
-  (let (y (+ x 3))
+  (let ((y (+ x 3)))
     (* y 4)))
 ```
 Which expands to 
@@ -373,7 +375,7 @@ Using let and lets allows us to write functional programs in an imperative style
        (y (* x 3))        ; y = 6 
        (z (+ 1 (^ y 2)))) ; z = 37
   (cond ((even? z) "Success!")
-        (else "fail"))) 
+        (else "fail")))
 
 "fail"
 ```
@@ -614,6 +616,7 @@ of functions, we can implement `cons` with nothing but `lambda`
 (define tail
   (lambda (z)
     (z (lambda (p q) q))))
+
 ```
 Walking through this ...
 ```
