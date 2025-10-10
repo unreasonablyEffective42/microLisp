@@ -9,7 +9,7 @@ rm -rf out
 mkdir out
 echo "Compiling MicroLisp"
 javac -d out $(find src -name "*.java")
-cp banner.txt out/
+cp src/banner.txt out/
 # 2. Package jar
 echo "Packaging MicroLisp.jar"
 jar cfm MicroLisp.jar manifest.mf -C out .

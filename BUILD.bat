@@ -33,7 +33,7 @@ if errorlevel 1 (
     echo Compile failed.
     exit /b 1
 )
-copy /Y banner.txt out\ >nul
+copy /Y src\banner.txt out\ >nul
 echo Compilation complete.
 echo.
 
