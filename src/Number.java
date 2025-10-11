@@ -1,3 +1,30 @@
+/*
+ * Scheme-style numeric tower supporting both exact and inexact arithmetic,
+ * with automatic promotion and mixed-type interoperability.
+ *
+ * Efficiency is achieved by using primitive long and double representations
+ * until promotion to BigInteger or BigDecimal is required. 
+ *
+ * All arithmetic operations between any of the Number variants (defined in the
+ * Type enum) are supported and will preserve the correct notion of exactness
+ * or inexactness at the highest precision necessary.
+ *
+ * The numeric tower hierarchy (promotion direction):
+ *
+ *          ┌───────────────────────────────────────────────────────────────────────┐
+ *          │                Inexact (approximate) domain                           │
+ *          │                                                                       │
+ *          │     BigFloat  ←──  Float                                              │
+ *          └───────────────────────────────────────────────────────────────────────┘
+ *                           ↑
+ *     Number → Quaternion → Complex
+ *                           ↓
+ *          ┌───────────────────────────────────────────────────────────────────────┐
+ *          │                  Exact (arbitrary precision) domain                   │
+ *          │                                                                       │
+ *          │     BigRational  ←──  Rational  ←──  BigInt  ←──  Integer             │
+ *          └───────────────────────────────────────────────────────────────────────┘
+ */
 import java.math.BigInteger;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -463,6 +490,196 @@ public final class Number {
         Number imag = add(multiply(a.real,b.imag),multiply(a.imag,b.real));
         return Number.complex(real,imag);
     }
+    //------ Division -------
+    public static Number divide(Number a, Number b) { 
+        switch (a.type) {
+            case INT:         return divideInt(a, b);
+            case BIGINT:      return divideBigInt(a, b);
+            case RATIONAL:    return divideRational(a, b);
+            case BIGRATIONAL: return divideBigRational(a, b);
+            case FLOAT:       return divideFloat(a, b);
+            case BIGFLOAT:    return divideBigFloat(a, b);
+            case COMPLEX:
+                if (b.type != Type.COMPLEX)
+                    b = Number.complex(b, Number.integer(0));
+                return divideComplex(a, b);
+            default:
+                throw new IllegalStateException("Unknown type: " + a.type);
+        }
+
+    } 
+    
+
+    private static Number divideInt(Number a, Number b) {
+        switch (b.type) {
+            case INT: {
+                if (b.intVal == 0) throw new ArithmeticException("Division by zero");
+                if (a.intVal % b.intVal == 0) return Number.integer(a.intVal / b.intVal);
+                return Number.rational(a.intVal, b.intVal);
+            }
+            case BIGINT: {
+                if (b.bigVal.signum() == 0) throw new ArithmeticException("Division by zero");
+                return Number.bigRational(BigInteger.valueOf(a.intVal), b.bigVal);
+            }
+            case RATIONAL: {
+                if (b.num == 0) throw new ArithmeticException("Division by zero");
+                // a / (p/q) = a * (q/p)
+                try {
+                    long num = Math.multiplyExact(a.intVal, b.den);
+                    return Number.rational(num, b.num);
+                } catch (ArithmeticException e) {
+                    BigInteger num = BigInteger.valueOf(a.intVal).multiply(BigInteger.valueOf(b.den));
+                    BigInteger den = BigInteger.valueOf(b.num);
+                    return Number.bigRational(num, den);
+                }
+            }
+            case BIGRATIONAL: {
+                if (b.bigNum.signum() == 0) throw new ArithmeticException("Division by zero");
+                BigInteger num = BigInteger.valueOf(a.intVal).multiply(b.bigDen);
+                BigInteger den = b.bigNum;
+                return Number.bigRational(num, den);
+            }
+            case FLOAT: {
+                return Number.real(a.intVal / b.floatVal);
+            }
+            case BIGFLOAT: {
+                return Number.bigFloat(BigDecimal.valueOf(a.intVal)
+                        .divide(b.bigFloatVal, MathContext.DECIMAL128));
+            }
+            case COMPLEX: {
+                // treat a as a + 0i
+                return divideComplex(Number.complex(a, Number.integer(0)), b);
+            }
+            default:
+                throw new IllegalStateException("Unsupported divisor type: " + b.type);
+        }
+    }
+
+    private static Number divideBigInt(Number a, Number b) {
+        BigInteger bigA = (a.type == Type.BIGINT) ? a.bigVal : BigInteger.valueOf(a.intVal);
+        BigInteger bigB = (b.type == Type.BIGINT) ? b.bigVal : BigInteger.valueOf(b.intVal);
+
+        if (bigB.signum() == 0) throw new ArithmeticException("Division by zero");
+        if (bigA.signum() == 0) return Number.integer(BigInteger.ZERO);
+
+        BigInteger[] qr = bigA.divideAndRemainder(bigB);
+        if (qr[1].signum() == 0) {
+            return Number.integer(qr[0]); // exact BigInteger quotient
+        }
+        return Number.bigRational(bigA, bigB); // factory will reduce & normalize sign
+    }
+    
+
+    private static Number divideFloat(Number a, Number b) {
+        double left = a.floatVal;
+
+        switch (b.type) {
+            case FLOAT: {
+                double q = left / b.floatVal;
+                if (Double.isFinite(q)) return Number.real(q);
+                return Number.bigFloat(BigDecimal.valueOf(left)
+                        .divide(BigDecimal.valueOf(b.floatVal), MathContext.DECIMAL128));
+            }
+            case INT: {
+                double q = left / b.intVal;
+                if (Double.isFinite(q)) return Number.real(q);
+                return Number.bigFloat(BigDecimal.valueOf(left)
+                        .divide(BigDecimal.valueOf(b.intVal), MathContext.DECIMAL128));
+            }
+            case BIGINT: {
+                return Number.bigFloat(BigDecimal.valueOf(left)
+                        .divide(new BigDecimal(b.bigVal), MathContext.DECIMAL128));
+            }
+            case RATIONAL: {
+                // left / (p/q) = left * (q/p)
+                double right = ((double) b.num) / ((double) b.den);
+                double q = left / right;
+                if (Double.isFinite(q)) return Number.real(q);
+                BigDecimal num = BigDecimal.valueOf(left).multiply(BigDecimal.valueOf(b.den));
+                return Number.bigFloat(num.divide(BigDecimal.valueOf(b.num), MathContext.DECIMAL128));
+            }
+            case BIGRATIONAL: {
+                // left * (bigDen / bigNum)
+                BigDecimal num = BigDecimal.valueOf(left).multiply(new BigDecimal(b.bigDen));
+                return Number.bigFloat(num.divide(new BigDecimal(b.bigNum), MathContext.DECIMAL128));
+            }
+            case BIGFLOAT: {
+                return Number.bigFloat(BigDecimal.valueOf(left)
+                        .divide(b.bigFloatVal, MathContext.DECIMAL128));
+            }
+            case COMPLEX: {
+                return divideComplex(Number.complex(Number.real(left), Number.integer(0)), b);
+            }
+            default:
+                throw new IllegalStateException("Unsupported divisor type for FLOAT / " + b.type);
+        }
+    }
+    
+    private static Number divideBigFloat(Number a, Number b) {
+        BigDecimal left = (a.type == Type.BIGFLOAT) ? a.bigFloatVal : BigDecimal.valueOf(a.floatVal);
+        BigDecimal right = (b.type == Type.BIGFLOAT) ? b.bigFloatVal : BigDecimal.valueOf(b.floatVal);
+        BigDecimal quotient = left.divide(right, MathContext.DECIMAL128);
+        return Number.bigFloat(quotient);
+    }
+
+
+    private static Number divideRational(Number a, Number b) {
+        // b must not be zero
+        if ((b.type == Type.RATIONAL && b.num == 0) ||
+            (b.type == Type.INT && b.intVal == 0))
+            throw new ArithmeticException("Division by zero");
+
+        // Reciprocal: swap numerator and denominator of b
+        Number reciprocal;
+        switch (b.type) {
+            case RATIONAL:
+                reciprocal = Number.rational(b.den, b.num);
+                break;
+            case BIGRATIONAL:
+                reciprocal = Number.bigRational(b.bigDen, b.bigNum);
+                break;
+            case INT:
+                reciprocal = Number.rational(1, b.intVal);
+                break;
+            case BIGINT:
+                reciprocal = Number.bigRational(BigInteger.ONE, b.bigVal);
+                break;
+            case FLOAT:
+                reciprocal = Number.real(1.0 / b.floatVal);
+                break;
+            case BIGFLOAT:
+                reciprocal = Number.bigFloat(BigDecimal.ONE.divide(b.bigFloatVal, MathContext.DECIMAL128));
+                break;
+            case COMPLEX:
+                reciprocal = reciprocalComplex(b);
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported type: " + b.type);
+        }
+        return multiplyRational(a, reciprocal);
+    }
+    private static Number divideBigRational(Number a, Number b){
+        Number reciprocal = Number.bigRational(b.bigDen,b.bigNum);  
+        return multiplyBigRational(a,reciprocal);
+    }
+
+    private static Number divideComplex(Number a, Number b){
+        Number denominator = add(multiply(b.real,b.real),multiply(b.imag,b.imag));
+        Number rnumerator  = add(multiply(a.real,b.real),multiply(a.imag,b.imag));
+        Number inumerator  = sub(multiply(a.imag,b.real),multiply(a.real,b.imag));        
+        return Number.complex(divide(rnumerator, denominator),divide(inumerator, denominator));
+    }
+
+    private static Number reciprocalComplex(Number z) { 
+        Number a = z.real;
+        Number b = z.imag; 
+        Number a2 = multiply(a, a);
+        Number b2 = multiply(b, b);
+        Number denom = add(a2, b2);
+        Number negB = negate(b);
+        Number conj = Number.complex(a, negB);
+        return divide(conj, denom);
+    }
 
 
     @Override
@@ -594,6 +811,54 @@ public final class Number {
         System.out.println("negatives            = " + Number.multiply(Number.integer(-5), Number.integer(2)) + "   (expected -10)");
         System.out.println("rational * negative  = " + Number.multiply(Number.rational(1, 3), Number.integer(-3)) + "   (expected -1)");
         System.out.println("complex * zero       = " + Number.multiply(c3, Number.zero(Type.COMPLEX)) + "   (expected 0 + 0i)");
+        System.out.println();
+    
+        System.out.println("=== DIVISION TESTS ===");
+
+        // --- Simple divisions ---
+        System.out.println("int / int            = " + Number.divide(Number.integer(7), Number.integer(2)) + "   (expected 7/2)");
+        System.out.println("int / int exact      = " + Number.divide(Number.integer(8), Number.integer(2)) + "   (expected 4)");
+        System.out.println("bigint / int         = " + Number.divide(k, Number.integer(2)) + "   (expected 3000000000000000000000)");
+        System.out.println("rational / rational  = " + Number.divide(Number.rational(3, 4), Number.rational(2, 3)) + "   (expected 9/8)");
+        System.out.println("rational / int       = " + Number.divide(Number.rational(3, 2), Number.integer(3)) + "   (expected 1/2)");
+        System.out.println("int / rational       = " + Number.divide(Number.integer(3), Number.rational(3, 2)) + "   (expected 2)");
+        System.out.println();
+
+        // --- Big promotions ---
+        Number bigDiv1 = Number.integer(Long.MAX_VALUE);
+        Number bigDiv2 = Number.integer(2);
+        System.out.println("overflow test (long / 2) = " + Number.divide(bigDiv1, bigDiv2) + "   (expected 4611686018427387903)");
+        System.out.println("bigint / bigint exact     = " + Number.divide(k, Number.integer(3)) + "   (expected 2000000000000000000000)");
+        System.out.println("bigint / bigint rational  = " + Number.divide(k, Number.integer(7)) + "   (expected bigRational)");
+        System.out.println();
+
+        // --- Mixed division ---
+        System.out.println("float / int          = " + Number.divide(Number.real(7.5), Number.integer(3)) + "   (expected 2.5)");
+        System.out.println("float / rational     = " + Number.divide(Number.real(1.5), Number.rational(3, 2)) + "   (expected 1)");
+        System.out.println("bigfloat / float     = " + Number.divide(bf, f) + "   (expected ~23300.0000189)");
+        System.out.println("rational / bigfloat  = " + Number.divide(r, bf) + "   (expected ~0.000000012145)");
+        System.out.println();
+
+        // --- Complex division ---
+        Number c5 = Number.complex(Number.integer(1), Number.integer(2));  // 1 + 2i
+        Number c6 = Number.complex(Number.integer(3), Number.integer(4));  // 3 + 4i
+        System.out.println("complex / complex    = " + Number.divide(c5, c6) + "   (expected (11/25 + 2/25i))");
+        System.out.println("complex / real       = " + Number.divide(c5, Number.integer(2)) + "   (expected (1/2 + i))");
+        System.out.println("real / complex       = " + Number.divide(Number.integer(1), c6) + "   (expected (3/25 - 4/25i))");
+        System.out.println();
+
+        // --- Edge cases ---
+        System.out.println("zero / nonzero       = " + Number.divide(Number.integer(0), Number.integer(7)) + "   (expected 0)");
+        try {
+            System.out.println("nonzero / zero       = " + Number.divide(Number.integer(7), Number.integer(0)));
+        } catch (ArithmeticException e) {
+            System.out.println("nonzero / zero       = Exception (expected)");
+        }
+        try {
+            System.out.println("complex / 0+0i       = " + Number.divide(c5, Number.complex(Number.integer(0), Number.integer(0))));
+        } catch (ArithmeticException e) {
+            System.out.println("complex / 0+0i       = Exception (expected)");
+        }
         System.out.println();
     }
 
