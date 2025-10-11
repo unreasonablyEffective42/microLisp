@@ -11,26 +11,26 @@
  *
  * The numeric tower hierarchy (promotion direction):
  *
- *          ┌───────────────────────────────────────────────────────────────────────┐
- *          │                Inexact (approximate) domain                           │
- *          │                                                                       │
- *          │     BigFloat  ←──  Float                                              │
- *          └───────────────────────────────────────────────────────────────────────┘
+ *          ┌─────────────────────────────────────────────────┐
+ *          │      Inexact (approximate) domain               │
+ *          │                                                 │
+ *          │             BigFloat ← Float                    │
+ *          └─────────────────────────────────────────────────┘
  *                           ↑
  *     Number → Quaternion → Complex
  *                           ↓
- *          ┌───────────────────────────────────────────────────────────────────────┐
- *          │                  Exact (arbitrary precision) domain                   │
- *          │                                                                       │
- *          │     BigRational  ←──  Rational  ←──  BigInt  ←──  Integer             │
- *          └───────────────────────────────────────────────────────────────────────┘
+ *          ┌─────────────────────────────────────────────────┐
+ *          │        BigRational← Rational← BigInt← Integer   │
+ *          │                                                 │
+ *          │     Exact (arbitrary precision) domain          │                                                 
+ *          └─────────────────────────────────────────────────┘
  */
 import java.math.BigInteger;
 import java.math.BigDecimal;
 import java.math.MathContext;
 
 public final class Number {
-    enum Type { INT, BIGINT, FLOAT, BIGFLOAT, RATIONAL, BIGRATIONAL, COMPLEX }
+    enum Type { INT, BIGINT, FLOAT, BIGFLOAT, RATIONAL, BIGRATIONAL, COMPLEX, QUATERNION }
 
     private final Type type;
     private final long intVal;
@@ -41,9 +41,10 @@ public final class Number {
     private final long den;          // rational denominator
     private final BigInteger bigNum; // big rational numerator
     private final BigInteger bigDen; // big rational denominator
-    private final Number real;       // complex real part
-    private final Number imag;       // complex imaginary part
-                                     //
+    private final Number real;       // real component
+    private final Number ipart;      // i component
+    private final Number jpart;      // j component
+    private final Number kpart;      // k component
 
     // ------ Cached constants ------
     private static final Number ZERO_INT         = Number.integer(0);
@@ -53,6 +54,7 @@ public final class Number {
     private static final Number ZERO_RATIONAL    = Number.rational(0, 1);
     private static final Number ZERO_BIGRATIONAL = Number.bigRational(BigInteger.ZERO, BigInteger.ONE);
     private static final Number ZERO_COMPLEX     = Number.complex(ZERO_INT, ZERO_INT);
+    private static final Number ZERO_QUATERNION  = Number.quaternion(ZERO_INT, ZERO_INT, ZERO_INT, ZERO_INT);
 
     private static final Number ONE_INT          = Number.integer(1);
     private static final Number ONE_BIGINT       = Number.integer(BigInteger.ONE);
@@ -61,12 +63,15 @@ public final class Number {
     private static final Number ONE_RATIONAL     = Number.rational(1, 1);
     private static final Number ONE_BIGRATIONAL  = Number.bigRational(BigInteger.ONE, BigInteger.ONE);
     private static final Number ONE_COMPLEX      = Number.complex(ONE_INT, ZERO_INT);
+    private static final Number ONE_QUATERNION   = Number.quaternion(ONE_INT, ZERO_INT, ZERO_INT, ZERO_INT);
 
+
+    
     private Number(Type type, long intVal, BigInteger bigVal,
-                   double floatVal, BigDecimal bigFloatVal,
-                   long num, long den,
-                   BigInteger bigNum, BigInteger bigDen,
-                   Number real, Number imag) {
+                double floatVal, BigDecimal bigFloatVal,
+                long num, long den,
+                BigInteger bigNum, BigInteger bigDen,
+                Number real, Number ipart, Number jpart, Number kpart) {
         this.type = type;
         this.intVal = intVal;
         this.bigVal = bigVal;
@@ -77,45 +82,51 @@ public final class Number {
         this.bigNum = bigNum;
         this.bigDen = bigDen;
         this.real = real;
-        this.imag = imag;
+        this.ipart = ipart;
+        this.jpart = jpart;
+        this.kpart = kpart;
     }
 
     // ---- Factory methods ----
+    
     public static Number integer(long value) {
-        return new Number(Type.INT, value, null, 0.0, null, 0, 0, null, null, null, null);
+        return new Number(Type.INT, value, null, 0.0, null, 0, 0, null, null, null, null, null, null);
     }
 
     public static Number integer(BigInteger value) {
-        return new Number(Type.BIGINT, 0, value, 0.0, null, 0, 0, null, null, null, null);
+        return new Number(Type.BIGINT, 0, value, 0.0, null, 0, 0, null, null, null, null, null, null);
     }
 
     public static Number rational(long p, long q) {
         long g = gcd(p, q);
-        p /= g;
-        q /= g;
+        p /= g; q /= g;
         if (q == 1) return Number.integer(p);
-        return new Number(Type.RATIONAL, 0, null, 0.0, null, p, q, null, null, null, null);
+        return new Number(Type.RATIONAL, 0, null, 0.0, null, p, q, null, null, null, null, null, null);
     }
 
     public static Number bigRational(BigInteger p, BigInteger q) {
         BigInteger g = p.gcd(q);
-        p = p.divide(g);
-        q = q.divide(g);
+        p = p.divide(g); q = q.divide(g);
         if (q.equals(BigInteger.ONE)) return Number.integer(p);
-        return new Number(Type.BIGRATIONAL, 0, null, 0.0, null, 0, 0, p, q, null, null);
+        return new Number(Type.BIGRATIONAL, 0, null, 0.0, null, 0, 0, p, q, null, null, null, null);
     }
 
     public static Number real(double value) {
-        return new Number(Type.FLOAT, 0, null, value, null, 0, 0, null, null, null, null);
+        return new Number(Type.FLOAT, 0, null, value, null, 0, 0, null, null, null, null, null, null);
     }
 
     public static Number bigFloat(BigDecimal value) {
-        return new Number(Type.BIGFLOAT, 0, null, 0.0, value, 0, 0, null, null, null, null);
+        return new Number(Type.BIGFLOAT, 0, null, 0.0, value, 0, 0, null, null, null, null, null, null);
     }
 
-    public static Number complex(Number real, Number imag) {
-        return new Number(Type.COMPLEX, 0, null, 0.0, null, 0, 0, null, null, real, imag);
+    public static Number complex(Number real, Number i) {
+        return new Number(Type.COMPLEX, 0, null, 0.0, null, 0, 0, null, null, real, i, null, null);
     }
+
+    public static Number quaternion(Number real, Number i, Number j, Number k) {
+        return new Number(Type.QUATERNION, 0, null, 0.0, null, 0, 0, null, null, real, i, j, k);
+    }
+
 
     // ------ Generic zeros and ones ------
     public static Number zero(Type type) {
@@ -127,6 +138,7 @@ public final class Number {
             case RATIONAL     -> ZERO_RATIONAL;
             case BIGRATIONAL  -> ZERO_BIGRATIONAL;
             case COMPLEX      -> ZERO_COMPLEX;
+            case QUATERNION   -> ZERO_QUATERNION;
         };
     }
 
@@ -143,12 +155,14 @@ public final class Number {
             case RATIONAL     -> ONE_RATIONAL;
             case BIGRATIONAL  -> ONE_BIGRATIONAL;
             case COMPLEX      -> ONE_COMPLEX;
+            case QUATERNION   -> ONE_QUATERNION;
         };
     }
 
     public static Number one(Number likeThis) {
         return one(likeThis.type);
     }
+
 
 
     // ---- gcd helper ----
@@ -159,6 +173,23 @@ public final class Number {
             a = temp;
         }
         return a;
+    }
+
+
+    // Convert any scalar Number (not COMPLEX/QUATERNION) to BigDecimal.
+    private static BigDecimal toBigDecimal(Number n) {
+        switch (n.type) {
+            case BIGFLOAT:   return n.bigFloatVal;
+            case FLOAT:      return BigDecimal.valueOf(n.floatVal);
+            case BIGINT:     return new BigDecimal(n.bigVal);
+            case INT:        return BigDecimal.valueOf(n.intVal);
+            case BIGRATIONAL:return new BigDecimal(n.bigNum)
+                                .divide(new BigDecimal(n.bigDen), MathContext.DECIMAL128);
+            case RATIONAL:   return BigDecimal.valueOf(n.num)
+                                .divide(BigDecimal.valueOf(n.den), MathContext.DECIMAL128);
+            default:
+                throw new IllegalArgumentException("toBigDecimal: non-scalar type " + n.type);
+        }
     }
 
     private static Number negate(Number n) {
@@ -175,14 +206,23 @@ public final class Number {
                 return Number.rational(-n.num, n.den);
             case BIGRATIONAL:
                 return Number.bigRational(n.bigNum.negate(), n.bigDen);
-            case COMPLEX:
-                Number realNeg = negate(n.real != null ? n.real : Number.integer(0));
-                Number imagNeg = negate(n.imag != null ? n.imag : Number.integer(0));
-                return Number.complex(realNeg, imagNeg);
+            case COMPLEX: {
+                Number realneg  = negate(n.real != null  ? n.real  : Number.integer(0));
+                Number ipartneg = negate(n.ipart != null ? n.ipart : Number.integer(0));
+                return Number.complex(realneg, ipartneg);
+            }
+            case QUATERNION: {
+                Number rneg = negate(n.real  != null ? n.real  : Number.integer(0));
+                Number ineg = negate(n.ipart != null ? n.ipart : Number.integer(0));
+                Number jneg = negate(n.jpart != null ? n.jpart : Number.integer(0));
+                Number kneg = negate(n.kpart != null ? n.kpart : Number.integer(0));
+                return Number.quaternion(rneg, ineg, jneg, kneg);
+            }
             default:
-                throw new IllegalStateException("Unknown numeric type: " + n.type);
+                throw new IllegalStateException("unknown numeric type: " + n.type);
         }
     }
+
 
     // ---- Addition ----
     public static Number add(Number a, Number b) {
@@ -194,11 +234,26 @@ public final class Number {
             case RATIONAL:    return addRational(a, b);
             case BIGRATIONAL: return addBigRational(a, b);
             case FLOAT:       return addFloat(a, b);
-            case BIGFLOAT:    return addBigFloat(a, b);            
+            case BIGFLOAT:    return addBigFloat(a, b);                        
             case COMPLEX:
+                // If RHS is a quaternion, promote the LHS complex to a quaternion and add there.
+                if (b.type == Type.QUATERNION) {
+                    Number qa = Number.quaternion(a.real, a.ipart, Number.integer(0), Number.integer(0));
+                    return addQuaternion(qa, b);
+                }
+                // Otherwise, keep your existing Complex promotion
                 if (b.type != Type.COMPLEX)
                     b = Number.complex(b, Number.integer(0));
                 return addComplex(a, b);
+            case QUATERNION:
+                if (b.type != Type.QUATERNION) {
+                    if (b.type == Type.COMPLEX) {
+                        b = Number.quaternion(b.real, b.ipart, Number.integer(0), Number.integer(0));
+                    } else {
+                        b = Number.quaternion(b, Number.integer(0), Number.integer(0), Number.integer(0));
+                    }
+                }
+                return addQuaternion(a, b);
             default:
                 throw new IllegalStateException("Unknown type: " + a.type);
         }
@@ -226,18 +281,21 @@ public final class Number {
 
     private static Number addFloat(Number a, Number b) {
         double left = a.floatVal;
-        double right = (b.type == Type.FLOAT) ? b.floatVal : b.intVal;
-        double sum = left + right;
-        if (Double.isInfinite(sum)) {
-            return addBigFloat(a, b);
-        } else {
-            return Number.real(sum);
+        final double right;
+        switch (b.type) {
+            case FLOAT:   right = b.floatVal; break;
+            case INT:     right = b.intVal;   break;
+            case BIGINT:  right = b.bigVal.doubleValue(); break;
+            default:      return addBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
         }
+        double sum = left + right;
+        return Double.isFinite(sum) ? Number.real(sum)
+                                    : addBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
     }
 
     private static Number addBigFloat(Number a, Number b) {
-        BigDecimal left = (a.type == Type.BIGFLOAT) ? a.bigFloatVal : BigDecimal.valueOf(a.floatVal);
-        BigDecimal right = (b.type == Type.BIGFLOAT) ? b.bigFloatVal : BigDecimal.valueOf(b.floatVal);
+        BigDecimal left  = toBigDecimal(a);
+        BigDecimal right = toBigDecimal(b);
         return Number.bigFloat(left.add(right));
     }
 
@@ -249,13 +307,33 @@ public final class Number {
 
     private static Number addComplex(Number a, Number b) {
         Number aReal = (a.real != null) ? a.real : Number.integer(0);
-        Number aImag = (a.imag != null) ? a.imag : Number.integer(0);
+        Number aipart = (a.ipart != null) ? a.ipart : Number.integer(0);
         Number bReal = (b.real != null) ? b.real : Number.integer(0);
-        Number bImag = (b.imag != null) ? b.imag : Number.integer(0);
+        Number bipart = (b.ipart != null) ? b.ipart : Number.integer(0);
 
         Number realPart = add(aReal, bReal);
-        Number imagPart = add(aImag, bImag);
-        return Number.complex(realPart, imagPart);
+        Number ipartPart = add(aipart, bipart);
+        return Number.complex(realPart, ipartPart);
+    }
+
+
+    private static Number addQuaternion(Number a, Number b) {
+        Number ar = (a.real  != null) ? a.real  : Number.integer(0);
+        Number ai = (a.ipart != null) ? a.ipart : Number.integer(0);
+        Number aj = (a.jpart != null) ? a.jpart : Number.integer(0);
+        Number ak = (a.kpart != null) ? a.kpart : Number.integer(0);
+
+        Number br = (b.real  != null) ? b.real  : Number.integer(0);
+        Number bi = (b.ipart != null) ? b.ipart : Number.integer(0);
+        Number bj = (b.jpart != null) ? b.jpart : Number.integer(0);
+        Number bk = (b.kpart != null) ? b.kpart : Number.integer(0);
+
+        return Number.quaternion(
+            add(ar, br),
+            add(ai, bi),
+            add(aj, bj),
+            add(ak, bk)
+        );
     }
 
     private static Number addRational(Number a, Number b) {
@@ -338,7 +416,13 @@ public final class Number {
 
                     case COMPLEX: {
                         Number realPart = addRational(a, b.real);
-                        return Number.complex(realPart, b.imag);
+                        return Number.complex(realPart, b.ipart);
+                    }
+
+                    case QUATERNION: {
+                        // Promote rational to quaternion (a + 0i + 0j + 0k)
+                        Number realPart = addRational(a, b.real);
+                        return Number.quaternion(realPart, b.ipart, b.jpart, b.kpart);
                     }
 
                     default:
@@ -351,8 +435,17 @@ public final class Number {
         }
     } 
     //------ Multiplication -------
+
+    //------ Multiplication -------
     public static Number multiply(Number a, Number b) {
-        if (a.type.ordinal() < b.type.ordinal()) return multiply(b, a);
+        // Preserve operand order for non-commutative pairs: COMPLEX ↔ QUATERNION.
+        boolean nonCommutativePair =
+            (a.type == Type.QUATERNION || b.type == Type.QUATERNION) &&
+            (a.type == Type.COMPLEX    || b.type == Type.COMPLEX);
+
+        if (!nonCommutativePair && a.type.ordinal() < b.type.ordinal()) {
+            return multiply(b, a);
+        }
 
         switch (a.type) {
             case INT:         return multiplyInt(a, b);
@@ -360,15 +453,30 @@ public final class Number {
             case RATIONAL:    return multiplyRational(a, b);
             case BIGRATIONAL: return multiplyBigRational(a, b);
             case FLOAT:       return multiplyFloat(a, b);
-            case BIGFLOAT:    return multiplyBigFloat(a, b);            
+            case BIGFLOAT:    return multiplyBigFloat(a, b);
             case COMPLEX:
+                // Preserve order for non-commutative C×Q
+                if (b.type == Type.QUATERNION) {
+                    Number qa = Number.quaternion(a.real, a.ipart, Number.integer(0), Number.integer(0));
+                    return multiplyQuaternion(qa, b);
+                }
                 if (b.type != Type.COMPLEX)
                     b = Number.complex(b, Number.integer(0));
                 return multiplyComplex(a, b);
+            case QUATERNION:
+                if (b.type != Type.QUATERNION) {
+                    if (b.type == Type.COMPLEX) {
+                        b = Number.quaternion(b.real, b.ipart, Number.integer(0), Number.integer(0));
+                    } else {
+                        b = Number.quaternion(b, Number.integer(0), Number.integer(0), Number.integer(0));
+                    }
+                }
+                return multiplyQuaternion(a, b);
             default:
                 throw new IllegalStateException("Unknown type: " + a.type);
         }
     }
+
     
 
     private static Number multiplyInt(Number a, Number b) {
@@ -390,19 +498,68 @@ public final class Number {
     
     private static Number multiplyFloat(Number a, Number b) {
         double left = a.floatVal;
-        double right = (b.type == Type.FLOAT) ? b.floatVal : b.intVal;
-        double product = left*right;
-        if (Double.isInfinite(product)) {
-            return multiplyBigFloat(a, b);
-        } else {
-            return Number.real(product);
+        final double right;
+        switch (b.type) {
+            case FLOAT:   right = b.floatVal; break;
+            case INT:     right = b.intVal;   break;
+            case BIGINT:  right = b.bigVal.doubleValue(); break;
+            default:      return multiplyBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
         }
+        double prod = left * right;
+        return Double.isFinite(prod) ? Number.real(prod)
+                                    : multiplyBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
     }
 
     private static Number multiplyBigFloat(Number a, Number b) {
-        BigDecimal left = (a.type == Type.BIGFLOAT) ? a.bigFloatVal : BigDecimal.valueOf(a.floatVal);
-        BigDecimal right = (b.type == Type.BIGFLOAT) ? b.bigFloatVal : BigDecimal.valueOf(b.floatVal);
+        BigDecimal left  = toBigDecimal(a);
+        BigDecimal right = toBigDecimal(b);
         return Number.bigFloat(left.multiply(right));
+    }
+
+    private static Number multiplyQuaternion(Number a, Number b) {
+
+        if (b.type == Type.COMPLEX) {
+            Number qb = Number.quaternion(b.real, b.ipart, Number.integer(0), Number.integer(0));
+            return multiplyQuaternion(a, qb);
+        }
+        // a = ar + ai*i + aj*j + ak*k
+        // b = br + bi*i + bj*j + bk*k
+        Number ar = (a.real  != null) ? a.real  : Number.integer(0);
+        Number ai = (a.ipart != null) ? a.ipart : Number.integer(0);
+        Number aj = (a.jpart != null) ? a.jpart : Number.integer(0);
+        Number ak = (a.kpart != null) ? a.kpart : Number.integer(0);
+
+        Number br = (b.real  != null) ? b.real  : Number.integer(0);
+        Number bi = (b.ipart != null) ? b.ipart : Number.integer(0);
+        Number bj = (b.jpart != null) ? b.jpart : Number.integer(0);
+        Number bk = (b.kpart != null) ? b.kpart : Number.integer(0);
+
+        // Hamilton product:
+        // real: ar*br - ai*bi - aj*bj - ak*bk
+        Number real = sub(sub(sub(multiply(ar, br),
+                                multiply(ai, bi)),
+                            multiply(aj, bj)),
+                        multiply(ak, bk));
+
+        // i: ar*bi + ai*br + aj*bk - ak*bj
+        Number i = sub(add(add(multiply(ar, bi),
+                            multiply(ai, br)),
+                        multiply(aj, bk)),
+                    multiply(ak, bj));
+
+        // j: ar*bj - ai*bk + aj*br + ak*bi
+        Number j = add(add(sub(multiply(ar, bj),
+                            multiply(ai, bk)),
+                        multiply(aj, br)),
+                    multiply(ak, bi));
+
+        // k: ar*bk + ai*bj - aj*bi + ak*br
+        Number k = add(sub(add(multiply(ar, bk),
+                            multiply(ai, bj)),
+                        multiply(aj, bi)),
+                    multiply(ak, br));
+
+        return Number.quaternion(real, i, j, k);
     }
 
     private static Number multiplyRational(Number a, Number b) {
@@ -466,8 +623,17 @@ public final class Number {
 
                     case COMPLEX: {
                         Number real = multiplyRational(a,b.real);
-                        Number imag = multiplyRational(a,b.imag);
-                        return Number.complex(real,imag);
+                        Number ipart = multiplyRational(a,b.ipart);
+                        return Number.complex(real,ipart);
+                    }
+
+                    case QUATERNION: {
+                        // Scalar multiplication — multiply each component by the rational
+                        Number r = multiplyRational(a, b.real);
+                        Number i = multiplyRational(a, b.ipart);
+                        Number j = multiplyRational(a, b.jpart);
+                        Number k = multiplyRational(a, b.kpart);
+                        return Number.quaternion(r, i, j, k);
                     }
                     default:
                         throw new IllegalArgumentException("Unsupported type combination: RATIONAL + " + b.type);
@@ -486,9 +652,14 @@ public final class Number {
     }
 
     private static Number multiplyComplex(Number a, Number b){
-        Number real = add(multiply(a.real,b.real),negate(multiply(a.imag,b.imag)));
-        Number imag = add(multiply(a.real,b.imag),multiply(a.imag,b.real));
-        return Number.complex(real,imag);
+        if (b.type == Type.QUATERNION) {
+            // promote a to quaternion for LEFT operand (not symmetric!)
+            Number qa = Number.quaternion(a.real, a.ipart, Number.integer(0), Number.integer(0));
+            return multiplyQuaternion(qa, b); // correct
+        }
+        Number real = add(multiply(a.real,b.real),negate(multiply(a.ipart,b.ipart)));
+        Number ipart = add(multiply(a.real,b.ipart),multiply(a.ipart,b.real));
+        return Number.complex(real,ipart);
     }
     //------ Division -------
     public static Number divide(Number a, Number b) { 
@@ -500,9 +671,22 @@ public final class Number {
             case FLOAT:       return divideFloat(a, b);
             case BIGFLOAT:    return divideBigFloat(a, b);
             case COMPLEX:
+                if (b.type == Type.QUATERNION) {
+                    Number qa = Number.quaternion(a.real, a.ipart, Number.integer(0), Number.integer(0));
+                    return divideQuaternion(qa, b);
+                }
                 if (b.type != Type.COMPLEX)
                     b = Number.complex(b, Number.integer(0));
                 return divideComplex(a, b);
+            case QUATERNION:
+                if (b.type != Type.QUATERNION) {
+                    if (b.type == Type.COMPLEX) {
+                        b = Number.quaternion(b.real, b.ipart, Number.integer(0), Number.integer(0));
+                    } else {
+                        b = Number.quaternion(b, Number.integer(0), Number.integer(0), Number.integer(0));
+                    }
+                }
+                return divideQuaternion(a, b);
             default:
                 throw new IllegalStateException("Unknown type: " + a.type);
         }
@@ -616,10 +800,10 @@ public final class Number {
     }
     
     private static Number divideBigFloat(Number a, Number b) {
-        BigDecimal left = (a.type == Type.BIGFLOAT) ? a.bigFloatVal : BigDecimal.valueOf(a.floatVal);
-        BigDecimal right = (b.type == Type.BIGFLOAT) ? b.bigFloatVal : BigDecimal.valueOf(b.floatVal);
-        BigDecimal quotient = left.divide(right, MathContext.DECIMAL128);
-        return Number.bigFloat(quotient);
+        BigDecimal left  = toBigDecimal(a);
+        BigDecimal right = toBigDecimal(b);
+        BigDecimal q = left.divide(right, MathContext.DECIMAL128);
+        return Number.bigFloat(q);
     }
 
 
@@ -653,6 +837,9 @@ public final class Number {
             case COMPLEX:
                 reciprocal = reciprocalComplex(b);
                 break;
+            case QUATERNION:
+                reciprocal = reciprocalQuaternion(b);
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported type: " + b.type);
         }
@@ -664,21 +851,52 @@ public final class Number {
     }
 
     private static Number divideComplex(Number a, Number b){
-        Number denominator = add(multiply(b.real,b.real),multiply(b.imag,b.imag));
-        Number rnumerator  = add(multiply(a.real,b.real),multiply(a.imag,b.imag));
-        Number inumerator  = sub(multiply(a.imag,b.real),multiply(a.real,b.imag));        
+        Number denominator = add(multiply(b.real,b.real),multiply(b.ipart,b.ipart));
+        Number rnumerator  = add(multiply(a.real,b.real),multiply(a.ipart,b.ipart));
+        Number inumerator  = sub(multiply(a.ipart,b.real),multiply(a.real,b.ipart));        
         return Number.complex(divide(rnumerator, denominator),divide(inumerator, denominator));
     }
 
     private static Number reciprocalComplex(Number z) { 
         Number a = z.real;
-        Number b = z.imag; 
+        Number b = z.ipart; 
         Number a2 = multiply(a, a);
         Number b2 = multiply(b, b);
         Number denom = add(a2, b2);
         Number negB = negate(b);
         Number conj = Number.complex(a, negB);
         return divide(conj, denom);
+    }
+
+    private static Number divideQuaternion(Number a, Number b) {
+        Number invB = reciprocalQuaternion(b);
+        return multiplyQuaternion(a, invB);
+    }
+
+    private static Number reciprocalQuaternion(Number q) {
+        Number ar = (q.real  != null) ? q.real  : Number.integer(0);
+        Number ai = (q.ipart != null) ? q.ipart : Number.integer(0);
+        Number aj = (q.jpart != null) ? q.jpart : Number.integer(0);
+        Number ak = (q.kpart != null) ? q.kpart : Number.integer(0);
+
+        // |q|^2 = ar^2 + ai^2 + aj^2 + ak^2
+        Number n2 = add(add(multiply(ar, ar), multiply(ai, ai)),
+                        add(multiply(aj, aj), multiply(ak, ak)));
+
+        // If desired, you can detect zero norm early; divide(...) will also throw where appropriate.
+        // Conjugate(q) = (ar, -ai, -aj, -ak)
+        Number cr = ar;
+        Number ci = negate(ai);
+        Number cj = negate(aj);
+        Number ck = negate(ak);
+
+        // q^{-1} = Conj(q) / |q|^2  (component-wise division by scalar n2)
+        return Number.quaternion(
+            divide(cr, n2),
+            divide(ci, n2),
+            divide(cj, n2),
+            divide(ck, n2)
+        );
     }
 
 
@@ -691,7 +909,8 @@ public final class Number {
             case BIGFLOAT     -> bigFloatVal.toPlainString();
             case RATIONAL     -> (den == 1) ? Long.toString(num) : "(" + num + "/" + den + ")";
             case BIGRATIONAL  -> (bigDen.equals(BigInteger.ONE)) ? bigNum.toString() : "(" + bigNum + "/" + bigDen + ")";
-            case COMPLEX      -> real + " + " + imag + "i";
+            case COMPLEX      -> real + "+" + ipart + "i";
+            case QUATERNION   -> real + "+" + ipart + "i+" + jpart + "j+" + kpart +"k";
         };
     }
 
@@ -860,6 +1079,78 @@ public final class Number {
             System.out.println("complex / 0+0i       = Exception (expected)");
         }
         System.out.println();
+
+        // =======================
+        // === QUATERNION TESTS ===
+        // =======================
+        System.out.println("=== QUATERNION BASICS ===");
+        Number Qi = Number.quaternion(Number.integer(0), Number.integer(1), Number.integer(0), Number.integer(0)); // i
+        Number Qj = Number.quaternion(Number.integer(0), Number.integer(0), Number.integer(1), Number.integer(0)); // j
+        Number Qk = Number.quaternion(Number.integer(0), Number.integer(0), Number.integer(0), Number.integer(1)); // k
+        Number Q1 = Number.quaternion(Number.integer(1), Number.integer(0), Number.integer(0), Number.integer(0)); // 1
+
+        Number qA = Number.quaternion(Number.integer(1), Number.integer(2), Number.integer(3), Number.integer(4)); // 1+2i+3j+4k
+        Number qB = Number.quaternion(Number.integer(5), Number.integer(6), Number.integer(7), Number.integer(8)); // 5+6i+7j+8k
+        System.out.println("qA = " + qA + "   (expected 1 + 2i + 3j + 4k)");
+        System.out.println("qB = " + qB + "   (expected 5 + 6i + 7j + 8k)");
+        System.out.println("qA + qB           = " + Number.add(qA, qB) + "   (expected 6 + 8i + 10j + 12k)");
+        System.out.println("qB - qA           = " + Number.add(qB, Number.negate(qA)) + "   (expected 4 + 4i + 4j + 4k)");
+        // If negate is private, you can simulate subtraction by: qB + (-1)*qA
+        // Number.add(qB, Number.multiply(Number.integer(-1), qA))
+
+        System.out.println();
+        System.out.println("=== HAMILTON RULES ===");
+        System.out.println("i * j = " + Number.multiply(Qi, Qj) + "   (expected 0 + 0i + 0j + 1k)");
+        System.out.println("j * k = " + Number.multiply(Qj, Qk) + "   (expected 0 + 1i + 0j + 0k)");
+        System.out.println("k * i = " + Number.multiply(Qk, Qi) + "   (expected 0 + 0i + 1j + 0k)");
+        System.out.println("j * i = " + Number.multiply(Qj, Qi) + "   (expected 0 + 0i + 0j + -1k)");
+        System.out.println("k * j = " + Number.multiply(Qk, Qj) + "   (expected 0 + -1i + 0j + 0k)");
+        System.out.println("i * k = " + Number.multiply(Qi, Qk) + "   (expected 0 + 0i + -1j + 0k)");
+        System.out.println("i * i = " + Number.multiply(Qi, Qi) + "   (expected -1 + 0i + 0j + 0k)");
+        System.out.println("j * j = " + Number.multiply(Qj, Qj) + "   (expected -1 + 0i + 0j + 0k)");
+        System.out.println("k * k = " + Number.multiply(Qk, Qk) + "   (expected -1 + 0i + 0j + 0k)");
+
+        System.out.println();
+        System.out.println("=== QUATERNION * SCALAR (INT/RATIONAL/FLOAT/BIGFLOAT) ===");
+        System.out.println("2 * (1+i+j+k)       = " + Number.multiply(Number.integer(2), Number.quaternion(Number.integer(1), Number.integer(1), Number.integer(1), Number.integer(1))) + "   (expected 2 + 2i + 2j + 2k)");
+        System.out.println("(3+6i+0j+0k) / 1.5  = " + Number.divide(Number.quaternion(Number.integer(3), Number.integer(6), Number.integer(0), Number.integer(0)), Number.real(1.5)) + "   (expected 2 + 4i + 0j + 0k)");
+        System.out.println("(2/3) * (3+6i+9j+12k) = " + Number.multiply(Number.rational(2,3), Number.quaternion(Number.integer(3), Number.integer(6), Number.integer(9), Number.integer(12))) + "   (expected 2 + 4i + 6j + 8k)");
+
+        System.out.println("bigfloat * (1+i)    = " + Number.multiply(Number.bigFloat(new BigDecimal("1.0000000000000000000000000000000001")),Number.quaternion(Number.integer(1), Number.integer(1), Number.integer(0), Number.integer(0))) + "   (expected ~1.000... + 1.000...i)");
+        System.out.println();
+        System.out.println("=== COMPLEX ⟷ QUATERNION PROMOTION ===");
+        Number cA = Number.complex(Number.integer(1), Number.integer(2)); // 1+2i
+        System.out.println("(1+2i) * (3+4i+5j+6k) = " + Number.multiply(cA, Number.quaternion(Number.integer(3), Number.integer(4), Number.integer(5), Number.integer(6))) + "   (expected quaternion result)");
+        System.out.println("(1+i) * j           = " + Number.multiply(Number.complex(Number.integer(1), Number.integer(1)), Qj) + "   (expected 0 + 0i + 1j + 1k)");
+        System.out.println("j * (1+i)           = " + Number.multiply(Qj, Number.complex(Number.integer(1), Number.integer(1))) + "   (expected 0 + 0i + 1j - 1k)  // anti-commutativity shows up");
+
+        // (For subtraction without public negate, simulate as above — multiply by -1 and add)
+
+        System.out.println();
+        System.out.println("=== RECIPROCAL & DIVISION ===");
+        System.out.println("qA / qA             = " + Number.divide(qA, qA) + "   (expected 1 + 0i + 0j + 0k)");
+        System.out.println("(6+8i+10j+12k)/2    = " + Number.divide(Number.quaternion(Number.integer(6), Number.integer(8), Number.integer(10), Number.integer(12)), Number.integer(2)) + "   (expected 3 + 4i + 5j + 6k)");
+        try {
+            System.out.println("div by zero quat    = " + Number.divide(qA, Number.quaternion(Number.integer(0), Number.integer(0), Number.integer(0), Number.integer(0))));
+        } catch (ArithmeticException e) {
+            System.out.println("div by zero quat    = Exception (expected)");
+        }
+
+        System.out.println();
+        System.out.println("=== DISTRIBUTIVITY (SPOT CHECK) ===");
+        Number qX = Number.quaternion(Number.integer(2), Number.integer(1), Number.integer(0), Number.integer(1)); // 2 + i + k
+        Number qY = Number.quaternion(Number.integer(1), Number.integer(1), Number.integer(1), Number.integer(0)); // 1 + i + j
+        Number qZ = Number.quaternion(Number.integer(0), Number.integer(2), Number.integer(1), Number.integer(1)); // 2i + j + k
+        Number left = Number.multiply(qX, Number.add(qY, qZ));
+        Number right = Number.add(Number.multiply(qX, qY), Number.multiply(qX, qZ));
+        System.out.println("qX*(qY+qZ)          = " + left);
+        System.out.println("qX*qY + qX*qZ       = " + right);
+        System.out.println("distributive equal?  (manual check: the two lines above should match)");
+
+        System.out.println();
+        System.out.println("=== ZERO/ONE IDENTITIES ===");
+        System.out.println("qA + 0              = " + Number.add(qA, Number.zero(Number.Type.QUATERNION)) + "   (expected qA)");
+        System.out.println("qA * 1              = " + Number.multiply(qA, Number.one(Number.Type.QUATERNION)) + "   (expected qA)");
     }
 
 }
