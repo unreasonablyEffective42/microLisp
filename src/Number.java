@@ -11,23 +11,38 @@
  *
  * The numeric tower hierarchy (promotion direction):
  *
- *          ┌─────────────────────────────────────────────────┐
- *          │      Inexact (approximate) domain               │
- *          │                                                 │
- *          │             BigFloat ← Float                    │
- *          └─────────────────────────────────────────────────┘
- *                           ↑
- *     Number → Quaternion → Complex
- *                           ↓
- *          ┌─────────────────────────────────────────────────┐
- *          │        BigRational← Rational← BigInt← Integer   │
- *          │                                                 │
- *          │     Exact (arbitrary precision) domain          │                                                 
- *          └─────────────────────────────────────────────────┘
+ *
+ *                ┌─────────┐
+ *                │   INT   │  (ℤ exact)
+ *                └────┬────┘
+ *                     │
+ *                     ▼
+ *                ┌─────────┐
+ *                │  BIGINT │  (arbitrary ℤ)
+ *                └────┬────┘
+ *                     │
+ *  ┌────────────┬─────┴──────┬────────────┐
+ *  │            │            │            │
+ *  ▼            ▼            ▼            ▼
+ * RATIONAL  BIGRATIONAL     FLOAT      BIGFLOAT
+ *(ℚ exact)  (ℚ exact)   (ℝ inexact)  (ℝ 'exact')
+ *  └────────────┬────────────┬────────────┘
+ *               │            │
+ *               ▼            ▼
+ *              ┌──────────────┐
+ *              │   COMPLEX    │  (ℂ, 2D field)
+ *              └──────┬───────┘
+ *                     │
+ *                     ▼
+ *              ┌──────────────┐
+ *              │ QUATERNION   │  (ℍ, 4D division ring)
+ *              └──────────────┘
  */
+
 import java.math.BigInteger;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.math.RoundingMode;
 
 public final class Number {
     enum Type { INT, BIGINT, FLOAT, BIGFLOAT, RATIONAL, BIGRATIONAL, COMPLEX, QUATERNION }
@@ -190,6 +205,127 @@ public final class Number {
             default:
                 throw new IllegalArgumentException("toBigDecimal: non-scalar type " + n.type);
         }
+    }
+
+    private static double toDouble(Number n) {
+        return switch (n.type) {
+            case INT          -> (double) n.intVal;
+            case BIGINT       -> n.bigVal.doubleValue();
+            case FLOAT        -> n.floatVal;
+            case BIGFLOAT     -> n.bigFloatVal.doubleValue();
+            case RATIONAL     -> (double) n.num / (double) n.den;
+            case BIGRATIONAL  -> n.bigNum.doubleValue() / n.bigDen.doubleValue();
+            default -> throw new IllegalArgumentException("toDouble: non-scalar type " + n.type);
+        };
+    }
+
+    private static boolean isScalar(Number n) {
+        return n.type != Type.COMPLEX && n.type != Type.QUATERNION;
+    }
+
+    private static boolean isZero(Number n) {
+        return switch (n.type) {
+            case INT          -> n.intVal == 0;
+            case BIGINT       -> n.bigVal.signum() == 0;
+            case FLOAT        -> n.floatVal == 0.0;
+            case BIGFLOAT     -> n.bigFloatVal.compareTo(BigDecimal.ZERO) == 0;
+            case RATIONAL     -> n.num == 0;
+            case BIGRATIONAL  -> n.bigNum.signum() == 0;
+            case COMPLEX      -> isZero(n.real != null ? n.real : ZERO_INT)
+                               && isZero(n.ipart != null ? n.ipart : ZERO_INT);
+            case QUATERNION   -> isZero(n.real != null ? n.real : ZERO_INT)
+                               && isZero(n.ipart != null ? n.ipart : ZERO_INT)
+                               && isZero(n.jpart != null ? n.jpart : ZERO_INT)
+                               && isZero(n.kpart != null ? n.kpart : ZERO_INT);
+        };
+    }
+
+    private static BigInteger[] toBigFraction(Number n) {
+        BigInteger num;
+        BigInteger den;
+        switch (n.type) {
+            case INT: {
+                num = BigInteger.valueOf(n.intVal);
+                den = BigInteger.ONE;
+                break;
+            }
+            case BIGINT: {
+                num = n.bigVal;
+                den = BigInteger.ONE;
+                break;
+            }
+            case RATIONAL: {
+                num = BigInteger.valueOf(n.num);
+                den = BigInteger.valueOf(n.den);
+                break;
+            }
+            case BIGRATIONAL: {
+                num = n.bigNum;
+                den = n.bigDen;
+                break;
+            }
+            default:
+                throw new IllegalArgumentException("toBigFraction: requires exact scalar type, got " + n.type);
+        }
+        if (den.signum() < 0) {
+            num = num.negate();
+            den = den.negate();
+        }
+        return new BigInteger[]{num, den};
+    }
+
+    private static Number fromFraction(BigInteger num, BigInteger den) {
+        if (den.equals(BigInteger.ZERO))
+            throw new ArithmeticException("Division by zero in fraction normalization");
+        if (den.equals(BigInteger.ONE)) {
+            try {
+                return Number.integer(num.longValueExact());
+            } catch (ArithmeticException e) {
+                return Number.integer(num);
+            }
+        }
+        try {
+            long n = num.longValueExact();
+            long d = den.longValueExact();
+            return Number.rational(n, d);
+        } catch (ArithmeticException e) {
+            return Number.bigRational(num, den);
+        }
+    }
+
+    private static BigInteger floorDiv(BigInteger num, BigInteger den) {
+        if (den.signum() == 0) throw new ArithmeticException("Division by zero");
+        BigInteger[] qr = num.divideAndRemainder(den);
+        BigInteger quotient = qr[0];
+        BigInteger remainder = qr[1];
+        if (remainder.signum() != 0 && ((den.signum() < 0) != (remainder.signum() < 0))) {
+            quotient = quotient.subtract(BigInteger.ONE);
+        }
+        return quotient;
+    }
+
+    private static BigInteger toBigIntegerExact(Number n) {
+        return switch (n.type) {
+            case INT -> BigInteger.valueOf(n.intVal);
+            case BIGINT -> n.bigVal;
+            case RATIONAL -> (n.den == 1) ? BigInteger.valueOf(n.num) : null;
+            case BIGRATIONAL -> n.bigDen.equals(BigInteger.ONE) ? n.bigNum : null;
+            case FLOAT -> {
+                double value = n.floatVal;
+                if (!Double.isFinite(value)) yield null;
+                BigDecimal bd = BigDecimal.valueOf(value).stripTrailingZeros();
+                yield bd.scale() <= 0 ? bd.toBigIntegerExact() : null;
+            }
+            case BIGFLOAT -> {
+                BigDecimal bd = n.bigFloatVal.stripTrailingZeros();
+                try {
+                    yield bd.scale() <= 0 ? bd.toBigIntegerExact() : null;
+                } catch (ArithmeticException ex) {
+                    yield null;
+                }
+            }
+            default -> null;
+        };
     }
 
     private static Number negate(Number n) {
@@ -882,8 +1018,7 @@ public final class Number {
         // |q|^2 = ar^2 + ai^2 + aj^2 + ak^2
         Number n2 = add(add(multiply(ar, ar), multiply(ai, ai)),
                         add(multiply(aj, aj), multiply(ak, ak)));
-
-        // If desired, you can detect zero norm early; divide(...) will also throw where appropriate.
+ 
         // Conjugate(q) = (ar, -ai, -aj, -ak)
         Number cr = ar;
         Number ci = negate(ai);
@@ -897,6 +1032,353 @@ public final class Number {
             divide(cj, n2),
             divide(ck, n2)
         );
+    }
+
+    //------ Modulus -------
+    public static Number mod(Number a, Number b) {
+        if (b.type == Type.COMPLEX || b.type == Type.QUATERNION)
+            throw new IllegalArgumentException("Modulo divisor must be scalar; got " + b.type);
+        if (isZero(b))
+            throw new ArithmeticException("Modulo by zero");
+
+        if (a.type == Type.QUATERNION) return modQuaternion(a, b);
+        if (a.type == Type.COMPLEX)    return modComplex(a, b);
+
+        if (!isScalar(a))
+            throw new IllegalArgumentException("Unsupported modulo type: " + a.type);
+
+        if (a.type == Type.BIGFLOAT || b.type == Type.BIGFLOAT)
+            return modBigFloat(a, b);
+        if (a.type == Type.FLOAT || b.type == Type.FLOAT)
+            return modFloat(a, b);
+
+        return modExact(a, b);
+    }
+
+    private static Number modExact(Number a, Number b) {
+        BigInteger[] fracA = toBigFraction(a);
+        BigInteger[] fracB = toBigFraction(b);
+        BigInteger na = fracA[0];
+        BigInteger da = fracA[1];
+        BigInteger nb = fracB[0];
+        BigInteger db = fracB[1];
+
+        if (nb.signum() == 0)
+            throw new ArithmeticException("Modulo by zero");
+
+        BigInteger quotient = floorDiv(na.multiply(db), da.multiply(nb));
+        BigInteger remainderNum = na.multiply(db).subtract(quotient.multiply(nb).multiply(da));
+        BigInteger remainderDen = da.multiply(db);
+
+        return fromFraction(remainderNum, remainderDen);
+    }
+
+    private static Number modFloat(Number a, Number b) {
+        double left = toDouble(a);
+        double right = toDouble(b);
+        if (!Double.isFinite(left) || !Double.isFinite(right))
+            return modBigFloat(a, b);
+        if (right == 0.0)
+            throw new ArithmeticException("Modulo by zero");
+        double quotient = Math.floor(left / right);
+        double remainder = left - right * quotient;
+        if (!Double.isFinite(quotient) || !Double.isFinite(remainder))
+            return modBigFloat(a, b);
+        return Number.real(remainder);
+    }
+
+    private static Number modBigFloat(Number a, Number b) {
+        BigDecimal left = toBigDecimal(a);
+        BigDecimal right = toBigDecimal(b);
+        if (right.compareTo(BigDecimal.ZERO) == 0)
+            throw new ArithmeticException("Modulo by zero");
+        BigDecimal quotient = left.divide(right, MathContext.DECIMAL128);
+        BigDecimal floored = quotient.setScale(0, RoundingMode.FLOOR);
+        BigDecimal remainder = left.subtract(right.multiply(floored));
+        return Number.bigFloat(remainder);
+    }
+
+    private static Number modComplex(Number a, Number b) {
+        if (b.type == Type.COMPLEX || b.type == Type.QUATERNION)
+            throw new IllegalArgumentException("Modulo divisor for complex values must be scalar");
+        Number realPart = mod(a.real != null ? a.real : ZERO_INT, b);
+        Number imagPart = mod(a.ipart != null ? a.ipart : ZERO_INT, b);
+        return Number.complex(realPart, imagPart);
+    }
+
+    private static Number modQuaternion(Number a, Number b) {
+        if (b.type == Type.COMPLEX || b.type == Type.QUATERNION)
+            throw new IllegalArgumentException("Modulo divisor for quaternion values must be scalar");
+        Number realPart = mod(a.real != null ? a.real : ZERO_INT, b);
+        Number ipartPart = mod(a.ipart != null ? a.ipart : ZERO_INT, b);
+        Number jpartPart = mod(a.jpart != null ? a.jpart : ZERO_INT, b);
+        Number kpartPart = mod(a.kpart != null ? a.kpart : ZERO_INT, b);
+        return Number.quaternion(realPart, ipartPart, jpartPart, kpartPart);
+    }
+
+
+    //------ Power -------
+    public static Number pow(Number base, Number exponent) {
+        if (!isScalar(exponent))
+            throw new IllegalArgumentException("Exponent must be scalar; got " + exponent.type);
+
+        BigInteger expInteger = toBigIntegerExact(exponent);
+        if (expInteger != null) {
+            return powInteger(base, expInteger);
+        }
+
+        if (!isScalar(base))
+            throw new IllegalArgumentException("Non-integer exponents are unsupported for type " + base.type);
+
+        double baseValue = toDouble(base);
+        double expValue = toDouble(exponent);
+        if (!Double.isFinite(baseValue) || !Double.isFinite(expValue))
+            throw new ArithmeticException("Exponentiation out of range");
+        double result = Math.pow(baseValue, expValue);
+        if (!Double.isFinite(result) || Double.isNaN(result))
+            throw new ArithmeticException("Exponentiation result undefined for given operands");
+        return Number.real(result);
+    }
+
+    private static Number powInteger(Number base, BigInteger exponent) {
+        if (exponent.signum() == 0) {
+            return Number.one(base);
+        }
+
+        boolean negative = exponent.signum() < 0;
+        BigInteger power = exponent.abs();
+
+        Number result = Number.one(base);
+        Number factor = base;
+
+        while (power.signum() > 0) {
+            if (power.testBit(0)) {
+                result = multiply(result, factor);
+            }
+            power = power.shiftRight(1);
+            if (power.signum() > 0) {
+                factor = multiply(factor, factor);
+            }
+        }
+
+        if (negative) {
+            return divide(Number.one(base), result);
+        }
+        return result;
+    }
+
+
+    //------ Conjugates & Inverse -------
+    public static Number complexConjugate(Number z) {
+        if (z.type != Type.COMPLEX)
+            throw new IllegalArgumentException("complexConjugate expects COMPLEX, got " + z.type);
+        Number realPart = (z.real != null) ? z.real : ZERO_INT;
+        Number imagPart = (z.ipart != null) ? z.ipart : ZERO_INT;
+        return Number.complex(realPart, negate(imagPart));
+    }
+
+    public static Number quaternionConjugate(Number q) {
+        if (q.type != Type.QUATERNION)
+            throw new IllegalArgumentException("quaternionConjugate expects QUATERNION, got " + q.type);
+        Number ar = (q.real  != null) ? q.real  : ZERO_INT;
+        Number ai = (q.ipart != null) ? q.ipart : ZERO_INT;
+        Number aj = (q.jpart != null) ? q.jpart : ZERO_INT;
+        Number ak = (q.kpart != null) ? q.kpart : ZERO_INT;
+        return Number.quaternion(ar, negate(ai), negate(aj), negate(ak));
+    }
+
+    public static Number quaternionInverse(Number q) {
+        if (q.type != Type.QUATERNION)
+            throw new IllegalArgumentException("quaternionInverse expects QUATERNION, got " + q.type);
+        return reciprocalQuaternion(q);
+    }
+
+
+    private static boolean isExactScalar(Number n) {
+        return switch (n.type) {
+            case INT, BIGINT, RATIONAL, BIGRATIONAL -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isExactNumber(Number n) {
+        return switch (n.type) {
+            case INT, BIGINT, RATIONAL, BIGRATIONAL -> true;
+            case FLOAT, BIGFLOAT -> false;
+            case COMPLEX -> isExactNumber(n.real != null ? n.real : ZERO_INT)
+                          && isExactNumber(n.ipart != null ? n.ipart : ZERO_INT);
+            case QUATERNION -> isExactNumber(n.real != null ? n.real : ZERO_INT)
+                              && isExactNumber(n.ipart != null ? n.ipart : ZERO_INT)
+                              && isExactNumber(n.jpart != null ? n.jpart : ZERO_INT)
+                              && isExactNumber(n.kpart != null ? n.kpart : ZERO_INT);
+        };
+    }
+
+    private static Number squaredMagnitudeExact(Number n) {
+        switch (n.type) {
+            case INT:
+            case BIGINT:
+            case RATIONAL:
+            case BIGRATIONAL:
+                return multiply(n, n);
+            case FLOAT:
+            case BIGFLOAT:
+                return null;
+            case COMPLEX: {
+                Number realPart = (n.real != null) ? n.real : ZERO_INT;
+                Number imagPart = (n.ipart != null) ? n.ipart : ZERO_INT;
+                if (!isExactNumber(realPart) || !isExactNumber(imagPart))
+                    return null;
+                Number realSq = multiply(realPart, realPart);
+                Number imagSq = multiply(imagPart, imagPart);
+                return add(realSq, imagSq);
+            }
+            case QUATERNION: {
+                Number ar = (n.real != null) ? n.real : ZERO_INT;
+                Number ai = (n.ipart != null) ? n.ipart : ZERO_INT;
+                Number aj = (n.jpart != null) ? n.jpart : ZERO_INT;
+                Number ak = (n.kpart != null) ? n.kpart : ZERO_INT;
+                if (!isExactNumber(ar) || !isExactNumber(ai) || !isExactNumber(aj) || !isExactNumber(ak))
+                    return null;
+                Number sum = add(multiply(ar, ar), multiply(ai, ai));
+                sum = add(sum, multiply(aj, aj));
+                sum = add(sum, multiply(ak, ak));
+                return sum;
+            }
+            default:
+                throw new IllegalStateException("Unknown numeric type: " + n.type);
+        }
+    }
+
+    private static double magnitudeDouble(Number n) {
+        switch (n.type) {
+            case INT:
+            case BIGINT:
+            case RATIONAL:
+            case BIGRATIONAL:
+            case FLOAT:
+            case BIGFLOAT:
+                return Math.abs(toDouble(n));
+            case COMPLEX: {
+                double realPart = toDouble(n.real != null ? n.real : ZERO_INT);
+                double imagPart = toDouble(n.ipart != null ? n.ipart : ZERO_INT);
+                return Math.hypot(realPart, imagPart);
+            }
+            case QUATERNION: {
+                double realPart = toDouble(n.real != null ? n.real : ZERO_INT);
+                double iPart    = toDouble(n.ipart != null ? n.ipart : ZERO_INT);
+                double jPart    = toDouble(n.jpart != null ? n.jpart : ZERO_INT);
+                double kPart    = toDouble(n.kpart != null ? n.kpart : ZERO_INT);
+                double sumSq = realPart * realPart + iPart * iPart + jPart * jPart + kPart * kPart;
+                return Math.sqrt(sumSq);
+            }
+            default:
+                throw new IllegalStateException("Unknown numeric type: " + n.type);
+        }
+    }
+
+    private static int compareScalar(Number a, Number b) {
+        if (isExactScalar(a) && isExactScalar(b)) {
+            BigInteger[] fa = toBigFraction(a);
+            BigInteger[] fb = toBigFraction(b);
+            BigInteger left = fa[0].multiply(fb[1]);
+            BigInteger right = fb[0].multiply(fa[1]);
+            return left.compareTo(right);
+        }
+        BigDecimal left = toBigDecimal(a);
+        BigDecimal right = toBigDecimal(b);
+        return left.compareTo(right);
+    }
+
+    private static int compareNumbers(Number a, Number b) {
+        if (isScalar(a) && isScalar(b)) {
+            return compareScalar(a, b);
+        }
+
+        Number exactA = squaredMagnitudeExact(a);
+        Number exactB = squaredMagnitudeExact(b);
+        if (exactA != null && exactB != null) {
+            return compareScalar(exactA, exactB);
+        }
+
+        double magA = magnitudeDouble(a);
+        double magB = magnitudeDouble(b);
+        return Double.compare(magA, magB);
+    }
+
+    public static Number magnitude(Number n) {
+        Number exactSq = squaredMagnitudeExact(n);
+        if (exactSq != null) {
+            double approx = Math.sqrt(Math.abs(toDouble(exactSq)));
+            return Number.real(approx);
+        }
+        return Number.real(magnitudeDouble(n));
+    }
+
+    public static boolean numericEquals(Number a, Number b) {
+        return compareNumbers(a, b) == 0;
+    }
+
+    public static boolean lessThan(Number a, Number b) {
+        return compareNumbers(a, b) < 0;
+    }
+
+    public static boolean greaterThan(Number a, Number b) {
+        return compareNumbers(a, b) > 0;
+    }
+
+
+    //------ Exact → Inexact conversions -------
+    public static Number toInexact(Number n) {
+        return switch (n.type) {
+            case FLOAT -> n;
+            case BIGFLOAT -> Number.real(n.bigFloatVal.doubleValue());
+            case INT, RATIONAL -> Number.real(toDouble(n));
+            case BIGINT, BIGRATIONAL -> Number.real(toDouble(n));
+            case COMPLEX -> {
+                Number realPart = toInexact(n.real != null ? n.real : ZERO_INT);
+                Number imagPart = toInexact(n.ipart != null ? n.ipart : ZERO_INT);
+                yield Number.complex(realPart, imagPart);
+            }
+            case QUATERNION -> {
+                Number realPart = toInexact(n.real != null ? n.real : ZERO_INT);
+                Number iPart = toInexact(n.ipart != null ? n.ipart : ZERO_INT);
+                Number jPart = toInexact(n.jpart != null ? n.jpart : ZERO_INT);
+                Number kPart = toInexact(n.kpart != null ? n.kpart : ZERO_INT);
+                yield Number.quaternion(realPart, iPart, jPart, kPart);
+            }
+        };
+    }
+
+    public static Number toInexactBig(Number n) {
+        return switch (n.type) {
+            case BIGFLOAT -> n;
+            case FLOAT -> Number.bigFloat(BigDecimal.valueOf(n.floatVal));
+            case INT -> Number.bigFloat(BigDecimal.valueOf(n.intVal));
+            case BIGINT -> Number.bigFloat(new BigDecimal(n.bigVal));
+            case RATIONAL -> {
+                BigDecimal value = BigDecimal.valueOf(n.num)
+                        .divide(BigDecimal.valueOf(n.den), MathContext.DECIMAL128);
+                yield Number.bigFloat(value);
+            }
+            case BIGRATIONAL -> {
+                BigDecimal value = new BigDecimal(n.bigNum)
+                        .divide(new BigDecimal(n.bigDen), MathContext.DECIMAL128);
+                yield Number.bigFloat(value);
+            }
+            case COMPLEX -> {
+                Number realPart = toInexactBig(n.real != null ? n.real : ZERO_INT);
+                Number imagPart = toInexactBig(n.ipart != null ? n.ipart : ZERO_INT);
+                yield Number.complex(realPart, imagPart);
+            }
+            case QUATERNION -> {
+                Number realPart = toInexactBig(n.real != null ? n.real : ZERO_INT);
+                Number iPart = toInexactBig(n.ipart != null ? n.ipart : ZERO_INT);
+                Number jPart = toInexactBig(n.jpart != null ? n.jpart : ZERO_INT);
+                Number kPart = toInexactBig(n.kpart != null ? n.kpart : ZERO_INT);
+                yield Number.quaternion(realPart, iPart, jPart, kPart);
+            }
+        };
     }
 
 
@@ -1151,6 +1633,48 @@ public final class Number {
         System.out.println("=== ZERO/ONE IDENTITIES ===");
         System.out.println("qA + 0              = " + Number.add(qA, Number.zero(Number.Type.QUATERNION)) + "   (expected qA)");
         System.out.println("qA * 1              = " + Number.multiply(qA, Number.one(Number.Type.QUATERNION)) + "   (expected qA)");
+
+        System.out.println();
+        System.out.println("=== POWER TESTS ===");
+        System.out.println("2^10               = " + Number.pow(Number.integer(2), Number.integer(10)) + "   (expected 1024)");
+        System.out.println("(3/2)^3             = " + Number.pow(Number.rational(3, 2), Number.integer(3)) + "   (expected 27/8)");
+        System.out.println("(2.0)^(0.5)         = " + Number.pow(Number.real(2.0), Number.real(0.5)) + "   (expected ~1.41421356237)");
+        System.out.println("(1+2i)^3            = " + Number.pow(Number.complex(Number.integer(1), Number.integer(2)), Number.integer(3)) + "   (expected -11-2i)");
+        System.out.println("Quaternion^2        = " + Number.pow(qA, Number.integer(2)) + "   (expected quaternion result)");
+
+        System.out.println();
+        System.out.println("=== MOD TESTS ===");
+        System.out.println("17 mod 5            = " + Number.mod(Number.integer(17), Number.integer(5)) + "   (expected 2)");
+        System.out.println("(-7) mod 3          = " + Number.mod(Number.integer(-7), Number.integer(3)) + "   (expected 2)");
+        System.out.println("(9/4) mod (2/3)     = " + Number.mod(Number.rational(9, 4), Number.rational(2, 3)) + "   (expected 1/4)");
+        System.out.println("5.5 mod 2.0         = " + Number.mod(Number.real(5.5), Number.real(2.0)) + "   (expected 1.5)");
+        System.out.println("Complex mod 2       = " + Number.mod(Number.complex(Number.integer(5), Number.integer(3)), Number.integer(2)) + "   (expected (1+1i))");
+        System.out.println("Quaternion mod 3    = " + Number.mod(qA, Number.integer(3)) + "   (expected component-wise result)");
+
+        System.out.println();
+        System.out.println("=== INEXACT CONVERSIONS ===");
+        Number exactR = Number.rational(7, 3);
+        Number exactBR = Number.bigRational(new BigInteger("12345678901234567890"), new BigInteger("12345"));
+        Number exactComplex = Number.complex(Number.rational(5, 4), Number.integer(2));
+        System.out.println("toInexact 7/3       = " + Number.toInexact(exactR) + "   (expected ~2.3333333333)");
+        System.out.println("toInexact bigRat    = " + Number.toInexactBig(exactBR) + "   (expected bigfloat ~1000000065.0)");
+        System.out.println("toInexact complex   = " + Number.toInexact(exactComplex) + "   (expected (~1.25 + 2i))");
+        System.out.println("toInexactBig qA     = " + Number.toInexactBig(qA) + "   (expected quaternion with bigfloat components)");
+
+        System.out.println();
+        System.out.println("=== CONJUGATE & INVERSE ===");
+        System.out.println("conj(1+2i)          = " + Number.complexConjugate(c3) + "   (expected 1+-2i)");
+        System.out.println("conj(qA)            = " + Number.quaternionConjugate(qA) + "   (expected 1+-2i+-3j+-4k)");
+        System.out.println("inverse(qA)         = " + Number.quaternionInverse(qA) + "   (expected quaternion inverse)");
+
+        System.out.println();
+        System.out.println("=== MAGNITUDE & COMPARISON ===");
+        System.out.println("|1+2i|              = " + Number.magnitude(c3) + "   (expected ~2.2360679)");
+        System.out.println("|qA|                = " + Number.magnitude(qA) + "   (expected ~5.4772256)");
+        System.out.println("numericEquals 2,4/2 = " + Number.numericEquals(Number.integer(2), Number.rational(4, 2)) + "   (expected true)");
+        System.out.println("lessThan 3/2, 2     = " + Number.lessThan(Number.rational(3, 2), Number.integer(2)) + "   (expected true)");
+        System.out.println("greaterThan qA,qB   = " + Number.greaterThan(qA, qB) + "   (expected false)");
+        System.out.println("lessThan (1+2i),3   = " + Number.lessThan(c3, Number.integer(3)) + "   (expected true)");
     }
 
 }
