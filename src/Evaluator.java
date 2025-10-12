@@ -40,35 +40,19 @@ public class Evaluator {
     public static Object getPrimitive(String op) {
         return switch (op) {
             // ---- arithmetic ----
-            case "PLUS"      -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).add((BigInteger)y));
-            case "MINUS"     -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).subtract((BigInteger)y));
-            case "MULTIPLY"  -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).multiply((BigInteger)y));
-            case "DIVIDE"    -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).divide((BigInteger)y));
-            case "MODULO"    -> (BiFunction<Object, Object, Object>) ((x, y) -> ((BigInteger)x).mod((BigInteger)y));
-            case "EXPONENT" -> (BiFunction<Object, Object, Object>) ((x, y) -> {
-                BigInteger base = (BigInteger) x;
-                BigInteger exp  = (BigInteger) y;
-                if (exp.signum() < 0) throw new IllegalArgumentException("Exponent must be non-negative");
-                BigInteger result = BigInteger.ONE;
-                BigInteger two = BigInteger.valueOf(2);
-                while (!exp.equals(BigInteger.ZERO)) {
-                    if (exp.testBit(0)) result = result.multiply(base);
-                    base = base.multiply(base);
-                    exp = exp.divide(two);
-                }
-                return result;
-            });
-            // ---- comparison ----
-            case "LT" -> (BiFunction<Object, Object, Object>) ((x, y) ->
-                ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f");
-            case "GT" -> (BiFunction<Object, Object, Object>) ((x, y) ->
-                ((BigInteger)x).compareTo((BigInteger)y) > 0 ? "#t" : "#f");
-
+            case "PLUS"      -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.add((Number)x,(Number)y));
+            case "MINUS"     -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.sub((Number)x,(Number)y));
+            case "MULTIPLY"  -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.multiply((Number)x,(Number)y)); 
+            case "DIVIDE"    -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.divide((Number)x,(Number)y));
+            case "MODULO"    -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.mod((Number)x,(Number)y));
+            case "EXPONENT"  -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.pow((Number)x,(Number)y));
+            case "LT"        -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.lessThan((Number)x,(Number)y) ? "#t" : "#f");
+            case "GT"        -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.greaterThan((Number)x,(Number)y) ? "#t" : "#f"); 
             // ---- equality ----
             case "EQ" -> (BiFunction<Object, Object, Object>) ((x, y) -> {
                 if (x == null || y == null) return "#f";
-                if (x instanceof BigInteger && y instanceof BigInteger)
-                    return ((BigInteger)x).equals((BigInteger)y) ? "#t" : "#f";
+                if (x instanceof Number && y instanceof Number)
+                    return Number.numericEquals((Number) x,(Number) y) ? "#t" : "#f";
                 if (x instanceof String && y instanceof String)
                     return ((String)x).equals(y) ? "#t" : "#f";
                 if (x instanceof LinkedList && y instanceof LinkedList)
@@ -705,8 +689,8 @@ if (tok != null && "QUOTE".equals(tok.type())) {
             @SuppressWarnings("unchecked")
             BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bi;
             if (args.isEmpty()) {
-                if (opName.equals("PLUS")) return BigInteger.ZERO;
-                if (opName.equals("MULTIPLY")) return BigInteger.ONE;
+                if (opName.equals("PLUS")) return Number.integer(0);
+                if (opName.equals("MULTIPLY")) return Number.integer(1);
                 throw new IllegalStateException(opName + " requires at least one argument");
             }
             Object acc = args.get(0);

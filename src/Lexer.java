@@ -15,6 +15,7 @@ public class Lexer {
     //for comparing tokens to the EOF token
     static Token eof = new Token("EOF", "EOF");
     List<Character> parsableSymbols = Arrays.asList('-','+','*','%','!','?','/','|','^','&','$','@','`','\\',':','[',']','_','=','.',',','<','>');
+    List<Character> numericSymbols = Arrays.asList('i','j','k','-','+','/','.');
     List<Token> tokens = new ArrayList<>();
     //Constructor
     Lexer (String src_){
@@ -43,11 +44,11 @@ public class Lexer {
     //then return a NUMBER token with the number as a string
     private Token number(){
         StringBuilder res = new StringBuilder();
-        while (Character.isDigit(this.currentChar)){
+        while (Character.isDigit(this.currentChar)||numericSymbols.contains(this.currentChar)){
             res.append(currentChar);
             this.advance();
         }
-        Token tok = new Token("NUMBER", new BigInteger(res.toString()));
+        Token tok = new Token("NUMBER", res.toString());
         return tok;
     }
     //This detects contiguous letters and symbols, and creates a string, these could be keywords, variable names
@@ -210,5 +211,13 @@ public class Lexer {
 
         // --- fallback ---
         throw new SyntaxException("Unexpected character '" + currentChar + "' at position " + pos);
+    }
+    public static void main(String[] args){
+        Lexer l1 = new Lexer("100 1+0i 23/45 0+2i-3j+2k 420.69");
+        Token current = l1.getNextToken();
+        while (!current.type().equals("EOF")){
+            System.out.println(current);
+            current = (Token) l1.getNextToken();
+        }
     }
 }

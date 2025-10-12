@@ -292,12 +292,18 @@ public class MicroLisp{
             Environment environment = new Environment(
                 new Pair<>("else", "#t"),
                 //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),                
-                new Pair<>("even?", (Function<BigInteger, String>) (x) ->
-                    x.mod(BigInteger.valueOf(2)).equals(BigInteger.ZERO) ? "#t" : "#f"
-                ),
-                new Pair<>("odd?", (Function<BigInteger, String>) (x) ->
-                    x.mod(BigInteger.valueOf(2)).equals(BigInteger.ZERO) ? "#f" : "#t"
-                ),
+                new Pair<>("even?", (Function<Object, String>) (x) -> {
+                    if (!(x instanceof Number n))
+                        throw new RuntimeException("even?: expected number, got " + x);
+                    Number remainder = Number.mod(n, Number.integer(2));
+                    return Number.numericEquals(remainder, Number.zero(remainder)) ? "#t" : "#f";
+                }),
+                new Pair<>("odd?", (Function<Object, String>) (x) -> {
+                    if (!(x instanceof Number n))
+                        throw new RuntimeException("odd?: expected number, got " + x);
+                    Number remainder = Number.mod(n, Number.integer(2));
+                    return Number.numericEquals(remainder, Number.zero(remainder)) ? "#f" : "#t";
+                }),
                 new Pair<>("!",(Function<String, String>) (x) -> x.equals("#t") ? "#f" : "#t"),
                 new Pair<>("and", (BiFunction<String, String, String>) (p, q) ->
                     (p.equals("#t") && q.equals("#t")) ? "#t" : "#f"
@@ -331,8 +337,8 @@ public class MicroLisp{
                     throw new RuntimeException("tail: unsupported type " + x.getClass());
                     }
                 }),                
-                new Pair<>("length", (Function<LinkedList, BigInteger>) (xs) ->
-                    BigInteger.valueOf(xs.size())
+                new Pair<>("length", (Function<LinkedList, Number>) (xs) ->
+                    Number.integer(xs.size())
                 ),
                 new Pair<>("print", (Function<Object, Object>) x1 -> {
                     if (x1 == null) {
@@ -385,10 +391,16 @@ public class MicroLisp{
             );
             environment.addFrame(
                 new Pair<>("+", (Function<LinkedList<?>, Object>) (args) -> {
-                    BigInteger sum = BigInteger.ZERO;
+                    Number sum = Number.integer(0);
                     LinkedList<?> current = args;
+                    if (current == null || current.head() == null) {
+                        return sum;
+                    }
                     while (current != null && current.head() != null) {
-                        sum = sum.add((BigInteger) current.head());
+                        Object head = current.head(); 
+                        if (!(head instanceof Number n))
+                            throw new RuntimeException("+: expected number, got " + head + " (type " + head.getClass() + ")");
+                        sum = Number.add(sum, n);
                         Object tail = current.tail();
                         if (!(tail instanceof LinkedList<?> next)) break;
                         current = next;
@@ -397,13 +409,20 @@ public class MicroLisp{
                 }),
                 new Pair<>("-", (Function<LinkedList<?>, Object>) (args) -> {
                     if (args == null || args.head() == null)
-                        return BigInteger.ZERO;
-                    BigInteger result = (BigInteger) args.head();
+                        return Number.integer(0);
+                    Object first = args.head();
+                    if (!(first instanceof Number result))
+                        throw new RuntimeException("-: expected number, got " + first);
                     Object tail = args.tail();
-                    if (tail == null) return result.negate();
+                    if (tail == null) {
+                        return Number.sub(Number.zero(result), result);
+                    }
                     if (!(tail instanceof LinkedList<?> current)) return result;
                     while (current.head() != null) {
-                        result = result.subtract((BigInteger) current.head());
+                        Object head = current.head();
+                        if (!(head instanceof Number n))
+                            throw new RuntimeException("-: expected number, got " + head + " (type " + head.getClass() + ")");
+                        result = Number.sub(result, n);
                         Object nextTail = current.tail();
                         if (!(nextTail instanceof LinkedList<?> next)) break;
                         current = next;
@@ -411,10 +430,16 @@ public class MicroLisp{
                     return result;
                 }),
                 new Pair<>("*", (Function<LinkedList<?>, Object>) (args) -> {
-                    BigInteger prod = BigInteger.ONE;
+                    Number prod = Number.integer(1);
                     LinkedList<?> current = args;
+                    if (current == null || current.head() == null) {
+                        return prod;
+                    }
                     while (current != null && current.head() != null) {
-                        prod = prod.multiply((BigInteger) current.head());
+                        Object head = current.head();
+                        if (!(head instanceof Number n))
+                            throw new RuntimeException("*: expected number, got " + head + " (type " + head.getClass() + ")");
+                        prod = Number.multiply(prod, n);
                         Object tail = current.tail();
                         if (!(tail instanceof LinkedList<?> next)) break;
                         current = next;
@@ -424,12 +449,17 @@ public class MicroLisp{
                 new Pair<>("/", (Function<LinkedList<?>, Object>) (args) -> {
                     if (args == null || args.head() == null)
                         throw new SyntaxException("/ expects at least one argument");
-                    BigInteger result = (BigInteger) args.head();
+                    Object first = args.head();
+                    if (!(first instanceof Number result))
+                        throw new RuntimeException("/: expected number, got " + first + " (type " + first.getClass() + ")");
                     Object tail = args.tail();
                     if (!(tail instanceof LinkedList<?> current))
                         return result;
                     while (current.head() != null) {
-                        result = result.divide((BigInteger) current.head());
+                        Object head = current.head();
+                        if (!(head instanceof Number n))
+                            throw new RuntimeException("/: expected number, got " + head + " (type " + head.getClass() + ")");
+                        result = Number.divide(result, n);
                         Object nextTail = current.tail();
                         if (!(nextTail instanceof LinkedList<?> next)) break;
                         current = next;
@@ -437,20 +467,26 @@ public class MicroLisp{
                     return result;
                 }),               
                 new Pair<>("%", (BiFunction<Object, Object, Object>) (x, y) ->
-                    ((BigInteger)x).mod((BigInteger)y)
+                    Number.mod((Number) x, (Number) y)
                 ),
                 new Pair<>("^", (BiFunction<Object, Object, Object>) (x, y) ->
-                    ((BigInteger)x).pow(((BigInteger)y).intValue())
+                    Number.pow((Number) x, (Number) y)
                 ),
                 new Pair<>("<", (BiFunction<Object, Object, String>) (x, y) ->
-                    ((BigInteger)x).compareTo((BigInteger)y) < 0 ? "#t" : "#f"
+                    Number.lessThan((Number) x, (Number) y) ? "#t" : "#f"
                 ),
                 new Pair<>(">", (BiFunction<Object, Object, String>) (x, y) ->
-                    ((BigInteger)x).compareTo((BigInteger)y) > 0 ? "#t" : "#f"
+                    Number.greaterThan((Number) x, (Number) y) ? "#t" : "#f"
                 ),
-                new Pair<>("=", (BiFunction<Object, Object, String>) (x, y) ->
-                    ((BigInteger)x).equals((BigInteger)y) ? "#t" : "#f"
-                ),
+                new Pair<>("=", (BiFunction<Object, Object, String>) (x, y) -> {
+                    if (x instanceof Number nx && y instanceof Number ny)
+                        return Number.numericEquals(nx, ny) ? "#t" : "#f";
+                    if (x instanceof String sx && y instanceof String sy)
+                        return sx.equals(sy) ? "#t" : "#f";
+                    if (x instanceof LinkedList<?> lx && y instanceof LinkedList<?> ly)
+                        return lx.equals(ly) ? "#t" : "#f";
+                    return "#f";
+                }),
 
                 new Pair<>("eq?", (Function<LinkedList<?>, Object>) (args) -> {
                     if (args == null || args.head() == null)
@@ -466,6 +502,8 @@ public class MicroLisp{
 
                     if (a == b) return "#t";
                     if (a == null || b == null) return "#f";
+                    if (a instanceof Number && b instanceof Number)
+                        return Number.numericEquals((Number) a, (Number) b) ? "#t" : "#f";
 
                     if (a instanceof BigInteger && b instanceof BigInteger)
                         return ((BigInteger) a).equals(b) ? "#t" : "#f";
@@ -524,4 +562,3 @@ public class MicroLisp{
     }
 
 }
-

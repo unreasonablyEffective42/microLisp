@@ -65,18 +65,18 @@ public final class Number {
     private static final Number ZERO_INT         = Number.integer(0);
     private static final Number ZERO_BIGINT      = Number.integer(BigInteger.ZERO);
     private static final Number ZERO_FLOAT       = Number.real(0.0);
-    private static final Number ZERO_BIGFLOAT    = Number.bigFloat(BigDecimal.ZERO);
+    private static final Number ZERO_BIGFLOAT    = Number.real(BigDecimal.ZERO);
     private static final Number ZERO_RATIONAL    = Number.rational(0, 1);
-    private static final Number ZERO_BIGRATIONAL = Number.bigRational(BigInteger.ZERO, BigInteger.ONE);
+    private static final Number ZERO_BIGRATIONAL = Number.rational(BigInteger.ZERO, BigInteger.ONE);
     private static final Number ZERO_COMPLEX     = Number.complex(ZERO_INT, ZERO_INT);
     private static final Number ZERO_QUATERNION  = Number.quaternion(ZERO_INT, ZERO_INT, ZERO_INT, ZERO_INT);
 
     private static final Number ONE_INT          = Number.integer(1);
     private static final Number ONE_BIGINT       = Number.integer(BigInteger.ONE);
     private static final Number ONE_FLOAT        = Number.real(1.0);
-    private static final Number ONE_BIGFLOAT     = Number.bigFloat(BigDecimal.ONE);
+    private static final Number ONE_BIGFLOAT     = Number.real(BigDecimal.ONE);
     private static final Number ONE_RATIONAL     = Number.rational(1, 1);
-    private static final Number ONE_BIGRATIONAL  = Number.bigRational(BigInteger.ONE, BigInteger.ONE);
+    private static final Number ONE_BIGRATIONAL  = Number.rational(BigInteger.ONE, BigInteger.ONE);
     private static final Number ONE_COMPLEX      = Number.complex(ONE_INT, ZERO_INT);
     private static final Number ONE_QUATERNION   = Number.quaternion(ONE_INT, ZERO_INT, ZERO_INT, ZERO_INT);
 
@@ -113,24 +113,61 @@ public final class Number {
     }
 
     public static Number rational(long p, long q) {
+        if (q == 0)
+            throw new ArithmeticException("Division by zero in rational constructor");
         long g = gcd(p, q);
-        p /= g; q /= g;
+        p /= g;
+        q /= g;
+        if (q < 0) {
+            p = -p;
+            q = -q;
+        }
         if (q == 1) return Number.integer(p);
         return new Number(Type.RATIONAL, 0, null, 0.0, null, p, q, null, null, null, null, null, null);
     }
 
-    public static Number bigRational(BigInteger p, BigInteger q) {
+    public static Number rational(BigInteger p, BigInteger q) {
+        if (q.signum() == 0)
+            throw new ArithmeticException("Division by zero in rational constructor");
         BigInteger g = p.gcd(q);
-        p = p.divide(g); q = q.divide(g);
+        p = p.divide(g);
+        q = q.divide(g);
+        if (q.signum() < 0) {
+            p = p.negate();
+            q = q.negate();
+        }
         if (q.equals(BigInteger.ONE)) return Number.integer(p);
         return new Number(Type.BIGRATIONAL, 0, null, 0.0, null, 0, 0, p, q, null, null, null, null);
+    }
+
+    public static Number rational(Number numerator, Number denominator) {
+        if (numerator.type != Type.INT && numerator.type != Type.BIGINT)
+            throw new IllegalArgumentException("numerator must be INT or BIGINT, got " + numerator.type);
+        if (denominator.type != Type.INT && denominator.type != Type.BIGINT)
+            throw new IllegalArgumentException("denominator must be INT or BIGINT, got " + denominator.type);
+
+        if ((denominator.type == Type.INT && denominator.intVal == 0) ||
+            (denominator.type == Type.BIGINT && denominator.bigVal.signum() == 0)) {
+            throw new ArithmeticException("Division by zero in rational constructor");
+        }
+
+        boolean numInt = numerator.type == Type.INT;
+        boolean denInt = denominator.type == Type.INT;
+
+        if (numInt && denInt) {
+            return Number.rational(numerator.intVal, denominator.intVal);
+        }
+
+        BigInteger num = numInt ? BigInteger.valueOf(numerator.intVal) : numerator.bigVal;
+        BigInteger den = denInt ? BigInteger.valueOf(denominator.intVal) : denominator.bigVal;
+        return Number.rational(num, den);
     }
 
     public static Number real(double value) {
         return new Number(Type.FLOAT, 0, null, value, null, 0, 0, null, null, null, null, null, null);
     }
 
-    public static Number bigFloat(BigDecimal value) {
+    public static Number real(BigDecimal value) {
         return new Number(Type.BIGFLOAT, 0, null, 0.0, value, 0, 0, null, null, null, null, null, null);
     }
 
@@ -155,6 +192,54 @@ public final class Number {
             case COMPLEX      -> ZERO_COMPLEX;
             case QUATERNION   -> ZERO_QUATERNION;
         };
+    }
+
+    private static String formatComplex(Number z) {
+        Number realPart = (z.real != null) ? z.real : ZERO_INT;
+        Number imagPart = (z.ipart != null) ? z.ipart : ZERO_INT;
+        if (isZero(imagPart)) {
+            return realPart.toString();
+        }
+        boolean positive = greaterThan(imagPart, zero(imagPart));
+        Number magnitude = positive ? imagPart : negate(imagPart);
+        StringBuilder sb = new StringBuilder();
+        sb.append(realPart);
+        sb.append(positive ? "+" : "-");
+        if (!numericEquals(magnitude, one(magnitude))) {
+            sb.append(magnitude);
+        }
+        sb.append("i");
+        return sb.toString();
+    }
+
+    private static String formatQuaternion(Number q) {
+        Number realPart = (q.real != null) ? q.real : ZERO_INT;
+        Number iPart = (q.ipart != null) ? q.ipart : ZERO_INT;
+        Number jPart = (q.jpart != null) ? q.jpart : ZERO_INT;
+        Number kPart = (q.kpart != null) ? q.kpart : ZERO_INT;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(realPart);
+        sb.append(formatQuaternionComponent(iPart, "i"));
+        sb.append(formatQuaternionComponent(jPart, "j"));
+        sb.append(formatQuaternionComponent(kPart, "k"));
+        return sb.toString();
+    }
+
+    private static String formatQuaternionComponent(Number component, String suffix) {
+        Number value = component;
+        if (isZero(value)) {
+            return "+0" + suffix;
+        }
+        boolean positive = greaterThan(value, zero(value));
+        Number magnitude = positive ? value : negate(value);
+        StringBuilder sb = new StringBuilder();
+        sb.append(positive ? "+" : "-");
+        if (!numericEquals(magnitude, one(magnitude))) {
+            sb.append(magnitude);
+        }
+        sb.append(suffix);
+        return sb.toString();
     }
 
     public static Number zero(Number likeThis) {
@@ -182,12 +267,14 @@ public final class Number {
 
     // ---- gcd helper ----
     private static long gcd(long a, long b) {
+        a = Math.abs(a);
+        b = Math.abs(b);
         while (b != 0) {
             long temp = b;
             b = a % b;
             a = temp;
         }
-        return a;
+        return a == 0 ? 1 : a;
     }
 
 
@@ -289,7 +376,7 @@ public final class Number {
             long d = den.longValueExact();
             return Number.rational(n, d);
         } catch (ArithmeticException e) {
-            return Number.bigRational(num, den);
+            return Number.rational(num, den);
         }
     }
 
@@ -337,11 +424,11 @@ public final class Number {
             case FLOAT:
                 return Number.real(-n.floatVal);
             case BIGFLOAT:
-                return Number.bigFloat(n.bigFloatVal.negate());
+                return Number.real(n.bigFloatVal.negate());
             case RATIONAL:
                 return Number.rational(-n.num, n.den);
             case BIGRATIONAL:
-                return Number.bigRational(n.bigNum.negate(), n.bigDen);
+                return Number.rational(n.bigNum.negate(), n.bigDen);
             case COMPLEX: {
                 Number realneg  = negate(n.real != null  ? n.real  : Number.integer(0));
                 Number ipartneg = negate(n.ipart != null ? n.ipart : Number.integer(0));
@@ -422,23 +509,23 @@ public final class Number {
             case FLOAT:   right = b.floatVal; break;
             case INT:     right = b.intVal;   break;
             case BIGINT:  right = b.bigVal.doubleValue(); break;
-            default:      return addBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
+            default:      return addBigFloat(Number.real(BigDecimal.valueOf(left)), b);
         }
         double sum = left + right;
         return Double.isFinite(sum) ? Number.real(sum)
-                                    : addBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
+                                    : addBigFloat(Number.real(BigDecimal.valueOf(left)), b);
     }
 
     private static Number addBigFloat(Number a, Number b) {
         BigDecimal left  = toBigDecimal(a);
         BigDecimal right = toBigDecimal(b);
-        return Number.bigFloat(left.add(right));
+        return Number.real(left.add(right));
     }
 
     private static Number addBigRational(Number a, Number b) {
         BigInteger num = a.bigNum.multiply(b.bigDen).add(b.bigNum.multiply(a.bigDen));
         BigInteger den = a.bigDen.multiply(b.bigDen);
-        return Number.bigRational(num, den);
+        return Number.rational(num, den);
     }
 
     private static Number addComplex(Number a, Number b) {
@@ -494,7 +581,7 @@ public final class Number {
                                 .multiply(BigInteger.valueOf(a.den)));
                             BigInteger denBig = BigInteger.valueOf(a.den)
                                 .multiply(BigInteger.valueOf(b.den));
-                            return Number.bigRational(numBig, denBig);
+                            return Number.rational(numBig, denBig);
                         }
                     }
 
@@ -508,7 +595,7 @@ public final class Number {
                             BigInteger aden = BigInteger.valueOf(a.den);
                             BigInteger bnum = BigInteger.valueOf(b.intVal);
                             BigInteger numBig = anum.add(bnum.multiply(aden));
-                            return Number.bigRational(numBig, aden);
+                            return Number.rational(numBig, aden);
                         }
                     }
 
@@ -517,7 +604,7 @@ public final class Number {
                         BigInteger aden = BigInteger.valueOf(a.den);
                         BigInteger bnum = b.bigVal;
                         BigInteger numBig = anum.add(bnum.multiply(aden));
-                        return Number.bigRational(numBig, aden);
+                        return Number.rational(numBig, aden);
                     }
 
                     case BIGRATIONAL: {
@@ -526,7 +613,7 @@ public final class Number {
                         BigInteger numBig = anum.multiply(b.bigDen)
                             .add(b.bigNum.multiply(aden));
                         BigInteger denBig = aden.multiply(b.bigDen);
-                        return Number.bigRational(numBig, denBig);
+                        return Number.rational(numBig, denBig);
                     }
 
                     case FLOAT: {
@@ -538,7 +625,7 @@ public final class Number {
                                 .divide(BigDecimal.valueOf(a.den), MathContext.DECIMAL128);
                             BigDecimal rightBD = BigDecimal.valueOf(b.floatVal);
                             BigDecimal sumBD = leftBD.add(rightBD);
-                            return Number.bigFloat(sumBD);
+                            return Number.real(sumBD);
                         }
                         return Number.real(sum);
                     }
@@ -547,7 +634,7 @@ public final class Number {
                         BigDecimal left = BigDecimal.valueOf(a.num)
                             .divide(BigDecimal.valueOf(a.den), MathContext.DECIMAL128);
                         BigDecimal sum = left.add(b.bigFloatVal);
-                        return Number.bigFloat(sum);
+                        return Number.real(sum);
                     }
 
                     case COMPLEX: {
@@ -639,17 +726,17 @@ public final class Number {
             case FLOAT:   right = b.floatVal; break;
             case INT:     right = b.intVal;   break;
             case BIGINT:  right = b.bigVal.doubleValue(); break;
-            default:      return multiplyBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
+            default:      return multiplyBigFloat(Number.real(BigDecimal.valueOf(left)), b);
         }
         double prod = left * right;
         return Double.isFinite(prod) ? Number.real(prod)
-                                    : multiplyBigFloat(Number.bigFloat(BigDecimal.valueOf(left)), b);
+                                    : multiplyBigFloat(Number.real(BigDecimal.valueOf(left)), b);
     }
 
     private static Number multiplyBigFloat(Number a, Number b) {
         BigDecimal left  = toBigDecimal(a);
         BigDecimal right = toBigDecimal(b);
-        return Number.bigFloat(left.multiply(right));
+        return Number.real(left.multiply(right));
     }
 
     private static Number multiplyQuaternion(Number a, Number b) {
@@ -712,7 +799,7 @@ public final class Number {
                         } catch (ArithmeticException e) {
                             BigInteger numBig = BigInteger.valueOf(a.num).multiply(BigInteger.valueOf(b.num));
                             BigInteger denBig = BigInteger.valueOf(a.den).multiply(BigInteger.valueOf(b.den));
-                            return Number.bigRational(numBig,denBig);
+                            return Number.rational(numBig,denBig);
                         }
                     }
 
@@ -723,19 +810,19 @@ public final class Number {
                         } catch (ArithmeticException e) {
                             BigInteger numBig = BigInteger.valueOf(a.num).multiply(BigInteger.valueOf(b.intVal));
                             BigInteger denBig = BigInteger.valueOf(a.den);
-                            return Number.bigRational(numBig,denBig);
+                            return Number.rational(numBig,denBig);
                         }
                     }
                     case BIGINT: {
                         BigInteger numBig = BigInteger.valueOf(a.num).multiply(b.bigVal);
                         BigInteger denBig = BigInteger.valueOf(a.den);
-                        return Number.bigRational(numBig,denBig);
+                        return Number.rational(numBig,denBig);
                     }
 
                     case BIGRATIONAL: {
                         BigInteger numBig = BigInteger.valueOf(a.num).multiply(b.bigNum);
                         BigInteger denBig = BigInteger.valueOf(a.den).multiply(b.bigDen);
-                        return Number.bigRational(numBig,denBig);
+                        return Number.rational(numBig,denBig);
                     }
 
                     case FLOAT: {
@@ -746,7 +833,7 @@ public final class Number {
                             BigDecimal leftBD = BigDecimal.valueOf(a.num).divide(BigDecimal.valueOf(a.den), MathContext.DECIMAL128);
                             BigDecimal rightBD = BigDecimal.valueOf(b.floatVal);
                             BigDecimal prodBD = leftBD.multiply(rightBD);
-                            return Number.bigFloat(prodBD);
+                            return Number.real(prodBD);
                         }
                         return Number.real(product);
                     }
@@ -754,7 +841,7 @@ public final class Number {
                     case BIGFLOAT: {
                         BigDecimal left = BigDecimal.valueOf(a.num).divide(BigDecimal.valueOf(a.den), MathContext.DECIMAL128);
                         BigDecimal product = left.multiply(b.bigFloatVal);
-                        return Number.bigFloat(product);
+                        return Number.real(product);
                     }
 
                     case COMPLEX: {
@@ -784,7 +871,7 @@ public final class Number {
     private static Number multiplyBigRational(Number a, Number b){
         BigInteger numerator   = a.bigNum.multiply(b.bigNum);
         BigInteger denominator = a.bigDen.multiply(b.bigDen);
-        return Number.bigRational(numerator,denominator);
+        return Number.rational(numerator,denominator);
     }
 
     private static Number multiplyComplex(Number a, Number b){
@@ -839,7 +926,7 @@ public final class Number {
             }
             case BIGINT: {
                 if (b.bigVal.signum() == 0) throw new ArithmeticException("Division by zero");
-                return Number.bigRational(BigInteger.valueOf(a.intVal), b.bigVal);
+                return Number.rational(BigInteger.valueOf(a.intVal), b.bigVal);
             }
             case RATIONAL: {
                 if (b.num == 0) throw new ArithmeticException("Division by zero");
@@ -850,20 +937,20 @@ public final class Number {
                 } catch (ArithmeticException e) {
                     BigInteger num = BigInteger.valueOf(a.intVal).multiply(BigInteger.valueOf(b.den));
                     BigInteger den = BigInteger.valueOf(b.num);
-                    return Number.bigRational(num, den);
+                    return Number.rational(num, den);
                 }
             }
             case BIGRATIONAL: {
                 if (b.bigNum.signum() == 0) throw new ArithmeticException("Division by zero");
                 BigInteger num = BigInteger.valueOf(a.intVal).multiply(b.bigDen);
                 BigInteger den = b.bigNum;
-                return Number.bigRational(num, den);
+                return Number.rational(num, den);
             }
             case FLOAT: {
                 return Number.real(a.intVal / b.floatVal);
             }
             case BIGFLOAT: {
-                return Number.bigFloat(BigDecimal.valueOf(a.intVal)
+                return Number.real(BigDecimal.valueOf(a.intVal)
                         .divide(b.bigFloatVal, MathContext.DECIMAL128));
             }
             case COMPLEX: {
@@ -886,7 +973,7 @@ public final class Number {
         if (qr[1].signum() == 0) {
             return Number.integer(qr[0]); // exact BigInteger quotient
         }
-        return Number.bigRational(bigA, bigB); // factory will reduce & normalize sign
+        return Number.rational(bigA, bigB); // factory will reduce & normalize sign
     }
     
 
@@ -897,17 +984,17 @@ public final class Number {
             case FLOAT: {
                 double q = left / b.floatVal;
                 if (Double.isFinite(q)) return Number.real(q);
-                return Number.bigFloat(BigDecimal.valueOf(left)
+                return Number.real(BigDecimal.valueOf(left)
                         .divide(BigDecimal.valueOf(b.floatVal), MathContext.DECIMAL128));
             }
             case INT: {
                 double q = left / b.intVal;
                 if (Double.isFinite(q)) return Number.real(q);
-                return Number.bigFloat(BigDecimal.valueOf(left)
+                return Number.real(BigDecimal.valueOf(left)
                         .divide(BigDecimal.valueOf(b.intVal), MathContext.DECIMAL128));
             }
             case BIGINT: {
-                return Number.bigFloat(BigDecimal.valueOf(left)
+                return Number.real(BigDecimal.valueOf(left)
                         .divide(new BigDecimal(b.bigVal), MathContext.DECIMAL128));
             }
             case RATIONAL: {
@@ -916,15 +1003,15 @@ public final class Number {
                 double q = left / right;
                 if (Double.isFinite(q)) return Number.real(q);
                 BigDecimal num = BigDecimal.valueOf(left).multiply(BigDecimal.valueOf(b.den));
-                return Number.bigFloat(num.divide(BigDecimal.valueOf(b.num), MathContext.DECIMAL128));
+                return Number.real(num.divide(BigDecimal.valueOf(b.num), MathContext.DECIMAL128));
             }
             case BIGRATIONAL: {
                 // left * (bigDen / bigNum)
                 BigDecimal num = BigDecimal.valueOf(left).multiply(new BigDecimal(b.bigDen));
-                return Number.bigFloat(num.divide(new BigDecimal(b.bigNum), MathContext.DECIMAL128));
+                return Number.real(num.divide(new BigDecimal(b.bigNum), MathContext.DECIMAL128));
             }
             case BIGFLOAT: {
-                return Number.bigFloat(BigDecimal.valueOf(left)
+                return Number.real(BigDecimal.valueOf(left)
                         .divide(b.bigFloatVal, MathContext.DECIMAL128));
             }
             case COMPLEX: {
@@ -939,7 +1026,7 @@ public final class Number {
         BigDecimal left  = toBigDecimal(a);
         BigDecimal right = toBigDecimal(b);
         BigDecimal q = left.divide(right, MathContext.DECIMAL128);
-        return Number.bigFloat(q);
+        return Number.real(q);
     }
 
 
@@ -956,19 +1043,19 @@ public final class Number {
                 reciprocal = Number.rational(b.den, b.num);
                 break;
             case BIGRATIONAL:
-                reciprocal = Number.bigRational(b.bigDen, b.bigNum);
+                reciprocal = Number.rational(b.bigDen, b.bigNum);
                 break;
             case INT:
                 reciprocal = Number.rational(1, b.intVal);
                 break;
             case BIGINT:
-                reciprocal = Number.bigRational(BigInteger.ONE, b.bigVal);
+                reciprocal = Number.rational(BigInteger.ONE, b.bigVal);
                 break;
             case FLOAT:
                 reciprocal = Number.real(1.0 / b.floatVal);
                 break;
             case BIGFLOAT:
-                reciprocal = Number.bigFloat(BigDecimal.ONE.divide(b.bigFloatVal, MathContext.DECIMAL128));
+                reciprocal = Number.real(BigDecimal.ONE.divide(b.bigFloatVal, MathContext.DECIMAL128));
                 break;
             case COMPLEX:
                 reciprocal = reciprocalComplex(b);
@@ -982,7 +1069,7 @@ public final class Number {
         return multiplyRational(a, reciprocal);
     }
     private static Number divideBigRational(Number a, Number b){
-        Number reciprocal = Number.bigRational(b.bigDen,b.bigNum);  
+        Number reciprocal = Number.rational(b.bigDen,b.bigNum);  
         return multiplyBigRational(a,reciprocal);
     }
 
@@ -1095,7 +1182,7 @@ public final class Number {
         BigDecimal quotient = left.divide(right, MathContext.DECIMAL128);
         BigDecimal floored = quotient.setScale(0, RoundingMode.FLOOR);
         BigDecimal remainder = left.subtract(right.multiply(floored));
-        return Number.bigFloat(remainder);
+        return Number.real(remainder);
     }
 
     private static Number modComplex(Number a, Number b) {
@@ -1353,18 +1440,18 @@ public final class Number {
     public static Number toInexactBig(Number n) {
         return switch (n.type) {
             case BIGFLOAT -> n;
-            case FLOAT -> Number.bigFloat(BigDecimal.valueOf(n.floatVal));
-            case INT -> Number.bigFloat(BigDecimal.valueOf(n.intVal));
-            case BIGINT -> Number.bigFloat(new BigDecimal(n.bigVal));
+            case FLOAT -> Number.real(BigDecimal.valueOf(n.floatVal));
+            case INT -> Number.real(BigDecimal.valueOf(n.intVal));
+            case BIGINT -> Number.real(new BigDecimal(n.bigVal));
             case RATIONAL -> {
                 BigDecimal value = BigDecimal.valueOf(n.num)
                         .divide(BigDecimal.valueOf(n.den), MathContext.DECIMAL128);
-                yield Number.bigFloat(value);
+                yield Number.real(value);
             }
             case BIGRATIONAL -> {
                 BigDecimal value = new BigDecimal(n.bigNum)
                         .divide(new BigDecimal(n.bigDen), MathContext.DECIMAL128);
-                yield Number.bigFloat(value);
+                yield Number.real(value);
             }
             case COMPLEX -> {
                 Number realPart = toInexactBig(n.real != null ? n.real : ZERO_INT);
@@ -1382,6 +1469,8 @@ public final class Number {
     }
 
 
+   
+
     @Override
     public String toString() {
         return switch (type) {
@@ -1389,12 +1478,16 @@ public final class Number {
             case BIGINT       -> bigVal.toString();
             case FLOAT        -> Double.toString(floatVal);
             case BIGFLOAT     -> bigFloatVal.toPlainString();
-            case RATIONAL     -> (den == 1) ? Long.toString(num) : "(" + num + "/" + den + ")";
-            case BIGRATIONAL  -> (bigDen.equals(BigInteger.ONE)) ? bigNum.toString() : "(" + bigNum + "/" + bigDen + ")";
-            case COMPLEX      -> real + "+" + ipart + "i";
-            case QUATERNION   -> real + "+" + ipart + "i+" + jpart + "j+" + kpart +"k";
+            case RATIONAL     -> (den == 1) ? Long.toString(num) : num + "/" + den;
+            case BIGRATIONAL  -> (bigDen.equals(BigInteger.ONE))
+                                    ? bigNum.toString()
+                                    : "(" + bigNum + "/" + bigDen + ")";
+            case COMPLEX      -> formatComplex(this);
+            case QUATERNION   -> formatQuaternion(this);
         };
     }
+
+
 
 
     public static void main(String[] args) {
@@ -1402,9 +1495,9 @@ public final class Number {
         Number i  = Number.integer(100);
         Number k  = Number.integer(new BigInteger("6000000000000000000000"));
         Number f  = Number.real(5300.12347);
-        Number bf = Number.bigFloat(new BigDecimal("123456789.987654321"));
+        Number bf = Number.real(new BigDecimal("123456789.987654321"));
         Number r  = Number.rational(300, 200); // 3/2
-        Number br = Number.bigRational(new BigInteger("12345678901234567890"),
+        Number br = Number.rational(new BigInteger("12345678901234567890"),
                                     new BigInteger("9876543210987654321"));
         Number c  = Number.complex(r, i);
 
@@ -1438,6 +1531,15 @@ public final class Number {
         System.out.println("rational overflow => bigRational = " + Number.add(largeR1, largeR2));
         System.out.println();
 
+        System.out.println("=== RATIONAL FACTORY (MIXED TYPES) ===");
+        Number rn1 = Number.rational(Number.integer(2), Number.integer(4));
+        Number rn2 = Number.rational(Number.integer(2), Number.integer(BigInteger.valueOf(4)));
+        Number rn3 = Number.rational(Number.integer(BigInteger.valueOf(6)), Number.integer(BigInteger.valueOf(9)));
+        System.out.println("rational(int,int)    = " + rn1 + "   (expected 1/2)");
+        System.out.println("rational(int,bigint) = " + rn2 + "   (expected 1/2)");
+        System.out.println("rational(big,big)    = " + rn3 + "   (expected 2/3)");
+        System.out.println();
+
         System.out.println("=== MIXED ADDITION TESTS ===");
         System.out.println("float + int          = " + Number.add(Number.real(2.5), Number.integer(3)) + "   (expected 5.5)");
         System.out.println("float + rational     = " + Number.add(Number.real(0.5), Number.rational(1, 3)) + "   (expected ~0.8333)");
@@ -1455,7 +1557,7 @@ public final class Number {
 
         System.out.println("=== BIGFLOAT PRECISION ===");
         BigDecimal veryBig = new BigDecimal("1.0000000000000000000000000000000001");
-        System.out.println("bigfloat + bigfloat  = " + Number.add(Number.bigFloat(veryBig), Number.bigFloat(veryBig)));
+        System.out.println("bigfloat + bigfloat  = " + Number.add(Number.real(veryBig), Number.real(veryBig)));
         System.out.println();
 
         System.out.println("=== EDGE CASES ===");
@@ -1503,7 +1605,7 @@ public final class Number {
 
         System.out.println("=== BIGFLOAT PRECISION (MULT) ===");
         BigDecimal bigPrec = new BigDecimal("1.0000000000000000000000000000000001");
-        System.out.println("bigfloat * bigfloat  = " + Number.multiply(Number.bigFloat(bigPrec), Number.bigFloat(bigPrec))
+        System.out.println("bigfloat * bigfloat  = " + Number.multiply(Number.real(bigPrec), Number.real(bigPrec))
                         + "   (expected ~1.0000000000000000000000000000000002)");
         System.out.println();
 
@@ -1598,7 +1700,7 @@ public final class Number {
         System.out.println("(3+6i+0j+0k) / 1.5  = " + Number.divide(Number.quaternion(Number.integer(3), Number.integer(6), Number.integer(0), Number.integer(0)), Number.real(1.5)) + "   (expected 2 + 4i + 0j + 0k)");
         System.out.println("(2/3) * (3+6i+9j+12k) = " + Number.multiply(Number.rational(2,3), Number.quaternion(Number.integer(3), Number.integer(6), Number.integer(9), Number.integer(12))) + "   (expected 2 + 4i + 6j + 8k)");
 
-        System.out.println("bigfloat * (1+i)    = " + Number.multiply(Number.bigFloat(new BigDecimal("1.0000000000000000000000000000000001")),Number.quaternion(Number.integer(1), Number.integer(1), Number.integer(0), Number.integer(0))) + "   (expected ~1.000... + 1.000...i)");
+        System.out.println("bigfloat * (1+i)    = " + Number.multiply(Number.real(new BigDecimal("1.0000000000000000000000000000000001")),Number.quaternion(Number.integer(1), Number.integer(1), Number.integer(0), Number.integer(0))) + "   (expected ~1.000... + 1.000...i)");
         System.out.println();
         System.out.println("=== COMPLEX ⟷ QUATERNION PROMOTION ===");
         Number cA = Number.complex(Number.integer(1), Number.integer(2)); // 1+2i
@@ -1654,7 +1756,7 @@ public final class Number {
         System.out.println();
         System.out.println("=== INEXACT CONVERSIONS ===");
         Number exactR = Number.rational(7, 3);
-        Number exactBR = Number.bigRational(new BigInteger("12345678901234567890"), new BigInteger("12345"));
+        Number exactBR = Number.rational(new BigInteger("12345678901234567890"), new BigInteger("12345"));
         Number exactComplex = Number.complex(Number.rational(5, 4), Number.integer(2));
         System.out.println("toInexact 7/3       = " + Number.toInexact(exactR) + "   (expected ~2.3333333333)");
         System.out.println("toInexact bigRat    = " + Number.toInexactBig(exactBR) + "   (expected bigfloat ~1000000065.0)");

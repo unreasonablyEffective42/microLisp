@@ -1,6 +1,10 @@
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 /*
 The Parser is an object that has a lexer. It consumes tokens one at a time from the lexer and builds
 the abstract syntax tree using our Node class. It uses a recursive descent algorithm.
@@ -19,7 +23,7 @@ public class Parser {
     // Parses a raw datum (used inside quoted expressions).
 
     private Node<Token> parseDatum() {
-        Token tok = lexer.getNextToken();
+        Token tok = normalizeNumberToken(lexer.getNextToken());
 
         // 'datum at datum level: produce a QUOTE node
         if (tok.type().equals("QUOTE")) {
@@ -28,7 +32,7 @@ public class Parser {
 
         if (tok.type().equals("LPAREN")) {
             Node<Token> listNode = new Node<>(new Token("LIST",""));
-            Token inner = lexer.getNextToken();
+            Token inner = normalizeNumberToken(lexer.getNextToken());
             if (inner.type().equals("RPAREN")){
                 return listNode;
             }
@@ -43,7 +47,7 @@ public class Parser {
                 } else {
                     listNode.createChild(inner);
                 }
-                inner = lexer.getNextToken();
+                inner = normalizeNumberToken(lexer.getNextToken());
             }
             return listNode;
         } 
@@ -58,7 +62,7 @@ public class Parser {
         // Count consecutive QUOTE tokens: '''x  => depth = 3
         int depth = 1;
         while (lexer.peekNextToken().type().equals("QUOTE")) {
-            lexer.getNextToken(); // consume the extra ' token
+            normalizeNumberToken(lexer.getNextToken()); // consume the extra ' token
             depth++;
         }
 
@@ -74,7 +78,7 @@ public class Parser {
             // parseDatum() itself will pull the '(' and read the list datum
             inner = parseDatum();
         } else {
-            inner = new Node<>(lexer.getNextToken());
+            inner = new Node<>(normalizeNumberToken(lexer.getNextToken()));
         }
 
         // Wrap it depth times: x -> (quote x) -> (quote (quote x)) -> ...
@@ -86,17 +90,280 @@ public class Parser {
         return inner;
     }
 
+    private Number parseNumber(String raw) {
+        String val = raw.trim();
+        if (val.isEmpty())
+            throw new SyntaxException("Empty numeric literal");
+
+        if (isQuaternionCandidate(val)) {
+            return parseQuaternionLiteral(val);
+        }
+
+        if (isComplexCandidate(val)) {
+            return parseComplexLiteral(val);
+        }
+
+        if (isRationalLiteral(val)) {
+            return parseRationalLiteral(val);
+        }
+
+        if (looksLikeDecimal(val)) {
+            return parseDecimalLiteral(val);
+        }
+
+        return parseIntegerLiteral(val);
+    }
+
+    private boolean isComplexCandidate(String val) {
+        int iPos = val.lastIndexOf('i');
+        if (iPos == -1) return false;
+        if (val.indexOf('j') != -1 || val.indexOf('k') != -1) return false;
+        String prefix = val.substring(0, iPos);
+        return containsDigit(prefix);
+    }
+
+    private boolean isQuaternionCandidate(String val) {
+        return val.indexOf('i') != -1 && val.indexOf('j') != -1 && val.indexOf('k') != -1;
+    }
+
+    private boolean containsDigit(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isDigit(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Number parseComplexLiteral(String val) {
+        int iPos = val.lastIndexOf('i');
+        if (iPos != val.length() - 1)
+            throw new SyntaxException("Complex numbers must end with 'i'");
+
+        ComplexParts parts = splitRealImag(val.substring(0, iPos));
+        Number real = (parts.real != null) ? parseNumber(parts.real) : Number.integer(0);
+        Number imag = parseCoefficientString(parts.imag);
+        return Number.complex(real, imag);
+    }
+
+    private Number parseQuaternionLiteral(String val) {
+        int iPos = val.indexOf('i');
+        int jPos = val.indexOf('j', Math.max(iPos + 1, 0));
+        int kPos = val.indexOf('k', Math.max(jPos + 1, 0));
+
+        if (iPos == -1 || jPos == -1 || kPos == -1)
+            throw new SyntaxException("Invalid quaternion literal: " + val);
+
+        String trailer = val.substring(kPos + 1).trim();
+        if (!trailer.isEmpty())
+            throw new SyntaxException("Quaternions must end with 'k'");
+
+        ComplexParts prefix = splitRealImag(val.substring(0, iPos));
+        Number real = (prefix.real != null) ? parseNumber(prefix.real) : Number.integer(0);
+        Number iCoeff = parseCoefficientString(prefix.imag);
+        Number jCoeff = parseCoefficientString(val.substring(iPos + 1, jPos));
+        Number kCoeff = parseCoefficientString(val.substring(jPos + 1, kPos));
+        return Number.quaternion(real, iCoeff, jCoeff, kCoeff);
+    }
+
+    private static final class ComplexParts {
+        final String real;
+        final String imag;
+        ComplexParts(String real, String imag) {
+            this.real = real;
+            this.imag = imag;
+        }
+    }
+
+    private ComplexParts splitRealImag(String text) {
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) {
+            return new ComplexParts(null, "+1");
+        }
+
+        int splitIndex = findCoefficientSplitIndex(trimmed);
+        if (splitIndex == -1) {
+            return new ComplexParts(null, trimmed);
+        }
+
+        String real = trimmed.substring(0, splitIndex).trim();
+        String imag = trimmed.substring(splitIndex).trim();
+        if (!real.isEmpty()) {
+            char last = real.charAt(real.length() - 1);
+            if (last == '+' || last == '-') {
+                real = real.substring(0, real.length() - 1).trim();
+                if (real.isEmpty()) {
+                    real = null;
+                }
+            }
+        }
+        if (real != null && real.isEmpty()) {
+            real = null;
+        }
+        if (imag.isEmpty()) imag = "+1";
+        if ("+".equals(real) || "-".equals(real)) {
+            real = null;
+        }
+        return new ComplexParts(real, imag);
+    }
+
+    private int findCoefficientSplitIndex(String text) {
+        for (int i = text.length() - 1; i > 0; i--) {
+            char c = text.charAt(i);
+            if (c == '+' || c == '-') {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private Number parseCoefficientString(String segment) {
+        String trimmed = segment.trim();
+        if (trimmed.isEmpty() || "+".equals(trimmed)) {
+            return Number.integer(1);
+        }
+        if ("-".equals(trimmed)) {
+            return Number.integer(-1);
+        }
+        if (trimmed.startsWith("+-")) {
+            trimmed = "-" + trimmed.substring(2).trim();
+            if (trimmed.isEmpty() || "+".equals(trimmed)) {
+                return Number.integer(-1);
+            }
+        } else if (trimmed.startsWith("-+")) {
+            trimmed = "-" + trimmed.substring(2).trim();
+            if (trimmed.isEmpty() || "+".equals(trimmed)) {
+                return Number.integer(-1);
+            }
+        } else if (trimmed.startsWith("++")) {
+            trimmed = "+" + trimmed.substring(2).trim();
+            if (trimmed.isEmpty() || "+".equals(trimmed)) {
+                return Number.integer(1);
+            }
+        } else if (trimmed.startsWith("--")) {
+            trimmed = "-" + trimmed.substring(2).trim();
+            if (trimmed.isEmpty() || "+".equals(trimmed)) {
+                return Number.integer(-1);
+            }
+        }
+        return parseNumber(trimmed);
+    }
+
+    private boolean isRationalLiteral(String val) {
+        return val.contains("/") && !val.contains("i") && !val.contains("j") && !val.contains("k");
+    }
+
+    private Number parseRationalLiteral(String literal) {
+        String inner = literal.trim();
+        if (inner.startsWith("+")) {
+            inner = inner.substring(1).trim();
+        }
+
+        if (isFullyParenthesized(inner)) {
+            inner = inner.substring(1, inner.length() - 1).trim();
+        }
+
+        int slash = inner.indexOf('/');
+        if (slash <= 0 || slash == inner.length() - 1)
+            throw new SyntaxException("Invalid rational literal: " + literal);
+
+        String numStr = inner.substring(0, slash).trim();
+        String denStr = inner.substring(slash + 1).trim();
+        if (numStr.isEmpty() || denStr.isEmpty())
+            throw new SyntaxException("Invalid rational literal: " + literal);
+
+        BigInteger numerator;
+        BigInteger denominator;
+        try {
+            numerator = new BigInteger(numStr);
+            denominator = new BigInteger(denStr);
+        } catch (NumberFormatException e) {
+            throw new SyntaxException("Invalid rational literal: " + literal);
+        }
+
+        if (denominator.signum() == 0)
+            throw new SyntaxException("Division by zero in rational literal: " + literal);
+
+        try {
+            long n = numerator.longValueExact();
+            long d = denominator.longValueExact();
+            return Number.rational(n, d);
+        } catch (ArithmeticException ex) {
+            return Number.rational(numerator, denominator);
+        }
+    }
+
+    private boolean isFullyParenthesized(String text) {
+        if (text.length() < 2 || text.charAt(0) != '(' || text.charAt(text.length() - 1) != ')')
+            return false;
+        int depth = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '(') depth++;
+            else if (c == ')') {
+                depth--;
+                if (depth == 0 && i != text.length() - 1)
+                    return false;
+                if (depth < 0)
+                    return false;
+            }
+        }
+        return depth == 0;
+    }
+
+    private boolean looksLikeDecimal(String val) {
+        return val.contains(".") || val.contains("e") || val.contains("E");
+    }
+
+    private Number parseDecimalLiteral(String literal) {
+        try {
+            double d = Double.parseDouble(literal);
+            if (!Double.isFinite(d))
+                return Number.real(new BigDecimal(literal));
+            return Number.real(d);
+        } catch (NumberFormatException e) {
+            try {
+                return Number.real(new BigDecimal(literal));
+            } catch (NumberFormatException ex) {
+                throw new SyntaxException("Invalid decimal literal: " + literal);
+            }
+        }
+    }
+
+    private Number parseIntegerLiteral(String literal) {
+        try {
+            return Number.integer(Long.parseLong(literal));
+        } catch (NumberFormatException e) {
+            try {
+                return Number.integer(new BigInteger(literal));
+            } catch (NumberFormatException ex) {
+                throw new SyntaxException("Invalid integer literal: " + literal);
+            }
+        }
+    }
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private Token normalizeNumberToken(Token tok) {
+        if (tok != null && "NUMBER".equals(tok.type()) && tok.value() instanceof String s) {
+            return new Token("NUMBER", parseNumber(s));
+        }
+        return tok;
+    }
+
+
     
     public Node<Token> parse() {
         //Get the first token for this recursive call
-        Token current = lexer.getNextToken();
+        Token current = normalizeNumberToken(lexer.getNextToken());
         //add an EOF token to the tree, will end the parsing operation
         if (current.type().equals("EOF")) {
             return new Node<>(new Token<>("EOF","EOF"));
         }
+        if (current.type().equals("NUMBER")){
+            return new Node<>(current);
+        }
         // atoms: numbers, booleans, strings, symbols
-        if (current.type().equals("NUMBER") || current.type().equals("BOOLEAN") ||
-            current.type().equals("STRING") || current.type().equals("SYMBOL")) {
+        if (current.type().equals("BOOLEAN") || current.type().equals("STRING") || current.type().equals("SYMBOL")) {
             return new Node<>(new Token(current.type(), current.value()));
         }
         // ---------- shorthand quote handling ----------
@@ -107,7 +374,7 @@ public class Parser {
         }
         // ---------- list / s-expression ----------
         else if (current.type().equals("LPAREN")) {
-            current = lexer.getNextToken();
+            current = normalizeNumberToken(lexer.getNextToken());
 
             if (current.type().equals("EOF")) {
                 throw new SyntaxException("Unexpected EOF encountered: '(' not matched with ')'");
@@ -118,7 +385,7 @@ public class Parser {
             // Case 1: operator is a keyword (lambda, define, etc.)
             if (keywords.contains(current.type())) {
                 Node<Token> node = new Node<>(current);
-                current = lexer.getNextToken();
+                current = normalizeNumberToken(lexer.getNextToken());
                 // ---------- lambda special form ----------
                 if (node.getValue().type().equals("LAMBDA")) {
                     if (!current.type().equals("LPAREN")) {
@@ -126,7 +393,7 @@ public class Parser {
                     }                    
                     // Parse parameter list (possibly empty)
                     Node<Token> paramList = new Node<>(new Token("PARAMS", null));
-                    current = lexer.getNextToken();
+                    current = normalizeNumberToken(lexer.getNextToken());
                     if (current.type().equals("RPAREN")) {
                         // No parameters at all — fine
                         node.addChild(paramList);
@@ -136,14 +403,14 @@ public class Parser {
                                 throw new SyntaxException("Parameter list must contain only symbols, found: " + current);
                             }
                             paramList.createChild(current);
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                         }
                         node.addChild(paramList);
                     }                    
                     // Parse body expression
                     node.addChild(this.parse());
                     // NEW: consume the closing ')' of the (lambda …) form
-                    Token closer = lexer.getNextToken();
+                    Token closer = normalizeNumberToken(lexer.getNextToken());
                     if (!closer.type().equals("RPAREN")) {
                         throw new SyntaxException("Lambda must end with ')', found: " + closer);
                     }
@@ -163,7 +430,7 @@ public class Parser {
                         // Peek to see if there's a closing ')' for the (quote …)
                         Token<?, ?> maybeCloser = lexer.peekNextToken();
                         if (maybeCloser.type().equals("RPAREN")) {
-                            lexer.getNextToken(); // consume it normally
+                            normalizeNumberToken(lexer.getNextToken()); // consume it normally
                         } else if (!maybeCloser.type().equals("EOF")) {
                             throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + maybeCloser);
                         }
@@ -177,7 +444,7 @@ public class Parser {
                         node.addChild(parseQuoted());
                         Token<?, ?> outerClose = lexer.peekNextToken();
                         if (outerClose.type().equals("RPAREN")) {
-                            lexer.getNextToken();
+                            normalizeNumberToken(lexer.getNextToken());
                         } else if (!outerClose.type().equals("EOF")) {
                             throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
                         }
@@ -188,7 +455,7 @@ public class Parser {
                     node.createChild(current);
                     Token<?, ?> outerClose = lexer.peekNextToken();
                     if (outerClose.type().equals("RPAREN")) {
-                        lexer.getNextToken();
+                        normalizeNumberToken(lexer.getNextToken());
                     } else if (!outerClose.type().equals("EOF")) {
                         throw new SyntaxException("quote: expected ')' to close (quote ...), found: " + outerClose);
                     }
@@ -202,45 +469,45 @@ public class Parser {
                             throw new SyntaxException("cond clauses must be lists, found: " + current);
                         }
                         // Enter clause list
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                         Node<Token> clause = new Node<>(new Token("CLAUSE", null));
                         // Parse predicate (allow any expression, including literals like #f or 1)
                         if (current.type().equals("LPAREN")) {
                             lexer.backUp();
                             clause.addChild(this.parse());
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                         } else if (current.type().equals("QUOTE")) {
                             clause.addChild(parseQuoted());
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                         } else {
                             // For literal atoms (NUMBER, BOOLEAN, STRING, SYMBOL, etc.)
                             clause.addChild(new Node<>(current));
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                         }
 
                         // Advance if any trailing whitespace or comments before body
                         while (current.type().equals("WHITESPACE") || current.type().equals("COMMENT")) {
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                         }                                            
                         // Parse body expressions until RPAREN
                         while (!current.type().equals("RPAREN")) {
                             if (current.type().equals("LPAREN")) {
                                 lexer.backUp();
                                 clause.addChild(this.parse());
-                                current = lexer.getNextToken();
+                                current = normalizeNumberToken(lexer.getNextToken());
                             } else if (current.type().equals("QUOTE")) {
                                 clause.addChild(parseQuoted());   // handle 'datum (e.g., '())
-                                current = lexer.getNextToken();
+                                current = normalizeNumberToken(lexer.getNextToken());
                             } else {
                                 clause.addChild(new Node<>(current));
-                                current = lexer.getNextToken();
+                                current = normalizeNumberToken(lexer.getNextToken());
                             }
                         }
                       // At this point, current == RPAREN for the clause
                       node.addChild(clause);
 
                       // Advance to next token for the outer cond loop
-                      current = lexer.getNextToken();
+                      current = normalizeNumberToken(lexer.getNextToken());
                   }
                   return node; 
                 }
@@ -250,15 +517,15 @@ public class Parser {
                         if (current.type().equals("LPAREN")){ 
                             lexer.backUp(); 
                             node.addChild(this.parse()); 
-                            current = lexer.getNextToken(); 
+                            current = normalizeNumberToken(lexer.getNextToken()); 
                         } else if (current.type().equals("QUOTE")) { 
                             node.addChild(parseQuoted()); 
-                            current = lexer.getNextToken(); 
+                            current = normalizeNumberToken(lexer.getNextToken()); 
                         } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") 
                                 || current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") 
                                 || current.type().equals("STRING")) {
                             node.createChild(current); 
-                            current = lexer.getNextToken(); 
+                            current = normalizeNumberToken(lexer.getNextToken()); 
                         } 
                     }
                     return node;
@@ -270,18 +537,18 @@ public class Parser {
                     // --- Named let detection ---
                     if (current.type().equals("SYMBOL")) {
                         Node<Token> nameNode = new Node<>(current); // the let name
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                         if (!current.type().equals("LPAREN")) {
                             throw new SyntaxException("Named let must be followed by a binding list in parentheses");
                         }
                         // Parse binding list
                         Node<Token> bindings = new Node<>(new Token("BINDINGS", null));
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                         while (!current.type().equals("RPAREN")) {
                             if (!current.type().equals("LPAREN")) {
                                 throw new SyntaxException("each let binding must be enclosed in parentheses");
                             }
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                             if (!current.type().equals("SYMBOL")) {
                                 throw new SyntaxException("binding must start with a symbol, found: " + current);
                             }
@@ -289,16 +556,16 @@ public class Parser {
                             pair.createChild(current);
                             Node<Token> valueExpr = this.parse();
                             pair.addChild(valueExpr);
-                            Token closer = lexer.getNextToken();
+                            Token closer = normalizeNumberToken(lexer.getNextToken());
                             if (!closer.type().equals("RPAREN")) {
                                 throw new SyntaxException("binding must end with ')', found: " + closer);
                             }
                             bindings.addChild(pair);
-                            current = lexer.getNextToken();
+                            current = normalizeNumberToken(lexer.getNextToken());
                         }
                         // After bindings list, parse body
                         Node<Token> body = this.parse();
-                        Token closer = lexer.getNextToken();
+                        Token closer = normalizeNumberToken(lexer.getNextToken());
                         if (!closer.type().equals("RPAREN")) {
                             throw new SyntaxException("Named let must end with ')', found: " + closer);
                         }
@@ -314,13 +581,13 @@ public class Parser {
                         throw new SyntaxException(node.getValue().type() + " must be followed by a binding list in parentheses");
                     }
                     Node<Token> bindings = new Node<>(new Token("BINDINGS", null));
-                    current = lexer.getNextToken(); // enter the binding list
+                    current = normalizeNumberToken(lexer.getNextToken()); // enter the binding list
                     while (!current.type().equals("RPAREN")) {
                         if (!current.type().equals("LPAREN")) {
                             throw new SyntaxException("each " + node.getValue().type() + " binding must be enclosed in parentheses");
                         }
 
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                         if (!current.type().equals("SYMBOL")) {
                             throw new SyntaxException("binding must start with a symbol, found: " + current);
                         }
@@ -331,19 +598,19 @@ public class Parser {
                         Node<Token> valueExpr = this.parse();
                         pair.addChild(valueExpr);
 
-                        Token closer = lexer.getNextToken();
+                        Token closer = normalizeNumberToken(lexer.getNextToken());
                         if (!closer.type().equals("RPAREN")) {
                             throw new SyntaxException("binding must end with ')', found: " + closer);
                         }
 
                         bindings.addChild(pair);
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     }
 
                     node.addChild(bindings);
                     node.addChild(this.parse());
 
-                    Token closer = lexer.getNextToken();
+                    Token closer = normalizeNumberToken(lexer.getNextToken());
                     if (!closer.type().equals("RPAREN")) {
                         throw new SyntaxException(node.getValue().type() + " must end with ')', found: " + closer);
                     }
@@ -355,11 +622,11 @@ public class Parser {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         node.addChild(this.parse());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("DOT")) {
                         // Parse dotted pair
                         Node<Token> dotNode = new Node<>(current);
-                        Token next = lexer.getNextToken();
+                        Token next = normalizeNumberToken(lexer.getNextToken());
                         if (next.type().equals("RPAREN")) {
                             throw new SyntaxException("Dot must be followed by an element");
                         }
@@ -371,19 +638,19 @@ public class Parser {
                         }
                         node.addChild(dotNode);
                         // after parsing dotted cdr, require a closing RPAREN
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                         if (!current.type().equals("RPAREN")) {
                             throw new SyntaxException("Dotted pair must end the list");
                         }
                         return node;
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") ||
                               current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") ||
                               current.type().equals("STRING")) {
                         node.createChild(current);
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     }
                 }
                 return node;
@@ -403,18 +670,18 @@ public class Parser {
                 apply.addChild(opExpr);
 
                 // Now gather arguments until closing RPAREN
-                current = lexer.getNextToken();
+                current = normalizeNumberToken(lexer.getNextToken());
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         apply.addChild(this.parse());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("QUOTE")) {
                         apply.addChild(parseQuoted());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         apply.createChild(current);
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     }
                 }
 
@@ -424,16 +691,16 @@ public class Parser {
             // Case 3: operator is a plain symbol
             else if (current.type().equals("SYMBOL")) {
                 Node<Token> node = new Node<>(current);
-                current = lexer.getNextToken();
+                current = normalizeNumberToken(lexer.getNextToken());
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         node.addChild(this.parse());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("DOT")) {
                         // Parse dotted pair
                         Node<Token> dotNode = new Node<>(current);
-                        Token next = lexer.getNextToken();
+                        Token next = normalizeNumberToken(lexer.getNextToken());
                         if (next.type().equals("RPAREN")) {
                             throw new SyntaxException("Dot must be followed by an element");
                         }
@@ -445,17 +712,17 @@ public class Parser {
                         }
                         node.addChild(dotNode);
                         // after parsing dotted cdr, require a closing RPAREN
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                         if (!current.type().equals("RPAREN")) {
                             throw new SyntaxException("Dotted pair must end the list");
                         }
                         return node;
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         node.createChild(current);
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     }
                 }
 
@@ -468,18 +735,18 @@ public class Parser {
             else if (current.type().equals("NUMBER")) {
                 Node<Token> node = new Node<>(new Token<>("LIST",""));
                 node.createChild(current);
-                current = lexer.getNextToken();
+                current = normalizeNumberToken(lexer.getNextToken());
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         node.addChild(this.parse());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         node.createChild(current);
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     }
                 }
                 return node;
@@ -491,18 +758,18 @@ public class Parser {
                     current.type().equals("CHARACTER")) {
                 Node<Token> node = new Node<>(new Token<>("LIST",""));
                 node.createChild(current);
-                current = lexer.getNextToken();
+                current = normalizeNumberToken(lexer.getNextToken());
                 while (!current.type().equals("RPAREN")) {
                     if (current.type().equals("LPAREN")) {
                         lexer.backUp();
                         node.addChild(this.parse());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         node.createChild(current);
-                        current = lexer.getNextToken();
+                        current = normalizeNumberToken(lexer.getNextToken());
                     }
                 }
                 return node;
@@ -516,5 +783,12 @@ public class Parser {
         // --- FINAL FALLBACK to satisfy compiler ---
         return new Node<>(new Token<>("EOF","EOF"));
     } // end of parse()
-}
 
+    public static void main(String[] args) {
+        String src = "'(100 1+0i 23/45 0+2i-3j+2k 420.69 1+-2i)";
+        Parser p = new Parser(src);
+        Node parsed = p.parse();
+        parsed.printNodes(0);
+    }
+
+}
