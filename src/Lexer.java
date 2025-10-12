@@ -170,7 +170,7 @@ public class Lexer {
             return this.getNextToken();
         }
 
-        if (Character.isDigit(this.currentChar)) {
+        if (Character.isDigit(this.currentChar) || this.currentChar == '-' && Character.isDigit(this.src.charAt(pos+1))) {
             return this.number();
         }
 
