@@ -1,1 +1,1 @@
-(sieve (lcomp 2 5000))
+(sieve (lcomp 2 10000))

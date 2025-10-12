@@ -363,6 +363,8 @@ public class MicroLisp{
                     return "";
                 }),
                 new Pair<>("read", Evaluator.getPrimitive("READ")),
+                new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
+                new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
                 new Pair<>("null?", (Function<Object,String>) (x) -> {
                     if (x == null) return "#t";
                     if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
