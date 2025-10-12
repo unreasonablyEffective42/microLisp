@@ -291,7 +291,15 @@ public class MicroLisp{
     public static Environment makeGlobalEnv() {
             Environment environment = new Environment(
                 new Pair<>("else", "#t"),
-                //new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),                
+                new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),                                
+                new Pair<>("number?", (Function<Object,String>) (x) -> {
+                    if (x instanceof Number) return "#t";
+                    return "#f";
+                }),
+                new Pair<>("symbol?", (Function<Object,String>) (x) -> {
+                    if (x instanceof Symbol) return "#t";
+                    return "#f";
+                }),
                 new Pair<>("even?", (Function<Object, String>) (x) -> {
                     if (!(x instanceof Number n))
                         throw new RuntimeException("even?: expected number, got " + x);
