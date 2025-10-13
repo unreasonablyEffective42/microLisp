@@ -785,7 +785,7 @@ public class Parser {
     } // end of parse()
 
     public static void main(String[] args) {
-        String src = "'(100 1+0i 23/45 0+2i-3j+2k 420.69 1+-2i)";
+        String src = "(:: 1 2 3)"; 
         Parser p = new Parser(src);
         Node parsed = p.parse();
         parsed.printNodes(0);

@@ -47,19 +47,19 @@ import java.math.RoundingMode;
 public final class Number {
     enum Type { INT, BIGINT, FLOAT, BIGFLOAT, RATIONAL, BIGRATIONAL, COMPLEX, QUATERNION }
 
-    private final Type type;
-    private final long intVal;
-    private final BigInteger bigVal;
-    private final double floatVal;
-    private final BigDecimal bigFloatVal;
-    private final long num;          // rational numerator
-    private final long den;          // rational denominator
-    private final BigInteger bigNum; // big rational numerator
-    private final BigInteger bigDen; // big rational denominator
-    private final Number real;       // real component
-    private final Number ipart;      // i component
-    private final Number jpart;      // j component
-    private final Number kpart;      // k component
+    public final Type type;
+    public final long intVal;
+    public final BigInteger bigVal;
+    public final double floatVal;
+    public final BigDecimal bigFloatVal;
+    public final long num;          // rational numerator
+    public final long den;          // rational denominator
+    public final BigInteger bigNum; // big rational numerator
+    public final BigInteger bigDen; // big rational denominator
+    public final Number real;       // real component
+    public final Number ipart;      // i component
+    public final Number jpart;      // j component
+    public final Number kpart;      // k component
 
     // ------ Cached constants ------
     private static final Number ZERO_INT         = Number.integer(0);

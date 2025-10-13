@@ -96,43 +96,43 @@ private static Object quoteToValue(Node<Token> node) {
         return new LinkedList<>(elems);
     }
 
-// Nested quote nodes → build (quote <datum>) recursively
-if (tok != null && "QUOTE".equals(tok.type())) {
-    ArrayList<Object> elems = new ArrayList<>();
-    elems.add(new Symbol("quote"));
-    if (!node.getChildren().isEmpty()) {
-        elems.add(quoteToValue(node.getChildren().get(0)));
-    }
-    return new LinkedList<>(elems);
-}
-
-    // Strings stay literal
-    if (tok != null && "STRING".equals(tok.type())) {
-        return tok.value();
-    }
-
-    // Primitives and symbols stay as symbols/numbers
-    if (tok != null) {
-        String ttype = String.valueOf(tok.type());
-        Object tval  = tok.value();
-        switch (ttype) {
-            case "LAMBDA":    return new Symbol("lambda");
-            case "COND":      return new Symbol("cond");
-            case "DO":        return new Symbol("do");
-            case "LET":       return new Symbol("let");
-            case "LETS":      return new Symbol("lets");
-            case "LETR":      return new Symbol("letr");
-            case "DEFINE":    return new Symbol("define");
-            case "PRIMITIVE": return new Symbol(((String) tval).toLowerCase());
-            case "SYMBOL":    return new Symbol((String) tval);
-            case "BOOLEAN":   return new Symbol((String) tval);
-            case "NUMBER":    return tval;
+    // Nested quote nodes → build (quote <datum>) recursively
+    if (tok != null && "QUOTE".equals(tok.type())) {
+        ArrayList<Object> elems = new ArrayList<>();
+        elems.add(new Symbol("quote"));
+        if (!node.getChildren().isEmpty()) {
+            elems.add(quoteToValue(node.getChildren().get(0)));
         }
+        return new LinkedList<>(elems);
     }
 
-    // Default
-    return tok == null ? null : tok.value();
-}
+        // Strings stay literal
+        if (tok != null && "STRING".equals(tok.type())) {
+            return tok.value();
+        }
+
+        // Primitives and symbols stay as symbols/numbers
+        if (tok != null) {
+            String ttype = String.valueOf(tok.type());
+            Object tval  = tok.value();
+            switch (ttype) {
+                case "LAMBDA":    return new Symbol("lambda");
+                case "COND":      return new Symbol("cond");
+                case "DO":        return new Symbol("do");
+                case "LET":       return new Symbol("let");
+                case "LETS":      return new Symbol("lets");
+                case "LETR":      return new Symbol("letr");
+                case "DEFINE":    return new Symbol("define");
+                case "PRIMITIVE": return new Symbol(((String) tval).toLowerCase());
+                case "SYMBOL":    return new Symbol((String) tval);
+                case "BOOLEAN":   return new Symbol((String) tval);
+                case "NUMBER":    return tval;
+            }
+        }
+
+        // Default
+        return tok == null ? null : tok.value();
+    }
     // ----- COND -----
     private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
         return Trampoline.more(() -> loopCond(clauses, 0, env));
@@ -395,6 +395,16 @@ if (tok != null && "QUOTE".equals(tok.type())) {
         if (isLets(t)) {
             return evaluateLetsT(expr.getChildren(), env);
         }
+
+        // (:: 1 2 3) — tuple literal constructor
+        if ("::".equals(t.value())) {
+            ArrayList<Object> elems = new ArrayList<>();
+            for (Node<Token> child : expr.getChildren()) {
+                elems.add(eval(child, env)); // evaluate each element
+            }
+            // Create tuple based on arity (dispatches to Tuple2..Tuple9 or varargs fallback)
+            return Trampoline.done(Tuple.of(elems.toArray()));
+        }
         // (lambda ...) — build closure, then staged application via applyProcedureT
         if (isLambda(t)) {
             ArrayList<Node<Token>> children = expr.getChildren();
@@ -511,7 +521,22 @@ if (tok != null && "QUOTE".equals(tok.type())) {
                 Supplier<Object> sup = (Supplier<Object>) op;
                 return Trampoline.done(sup.get());
 
-            } else {
+            }
+            // --- tuple as callable object ---
+            else if (op instanceof Tuple tup) {
+                if (argVals.size() != 1)
+                    throw new SyntaxException("Tuple call expects exactly 1 index argument");
+                Object idxObj = argVals.get(0);
+                if (!(idxObj instanceof Number))
+                    throw new SyntaxException("Tuple index must be a number, got: " + idxObj);
+
+                int index =(int)((Number) idxObj).intVal;
+                if (index < 0 || index > tup.size())
+                    throw new IndexOutOfBoundsException("Tuple index " + index + " out of range [1," + tup.size() + "]");
+
+                return Trampoline.done(tup.get(index));
+            }
+            else {
                 throw new SyntaxException("First position is not a procedure: " + sym);
             }
         }
@@ -639,7 +664,8 @@ if (tok != null && "QUOTE".equals(tok.type())) {
         if (isPrimitive(proc)) {
             String opName = (String) proc.value();
             return Trampoline.done(applyPrimitive(opName, args));
-        } else if (isClosure(proc)) {
+        }
+        else if (isClosure(proc)) {
             @SuppressWarnings("unchecked")
             ArrayList<Token> closureParts = (ArrayList<Token>) proc.value();
 
@@ -677,7 +703,8 @@ if (tok != null && "QUOTE".equals(tok.type())) {
             }
             // Tail position bounce: evaluate the body via trampoline
             return Trampoline.more(() -> evalT(body, newEnv));
-        } else {
+        }
+               else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }
     }

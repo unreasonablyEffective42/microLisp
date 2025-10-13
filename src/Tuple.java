@@ -180,6 +180,24 @@ public abstract class Tuple {
         }
         @Override public String toString() { return formatTuple(a, b, c, d, e, f, g, h, i); }
     }
+
+    public static Tuple of(Object... args) {
+        int n = args.length;
+        return switch (n) {
+            case 0 -> throw new IllegalArgumentException("Empty tuple not supported");
+            case 1 -> throw new IllegalArgumentException("Single-element tuple not supported");
+            case 2 -> new Tuple2(args[0], args[1]);
+            case 3 -> new Tuple3(args[0], args[1], args[2]);
+            case 4 -> new Tuple4(args[0], args[1], args[2], args[3]);
+            case 5 -> new Tuple5(args[0], args[1], args[2], args[3], args[4]);
+            case 6 -> new Tuple6(args[0], args[1], args[2], args[3], args[4], args[5]);
+            case 7 -> new Tuple7(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+            case 8 -> new Tuple8(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
+            case 9 -> new Tuple9(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+            default -> throw new IllegalArgumentException("Tuple size > 9 not supported");
+        };
+    }
+
     public static void main(String[] args){
         Tuple a = Tuple.of(2,3,4);
         Tuple b = Tuple.of('2','l',4,5);

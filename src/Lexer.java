@@ -213,11 +213,11 @@ public class Lexer {
         throw new SyntaxException("Unexpected character '" + currentChar + "' at position " + pos);
     }
     public static void main(String[] args){
-        Lexer l1 = new Lexer("100 1+0i 23/45 0+2i-3j+2k 420.69");
+        Lexer l1 = new Lexer("(:: 1 2 3)");
         Token current = l1.getNextToken();
         while (!current.type().equals("EOF")){
             System.out.println(current);
-            current = (Token) l1.getNextToken();
+            current = l1.getNextToken();
         }
     }
 }
