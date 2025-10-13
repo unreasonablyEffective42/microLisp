@@ -785,7 +785,7 @@ public class Parser {
     } // end of parse()
 
     public static void main(String[] args) {
-        String src = "(:: 1 2 3)"; 
+        String src = "(x -> f -> g)"; 
         Parser p = new Parser(src);
         Node parsed = p.parse();
         parsed.printNodes(0);

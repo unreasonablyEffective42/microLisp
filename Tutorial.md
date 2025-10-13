@@ -1,49 +1,106 @@
+
 # Getting started 
 To run MicroLisp in interactive mode, do `microlisp -i` in your terminal.
 
-```Scheme
+```text
 >>>"hello world!"
 "hello world!" 
 ```
 
-MicroLisp is a dialect of Lisp that runs on the JVM. It is "purely" functional, in this case meaning that mutation is not just disallowed, but is not possible. Like Scheme, microLisp is lexically scoped.
-Everything in MicroLisp is an expression. We have atomics, which are the simplest, while all others are composites, and will be bound with parentheses.
-The atomic expressions are: numbers, booleans, integers and the empty list. These evaluate to themselves.
-```Scheme
+<para>
+MicroLisp is a dialect of Lisp that runs on the JVM. It is "purely" functional, in this case meaning that mutation is not just disallowed, but is not possible. Like Scheme, microLisp is lexically scoped.Everything in MicroLisp is an expression. </para>
+
+# Types 
+Atomics are the simplest expressions, just evaluating to themselves. The atomic expressions are: numbers, booleans, characters and the empty list.
+```text
 >>>1
 1 
+>>>3/4 +9/2i
+3/4+9/2i
 >>>#t
 #t
+>>>"c"
+"c"
 >>>'()
 ()
 ```
-Function application is a composite expression, Function application uses prefix notation. 
-Some built-in functions include +,-,*,/,^,%, even?, odd?, null?, eq?, >, <
-```Scheme
+Lists, tuples, and strings also evaluate to themselves
+```text
+>>>'(1 2 3)
+(1 2 3)
+>>>(:: 1 2 3)
+(1, 2, 3)
+>>>"Test"
+"Test"
+```
+<para>
+MicroLisp has a sophisticated numeric tower, supporting both arbitraty precision and exact arithmetic on  Integers, Rationals, Reals(as floating point numbers), Complex numbers and Quaternions. When operations are done on numbers that require a higher level of precision, the numeric tower will automaticall promote the result to the appropriate type. 
+</para>
+
+```text 
+
+The numeric tower hierarchy (promotion direction):
+                 ┌─────────┐
+                 │   INT   │  (ℤ exact)
+                 └────┬────┘
+                      │
+                      ▼
+                 ┌─────────┐
+                 │  BIGINT │  (arbitrary ℤ)
+                 └────┬────┘
+                      │
+   ┌────────────┬─────┴──────┬────────────┐
+   │            │            │            │
+   ▼            ▼            ▼            ▼
+  RATIONAL  BIGRATIONAL     FLOAT      BIGFLOAT
+ (ℚ exact)  (ℚ exact)   (ℝ inexact)  (ℝ 'exact')
+   └────────────┬────────────┬────────────┘
+                │            │
+                ▼            ▼
+               ┌──────────────┐
+               │   COMPLEX    │  (ℂ, 2D field)
+               └──────┬───────┘
+                      │
+                      ▼
+               ┌──────────────┐
+               │ QUATERNION   │  (ℍ, 4D division ring)
+               └──────────────┘
+```
+# Function Application
+Function application is a composite expression, Function application uses prefix notation. Anywhere you see a list headed with a function, microLisp will attempt to apply the function to the rest of the list. 
+`(fn arg1 arg2 ... argn)`
+<br/> Some built-in functions include `+,-,*,/,^,%, even?, odd?, null?, eq?, >, <`
+```text
 >>>(+ 1 2)
 3
 >>>(* 4 10)
 40
+>>>(/ 3 2)
+3/2
 >>>(even? 6)
 #t
 >>>(null? 3)
 #f
 ```
-We can compose functions with nesting 
-```Scheme
+We can compose functions with nesting.
+```text
 >>>(+ (* 2 3) 4)   ;(2 * 3) + 4
 10
 ```
-Basic arithmetic is variadic in arguments
-```Scheme
+Basic arithmetic is variadic in arguments.
+```text
 >>>(+ 1 2 3)
 6 
 >>>(* 2 3 4)
 24
+>>>(+ 1 2 3/4)
+15/4
 ```
-The main(only) built in data structure is the `cons` cell. `cons`ing two expressions together produces a cons cell.
-The first element can be accessed with `head` and the second with `tail`.
-```Scheme
+# Data Structures
+Currently microLisp supports two main data structures, tuples with `::` and the `cons` cell.  <br/>`con` ing two expressions together produces a cons cell. The first element can be accessed with `head` and the second with `tail`.
+
+
+```text
 >>>(cons 1 2)
 (1 . 2)
 >>>(head (cons 1 2))
@@ -54,27 +111,26 @@ The first element can be accessed with `head` and the second with `tail`.
 
 ```
 (define cell (cons a b))
-
-              -------
-      cell ->| a | b |
-              -------
-              /     \ 
-      (head cell)    (tail cell)
+               ┌───┬───┐
+    cell ->    │ a │ b │
+               └───┴───┘
+                /     \ 
+       (head cell)    (tail cell)
 ```
 
 Using cons cells we can build up composite structures like lists.
-An improper list ends in a value other than the empty list `'()`.
-```Scheme
+<br/>An improper list ends in a value other than the empty list `'()`.
+```Text
 >>>(cons 1 (cons 2 (cons 3 4)))
 (1 2 3 . 4)
 ```
-This would be in proper list form: 
-```Scheme
+In proper list form: 
+```Text
 >>>(cons 1 (cons 2 (cons 3 (cons 4 '()))))
 (1 2 3 4)
 ```
-We can access the elements of a list using `head` and `tail` 
-```Scheme 
+To access a lists elements, use `head` and `tail`.
+```text 
 >>> (define xs (cons 1 (cons 2 (cons 3 (cons 4 '())))))
 >>> xs
 (1 2 3 4)
@@ -84,27 +140,29 @@ We can access the elements of a list using `head` and `tail`
 (2 3 4)
 ```
 By chaining `cons`, we have built up this structure:
-``` 
-(define xs (cons 1 (cons 2 (cons 3 (cons 4 '())))))
-                     ------- 
-    (head xs) -> 1  | 1 |   |
-                     ------- 
-    |                      \
-    |                     ------- 
-    |                    | 2 |   | 2 <- (head (tail xs))
-    |                     ------- 
-(tail xs)  |                    \
-    |      |                    ------- 
-    |      |                   | 3 |   | 3 <- (head (tail (tail  xs)))
-    | (tail (tail xs))          ------- 
-    |      |            |             \
-    |      |            |             ------- 
-    |      | (tail (tail (tail xs))) | 4 |'()|  4 <- (head (tail (tail (tail xs)))
-    |      |            |             ------- 
-                                              '() <- (tail (tail (tail (tail xs))))
+
+```text
+                    ┌───┬───┐
+    (head xs) ->    │ 1 │   │
+                    └───┴───┘
+                          \
+    │                     ┌───┬───┐
+    │                     │ 2 │   │ 2 <- (head (tail xs))
+    │                     └───┴───┘
+(tail xs)                       \
+    │      │                    ┌───┬───┐
+    │      │                    │ 3 │   │ 3 <- (head (tail (tail xs)))
+    │ (tail (tail xs))          └───┴───┘
+    │      │                          \
+    │      │            │             ┌───┬───┐
+    │      │ (tail (tail (tail xs)))  │ 4 │'()│ 4 <- (head (tail (tail (tail xs))))
+    │      │            │             └───┴───┘
+                                               '() <- (tail (tail (tail (tail xs))))
+
 ```
+
 We have much nicer syntax for creating lists using `list` or `quote`
-```Scheme
+```Text
 >>>(list 1 2 3 4)
 (1 2 3 4)
 >>>(quote (1 2 3 4))
@@ -112,35 +170,52 @@ We have much nicer syntax for creating lists using `list` or `quote`
 >>>'(1 2 3 4)
 (1 2 3 4)
 ```
-We will talk more about `quote` and `'`
+More on `quote` and `'` later on.
 
+Tuples, the other data structure are fixed size collections, from 2 to 9 elements, that support O(1) lookup for their value. To perform a lookup, just apply the tuple like a function to the index (starting at 0).
+```text
+>>>(define tup (:: 1 2 3))
+>>>tup
+(1, 2, 3)
+>>>(tup 1)
+2
+```
+For conditional expressions, we use `cond`. `cond` takes a series of expressions ,predicates, that must evaluate to a boolean expression, and the expression to be evaluated if that expression is true. 
 
-We can use `cond` for conditional expressions
 ```Scheme
-(cond ((predicate1) expr)
-      ((predicate2) expr)
+(cond (predicate1 expr)
+      (predicate2 expr)
       ...
       (else expr))
 ```
-For example
-```Scheme
->>>(cond ((even? 2) "first branch") 
-         (else "second branch"))
+The interpreter will sequentially evaluate the predicates, and on the first one that evaluates `#t`, it will evaluate and return the corresponding expression.
+```text
+>>>(cond ((even? 3) "first branch")
+         ((odd? 5)  "second branch") 
+         (else "third branch"))
 
-"first branch"
+"second branch"
 ```
-`cond` only requires that one predicate is #t, so this is valid
-```Scheme
+`cond` only requires that one predicate will evaluate to #t, so this is valid because `else` is just sugar for `#t`.
+```text
 >>>(cond (else "single clause"))
+
 "single clause"
 ```
+```text
+>>>(cond (#f 3)
+         (#t 2))
+        
+2
+```
 But this will throw a runtime exception
-```Scheme 
+```text 
 >>>(cond (#f "this wont evaluate"))
 Exception in thread "main" java.lang.RuntimeException: cond: no true clause and no else clause
 ```
-So it is best practice to always have an else clause, unless the goal is to exit ungracefully when no clauses evaluate true
+So it is best practice to always have an else clause, unless the goal is to exit ungracefully when no clauses evaluate `#t`.
 
+# Functions 
 Functions are created with `lambda`.
 ```Scheme
 ;single argument function
@@ -149,7 +224,7 @@ Functions are created with `lambda`.
 ;multiple arguments 
 (lambda (arg1 arg2 ... argn) body-expr)
 ```
-Lambdas are applied just like any other function, by having it at the head of a list 
+Lambdas are applied just like any other function, by having it at the head of a list.
 ```Scheme
 ;+ is at the head of the list 
 >>>(+ 1 2)
@@ -161,7 +236,9 @@ Using `define`, we can add a name to a function
 ```Scheme
 (define foo 
   (lambda (x) (* 2 (+ x 1))))
+```
 
+```
 >>>(foo 1)
 4 
 >>>(foo 2) 
@@ -197,11 +274,12 @@ It will evaluate each expression in order, discarding their values, until the la
   (print 2)      ;prints 2, returns "", discard return value
   (* 2 10)       ;evaluates to 20, is discarded 
   (^ 2 4))        ;evaluates to 16, is returned
+```
+```
 2
 16 
->>>
 ```
-We can use any expression as the body expression, so far we know `cons` `list` and `cond` 
+We can use any expression as the body expression, so far we know `cons` ,`list` and `cond` 
 ```Scheme
 (define bar
   (lambda (x)
@@ -241,7 +319,7 @@ Instead to repeat actions we use recursion
 9
 "done"
 ```
-The cannonical example of a recursive function is `factorial`
+The canonical example of a recursive function is `factorial`
 ```Scheme
 (define factorial
   (lambda (n)
@@ -257,7 +335,7 @@ The cannonical example of a recursive function is `factorial`
 >>>(factorial 10000)
 Exception in thread "main" java.lang.StackOverflowError
 ```
-Oh no!, a loop of only 10,000 is puny compared to what we can do with for and while in other languages.
+Oh no!, a loop of only 10,000 is puny compared to what we can do with `for` and `while` in other languages.
 Luckily we have a workaround in MicroLisp. First lets look at the call stack for one that does not overflow:
 ```
 (factorial 5) <- 5 > 1, so recurse 
@@ -272,7 +350,7 @@ Luckily we have a workaround in MicroLisp. First lets look at the call stack for
 120
 ```
 So recursion is pretty neat, but as you can see, each call adds to the size, as we don't get to start unwinding until the very end,
-meaning that `(factorial 10000)` is attempting to 
+meaning that `(factorial 10000)` is attempting to do
 ```
 (* 10000 (* 9999 (* 9998 (* ... (* 2 1) ... ))))
 ```
@@ -303,10 +381,9 @@ a recursive call back to itself, then a function is said to be tail recursive. L
                  /    \
                 n      a 
 ```
-Okay, that is pretty neat huh? Because we pass forward the value each time we recursively call `factorial-helper`, we don't grow the stack.
-In most languages, this still would not work as each recursive all adds to the stack, even though there is no unwinding needed to be done,
-but luckily, MicroLisp performs 'Tail Call Optimization'. TCO takes what would be repeated additions to the stack, and turns it into constant memory space usage in the heap. 
-#lets sweeten our syntax with `let` and `lets`
+Okay, that is pretty neat huh? Because we pass forward the value each time we recursively call `factorial-helper`, we don't grow the stack.In most languages, this still would not work as each recursive all adds to the stack, even though there is no unwinding needed to be done,but luckily, MicroLisp performs 'Tail Call Optimization'. TCO takes what would be repeated additions to the stack, and turns it into constant memory space usage in the heap. 
+# Lexical Scope
+Lets sweeten our syntax with `let` and `lets`
 `define` feels heavy, and should only really be used for top level definitions, sometimes we want to just
 hold onto a value(s) with a name for a moment. 
 ```Scheme
@@ -316,14 +393,15 @@ hold onto a value(s) with a name for a moment.
       (xn exprn))
   (body expression))
 ```
-Gives us exactly that, we start with a list of labels, and expressions we want evaluated and then bound to the labels,
+`let` gives us exactly that. We start with a list of labels, and expressions we want evaluated and then bound to the labels,
 which we can then use in the body expression. 
 ```Scheme 
 (let ((x 3)
       (y 4))
   (+ x y)) 
-
->7
+```
+```
+7
 ```
 `let` is really just syntactic sugar for `lambda`, because `((lambda (x) body) 2)` binds 2 to x in the body.
 The above example is equivalent to:
@@ -412,14 +490,13 @@ Let also gives us a good way to examine how lexical scoping works
       (print x)  ; printing x prints 2 
     )            
     (print x)))  ; we have exited the inner lexical scope, so x is now bound to 1 and we print 1 again 
-;if we attempted to (print x) from here, we would get a runtime exception: x is not bound
-;because we are outside of the scope of the let block
-
+```
+```
 1 
 2 
 1 
-
 ```
+# First Class Functions
 MicroLisp supports first class functions, meaning that we can use functions as arguments and return them as values.
 ```Scheme
 (define foo 
@@ -446,8 +523,8 @@ We can also pass functions as inputs to other functions
 (define map
   (lambda (fn xs)
     (cond ((null? xs) '())                    ;if xs is empty, finish the recursion
-          (else (cons (fn (head xs)) (map fn (tail xs)))))))
-;                          |                     |
+          (else (cons (fn (head xs)) (map fn (tail xs))))))) 
+;                          |                     |           
 ;         apply fn to the head of xs     recurse with the rest of the list 
 ```
 Then if we :
@@ -477,7 +554,7 @@ We can even combine the two
 (4 16 36)
 ```
 The last higher order function pattern we will look at is `foldl` and `foldr`
-We will use `:` as a shorthand for `cons`
+Lets look at the structure of a list again:
 ```Scheme 
 (define xs '(1 2 3 4 5))
 ;This is one way we can think about the list xs
@@ -494,14 +571,7 @@ We will use `:` as a shorthand for `cons`
            /  \ 
           5   '()  
 ```
-In both map and filer, we had to visit each element of the
-list and do something with it. Folding a list is a way to 
-traverse a list and apply a function to its members 
-left folding, or `foldl`, starts at the left, or front of a list 
-and consumes the elements one by one with a binary function,
-where the result of the previous application is passed forward 
-to be used as the second argument to the function, going until
-we reach the end of the list. 
+In both map and filter, we had to visit each element of the list and do something with it. Folding a list is a way to traverse a list and apply a function to its members. Left folding, or `foldl`, starts at the left, or front of a list and consumes the elements one by one with a binary function, where the result of the previous application is passed forward to be used as the second argument to the function, going until we reach the end of the list. 
 ```Scheme 
 ;foldl takes a binary (two argument) function fn
 ;a 'default' value z, and a list to fold over, xs
@@ -525,7 +595,7 @@ we reach the end of the list.
 (5 4 3 2 1)
 ```
 
-To better understand foldl, we can see how it transforms the structure of a list
+To better understand foldl, we can look at how it transforms the structure of a list
 ```
 (foldl + 0 '(1 2 3 4 5))
 
@@ -598,12 +668,10 @@ We can also implement `map` and `filter` in terms of `foldr`
            '()
            xs)))
 ```
-Though these implementations are not as efficient as they could be.
-Check out their tail recursive definitions in `lists.scm` 
 
-Higher order functions can even be used to make data types,
-while the internal representation of `cons` is not in terms
-of functions, we can implement `cons` with nothing but `lambda` 
+Though these implementations are not as efficient as they could be. Check out their tail recursive definitions in `lists.scm` </br>
+Higher order functions can even be used to make data types. While the internal representation of `cons` is not in terms of functions, we could implement `cons` with nothing but `lambda` if we want to.
+
 ```Scheme 
 (define cons
   (lambda (x y)
@@ -633,10 +701,9 @@ Substitute -> ((lambda (m) (m 'a 'b)) (lambda (p q) q))
 Substitute -> ((lambda (p q) q) 'a 'b)
 'b
 ```
-Pretty magical eh? 
-In fact, we can even define numbers, boolean values, conditional statements, etc.
-just in terms of lambda application.
-
+Pretty magical eh? </br>
+In fact, we can even define numbers, boolean values, conditional statements, etc. just in terms of lambda application.
+# Quotation
 So we have to talk about `quote`. Quote is a special form that lets us take a Microlisp expresssion
 and instead of evaluating it, return it back unchanged. This is almost like returning a string with
 literal expression in it, but it is more subtle. 
@@ -664,9 +731,5 @@ We can use `eval` to evaluate a quoted expression
 >>>(eval q)
 3
 ```
-When we use `'()`, we are quoting the empty list (), so that we can pass it as a value instead of evaluating it.
-Because the literal structure of MicroLisp code takes the form of nested linked lists, and MicroLisp is made to 
-process lists using `head` and `tail`,  we get the neat property of `Homoiconicity`, which is that the code itself
-is exactly the kind of data we process. This means that MicroLisp programs can easily modify another MicroLisp program.
-Using `quote` and `unquote`, we can do structural transformations on code, and then evaluate them after all while in 
-the runtime. 
+
+When we use `'()`, we are quoting the empty list (), so that we can pass it as a value instead of evaluating it. Because the literal structure of MicroLisp code takes the form of nested linked lists, and MicroLisp is made to process lists using `head` and `tail`,  we get the neat property of `Homoiconicity`, which is that the code itself is exactly the kind of data we process. This means that MicroLisp programs can easily modify another MicroLisp program. Using `quote` and `unquote`, we can do structural transformations on code, and then evaluate them after, all while in the runtime.
