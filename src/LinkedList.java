@@ -112,6 +112,20 @@ public class LinkedList<T> {
       return Objects.equals(xtail, ytail);
     }
   }
+
+    public static String listToRawString(LinkedList<?> list) {
+        StringBuilder sb = new StringBuilder();
+        LinkedList<?> current = list;
+        while (current != null && current.head() != null) {
+            Object h = current.head();
+            if (h instanceof String s) sb.append(s);
+            else sb.append(String.valueOf(h));
+            Object tail = current.tail();
+            if (!(tail instanceof LinkedList<?>)) break;
+            current = (LinkedList<?>) tail;
+        }
+        return sb.toString();
+    }
     @Override
     public String toString() {
         if (list == null) return "()";

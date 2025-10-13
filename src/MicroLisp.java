@@ -151,6 +151,7 @@ public class MicroLisp{
         while(true){
             System.out.print(ORANGE + ">>>"+ RESET);
             String input = scanner.nextLine();
+            FileHandling.addFileHandlingEnv(environment);
             if(input.equals(":exit")){
                 break;
             }
@@ -370,7 +371,6 @@ public class MicroLisp{
                     System.out.print(unescapeJava(out));
                     return "";
                 }),
-                new Pair<>("read", Evaluator.getPrimitive("READ")),
                 new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
                 new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
                 new Pair<>("null?", (Function<Object,String>) (x) -> {
