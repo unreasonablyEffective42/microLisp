@@ -24,6 +24,7 @@ public class MicroLisp{
     public static void main(String[] args){
         // ----- Create Initial Environment --------- 
         Environment environment = makeGlobalEnv();
+        // ----- decode flags ------
         if (args[0].charAt(0) == '-'){
           for (int i = 1; i < args[0].length(); i++){
             switch (args[0].charAt(i)) {
@@ -129,22 +130,6 @@ public class MicroLisp{
             }
 
         }
-    }
-    public static int lParens(String src){
-      int lparens = 0;
-      for (int i = 0; i < src.length(); i++){
-        switch (src.charAt(i)){
-          case '(':
-            lparens++;
-            break;
-          case ')':
-            lparens--;
-            break;
-          default:
-            break;
-        }
-      }
-      return lparens;
     }
     static void repl(Environment environment) {
         Scanner scanner = new Scanner(System.in); 
