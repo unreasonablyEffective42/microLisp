@@ -23,7 +23,7 @@ public class Evaluator {
     public static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
     public static boolean isList      (Token<?, ?> t){ return isType(t, "LIST"); }
     public static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
-    public static boolean isQuote     (Token<?, ?> t){ return "QUOTE".equals(t.type()) ||("SYMBOL".equals(t.type()) && "quote".equals(t.value())); }
+    public static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE") || isType(t, "SYMBOL") && "quote".equals(t.value()); }
     public static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
     public static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
     public static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
@@ -89,8 +89,32 @@ private static Object quoteToValue(Node<Token> node) {
 
     // Quoted list
     if (tok != null && "LIST".equals(tok.type())) {
+        ArrayList<Node<Token>> children = node.getChildren();
+        if (children.isEmpty()) {
+            return new LinkedList<>();
+        }
+
+        boolean allSingleChars = true;
+        StringBuilder chars = new StringBuilder(children.size());
+        for (Node<Token> child : children) {
+            Token<?,?> childTok = child.getValue();
+            if (childTok == null || !"STRING".equals(childTok.type())) {
+                allSingleChars = false;
+                break;
+            }
+            String val = (String) childTok.value();
+            if (val.length() != 1) {
+                allSingleChars = false;
+                break;
+            }
+            chars.append(val);
+        }
+        if (allSingleChars) {
+            return LinkedList.fromString(chars.toString());
+        }
+
         ArrayList<Object> elems = new ArrayList<>();
-        for (Node<Token> child : node.getChildren()) {
+        for (Node<Token> child : children) {
             elems.add(quoteToValue(child));
         }
         return new LinkedList<>(elems);
@@ -106,33 +130,33 @@ private static Object quoteToValue(Node<Token> node) {
         return new LinkedList<>(elems);
     }
 
-        // Strings stay literal
-        if (tok != null && "STRING".equals(tok.type())) {
-            return tok.value();
-        }
-
-        // Primitives and symbols stay as symbols/numbers
-        if (tok != null) {
-            String ttype = String.valueOf(tok.type());
-            Object tval  = tok.value();
-            switch (ttype) {
-                case "LAMBDA":    return new Symbol("lambda");
-                case "COND":      return new Symbol("cond");
-                case "DO":        return new Symbol("do");
-                case "LET":       return new Symbol("let");
-                case "LETS":      return new Symbol("lets");
-                case "LETR":      return new Symbol("letr");
-                case "DEFINE":    return new Symbol("define");
-                case "PRIMITIVE": return new Symbol(((String) tval).toLowerCase());
-                case "SYMBOL":    return new Symbol((String) tval);
-                case "BOOLEAN":   return new Symbol((String) tval);
-                case "NUMBER":    return tval;
-            }
-        }
-
-        // Default
-        return tok == null ? null : tok.value();
+    // Strings become linked-list char sequences
+    if (tok != null && "STRING".equals(tok.type())) {
+        return LinkedList.fromString((String) tok.value());
     }
+
+    // Primitives and symbols stay as symbols/numbers
+    if (tok != null) {
+        String ttype = String.valueOf(tok.type());
+        Object tval  = tok.value();
+        switch (ttype) {
+            case "LAMBDA":    return new Symbol("lambda");
+            case "COND":      return new Symbol("cond");
+            case "DO":        return new Symbol("do");
+            case "LET":       return new Symbol("let");
+            case "LETS":      return new Symbol("lets");
+            case "LETR":      return new Symbol("letr");
+            case "DEFINE":    return new Symbol("define");
+            case "PRIMITIVE": return new Symbol(((String) tval).toLowerCase());
+            case "SYMBOL":    return new Symbol((String) tval);
+            case "BOOLEAN":   return new Symbol((String) tval);
+            case "NUMBER":    return tval;
+        }
+    }
+
+    // Default
+    return tok == null ? null : tok.value();
+}
     // ----- COND -----
     private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
         return Trampoline.more(() -> loopCond(clauses, 0, env));
@@ -347,11 +371,7 @@ private static Object quoteToValue(Node<Token> node) {
         }
         if (isString(t)) {
             String str = (String) t.value();
-            ArrayList<Object> chars = new ArrayList<>();
-            for (int i = 0; i < str.length(); i++) {
-                chars.add(String.valueOf(str.charAt(i)));
-            }
-            return Trampoline.done(new LinkedList<>(chars));
+            return Trampoline.done(LinkedList.fromString(str));
         }
  
         // (quote …)

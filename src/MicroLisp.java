@@ -24,6 +24,7 @@ public class MicroLisp{
     public static void main(String[] args){
         // ----- Create Initial Environment --------- 
         Environment environment = makeGlobalEnv();
+        // ----- decode flags ------
         if (args[0].charAt(0) == '-'){
           for (int i = 1; i < args[0].length(); i++){
             switch (args[0].charAt(i)) {
@@ -129,22 +130,6 @@ public class MicroLisp{
             }
 
         }
-    }
-    public static int lParens(String src){
-      int lparens = 0;
-      for (int i = 0; i < src.length(); i++){
-        switch (src.charAt(i)){
-          case '(':
-            lparens++;
-            break;
-          case ')':
-            lparens--;
-            break;
-          default:
-            break;
-        }
-      }
-      return lparens;
     }
     static void repl(Environment environment) {
         Scanner scanner = new Scanner(System.in); 
@@ -288,11 +273,33 @@ public class MicroLisp{
             }
         }
     }
+    public static void evalString(String src, Environment env) {
+        Parser parser = new Parser(src);
+        while (true) {
+            Node<Token> form = parser.parse();
+            Token<?,?> tok = form.getValue();
+            if (tok != null && "EOF".equals(tok.type())) {
+                break;
+            }
+            Evaluator.eval(form, env);
+        }
+    }
 
     public static Environment makeGlobalEnv() {
             Environment environment = new Environment(
                 new Pair<>("else", "#t"),
-                new Pair<>("null?",(Function<Object,String>) (x) -> "()".equals(x.toString()) ? "#t" : "#f"),                                
+                new Pair<>("null?", (Function<Object,String>) (x) -> {
+                    if (x == null) return "#t";
+                    if (x instanceof LinkedList<?> list) {
+                        if (list.isEmpty()) return "#t";
+                        if (list.isCharList() && list.size() == 0) return "#t";
+                        return "#f";
+                    }
+                    if (x instanceof String s) {
+                        return s.isEmpty() ? "#t" : "#f";
+                    }
+                    return "#f";
+                }),                                
                 new Pair<>("number?", (Function<Object,String>) (x) -> {
                     if (x instanceof Number) return "#t";
                     return "#f";
@@ -325,26 +332,32 @@ public class MicroLisp{
                     ((p.equals("#t") && !q.equals("#t")) || (q.equals("#t") && !p.equals("#t"))) ? "#t" : "#f"
                 ),
                 new Pair<>("head", (Function<Object,Object>) (x) -> {
-                    if (x instanceof LinkedList) {
-                    return ((LinkedList<?>) x).head();
-                    } else if (x instanceof String) {
-                    String s = (String) x;
-                    if (s.isEmpty()){return "";}
-                    return "\""+String.valueOf(s.charAt(0))+"\"";
-                    } else {
-                    throw new RuntimeException("head: unsupported type " + x.getClass());
+                    if (x instanceof LinkedList<?> list) {
+                        Object head = list.head();
+                        if (list.isCharList()) {
+                            if (head == null) {
+                                return LinkedList.fromString("");
+                            }
+                            if (head instanceof String s) {
+                                return LinkedList.fromString(s);
+                            }
+                        }
+                        return head;
                     }
+                    throw new RuntimeException("head: unsupported type " + x.getClass());
                 }),
                 new Pair<>("tail", (Function<Object,Object>) (x) -> {
-                    if (x instanceof LinkedList) {
-                    return ((LinkedList<?>) x).tail();
-                    } else if (x instanceof String) {
-                    String s = (String) x;
-                    if (s.isEmpty()) {return "";} 
-                    return s.substring(1);
-                    } else {
-                    throw new RuntimeException("tail: unsupported type " + x.getClass());
+                    if (x instanceof LinkedList<?> list) {
+                        Object tail = list.tail();
+                        if (tail == null) {
+                            if (list.isCharList()) {
+                                return LinkedList.fromString("");
+                            }
+                            return new LinkedList<>();
+                        }
+                        return tail;
                     }
+                    throw new RuntimeException("tail: unsupported type " + x.getClass());
                 }),                
                 new Pair<>("length", (Function<LinkedList, Number>) (xs) ->
                     Number.integer(xs.size())
@@ -352,32 +365,36 @@ public class MicroLisp{
                 new Pair<>("print", (Function<Object, Object>) x1 -> {
                     if (x1 == null) {
                         System.out.println("()");
-                        return "";
+                        return LinkedList.fromString("");
                     }
-                    String out = x1.toString();
-                    // Drop wrapping quotes for string-like output
-                    if (out.length() >= 2 && out.startsWith("\"") && out.endsWith("\"")) {
-                        out = out.substring(1, out.length() - 1);
+                    String out;
+                    if (x1 instanceof LinkedList<?> list && list.isCharList()) {
+                        out = LinkedList.listToRawString(list);
+                    } else {
+                        out = x1.toString();
+                        if (out.length() >= 2 && out.startsWith("\"") && out.endsWith("\"")) {
+                            out = out.substring(1, out.length() - 1);
+                        }
                     }
                     System.out.println(out);
-                    return "";
+                    return LinkedList.fromString("");
                 }),
                 new Pair<>("printf", (Function<Object, Object>) x1 -> {
-                    if (x1 == null) return "";
-                    String out = x1.toString();
-                    if (out.length() >= 2 && out.startsWith("\"") && out.endsWith("\"")) {
-                        out = out.substring(1, out.length() - 1);
+                    if (x1 == null) return LinkedList.fromString("");
+                    String out;
+                    if (x1 instanceof LinkedList<?> list && list.isCharList()) {
+                        out = LinkedList.listToRawString(list);
+                    } else {
+                        out = x1.toString();
+                        if (out.length() >= 2 && out.startsWith("\"") && out.endsWith("\"")) {
+                            out = out.substring(1, out.length() - 1);
+                        }
                     }
                     System.out.print(unescapeJava(out));
-                    return "";
+                    return LinkedList.fromString("");
                 }),
                 new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
-                new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
-                new Pair<>("null?", (Function<Object,String>) (x) -> {
-                    if (x == null) return "#t";
-                    if (x instanceof LinkedList<?> l && l.isEmpty()) return "#t";
-                    return "#f";
-                })
+                new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n))
             );
             environment.addFrame(
                 new Pair<>("eval", (Function<Object,Object>) (str) -> {
@@ -387,6 +404,16 @@ public class MicroLisp{
                 new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
                     if (fst == null) {
                         throw new SyntaxException("First element of a pair cannot be null");
+                    }
+                    if (LinkedList.isCharList(snd)) {
+                        LinkedList<?> tailList = (LinkedList<?>) snd;
+                        if (LinkedList.isCharList(fst)) {
+                            return LinkedList.concatCharLists((LinkedList<?>) fst, tailList);
+                        }
+                        if (fst instanceof String s && s.length() > 0) {
+                            LinkedList<String> headList = LinkedList.fromString(s);
+                            return LinkedList.concatCharLists(headList, tailList);
+                        }
                     }
                     if (snd == null) {
                         return new LinkedList<>(fst, (LinkedList<Object>) null);
@@ -527,6 +554,7 @@ public class MicroLisp{
                     return "#f";
                 })
             );
+           // evalString("(define chars->string (lambda (chars) (foldl (lambda (acc ch) (cons ch acc)) \"\" (reverse chars))))", environment);
             return environment;
         }
 

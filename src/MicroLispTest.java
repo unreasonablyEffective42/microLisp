@@ -32,6 +32,8 @@ public class MicroLispTest {
         if (test("Printf newline", testPrint("(printf \"abc\\n123\")", "abc\n123", env))) passed++; else failed++;
         if (test("Cons number list", testEval("(cons 1 (cons 2 '()))", "(1 2)", env))) passed++; else failed++;
         if (test("Cons string list", testEval("(cons \"a\" (cons \"b\" '()))", "(\"a\" \"b\")", env))) passed++; else failed++;
+        if (test("Cons char onto string", testEval("(cons \"a\" \"bc\")", "\"abc\"", env))) passed++; else failed++;
+        if (test("Cons chain onto empty string", testEval("(cons \"a\" (cons \"b\" (cons \"c\" \"\")))", "\"abc\"", env))) passed++; else failed++;
         if (test("Let single binding", testEval("(let ((x 5)) x)", 5, env))) passed++; else failed++;
         if (test("Let multiple bindings", testEval("(let ((x 1) (y 2)) (+ x y))", 3, env))) passed++; else failed++; 
         if (test("Let nested dependency (should error)", testLetNestedFails(env))) passed++; else failed++;
@@ -49,6 +51,7 @@ public class MicroLispTest {
         if (test("Quote form (quote ())", testEval("(quote ())", "()", env))) passed++; else failed++;
         if (test("List form (list)", testEval("(list)", "()", env))) passed++; else failed++;
         if (test("Null? on ()", testEval("(null? ())", "#t", env))) passed++; else failed++;
+        if (test("Null? on empty string", testEval("(null? \"\")", "#t", env))) passed++; else failed++;
         if (test("Null? on '()", testEval("(null? '())", "#t", env))) passed++; else failed++;
         if (test("Eq? '() vs '()", testEval("(eq? '() '())", "#t", env))) passed++; else failed++;
         if (test("Eq? () vs '()", testEval("(eq? () '())", "#t", env))) passed++; else failed++;
