@@ -16,7 +16,7 @@ public class FileHandling{
                 Parser parser = new Parser(sc.nextLine());
                 return Evaluator.eval(parser.parse(), env);
             }),
-            new Pair<>("read-from-file", (Function<Object, String>) (name) ->{
+            new Pair<>("read-from-file", (Function<Object, Object>) (name) ->{
                 if (name instanceof File){
                     try (BufferedReader reader = new BufferedReader(new FileReader((File) name))){
                         StringBuilder sb = new StringBuilder("");
@@ -25,10 +25,10 @@ public class FileHandling{
                             sb.append(src);
                             src = reader.readLine();
                         }
-                        return sb.toString();
+                        return LinkedList.fromString(sb.toString());
                     }catch (IOException e){
                         System.out.println(e);
-                        return "IO failed";
+                        return LinkedList.fromString("IO failed");
                     }
 
                 }
@@ -41,13 +41,13 @@ public class FileHandling{
                             sb.append(src);
                             src = reader.readLine();
                         }
-                        return sb.toString();
+                        return LinkedList.fromString(sb.toString());
                     }catch (IOException e){
                         System.out.println(e);
-                        return "IO failed";
+                        return LinkedList.fromString("IO failed");
                     }
                 }else {
-                    return "Error unknown";
+                    return LinkedList.fromString("Error unknown");
                 }
             }),
             new Pair<>("make-file", (Function<Object, File>) (name) -> {

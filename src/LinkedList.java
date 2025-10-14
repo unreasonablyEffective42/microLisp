@@ -4,6 +4,7 @@ import java.util.Objects;
 
 public class LinkedList<T> {
   Pair<T, Object> list;
+  private boolean charListTag = false;
 
   public LinkedList() {
       this.list = null;
@@ -91,6 +92,7 @@ public class LinkedList<T> {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (!(o instanceof LinkedList<?> other)) return false;
+    if (this.charListTag != other.charListTag) return false;
     return equalsHelper(this, other);
   }
 
@@ -101,6 +103,9 @@ public class LinkedList<T> {
     if (xs == null || ys == null) {
       return false;
     } 
+    if (xs.charListTag != ys.charListTag) {
+      return false;
+    }
     if (!Objects.equals(xs.head(), ys.head())) {
       return false;
     }
@@ -126,14 +131,61 @@ public class LinkedList<T> {
         }
         return sb.toString();
     }
+
+    public static LinkedList<String> fromString(String text) {
+        LinkedList<String> result = new LinkedList<>();
+        if (text == null) {
+            result.markCharListRecursive();
+            return result;
+        }
+        if (text.isEmpty()) {
+            result.markCharListRecursive();
+            return result;
+        }
+        ArrayList<String> chars = new ArrayList<>(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            chars.add(String.valueOf(text.charAt(i)));
+        }
+        LinkedList<String> list = new LinkedList<>(chars);
+        list.markCharListRecursive();
+        return list;
+    }
+
+    public static boolean isCharList(Object value) {
+        return value instanceof LinkedList<?> list && list.isCharList();
+    }
+
+    public static LinkedList<String> concatCharLists(LinkedList<?> prefix, LinkedList<?> suffix) {
+        String combined = listToRawString(prefix) + listToRawString(suffix);
+        return fromString(combined);
+    }
+
+    public boolean isCharList() {
+        if (this.charListTag) {
+            return true;
+        }
+        if (this.size() == 0) {
+            return false;
+        }
+        return this.allString() && this.allSingleCharStrings();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void markCharListRecursive() {
+        this.charListTag = true;
+        if (this.list != null && this.list.second instanceof LinkedList<?>) {
+            ((LinkedList<Object>) this.list.second).markCharListRecursive();
+        }
+    }
     @Override
     public String toString() {
-        if (list == null) return "()";
+        if (list == null) {
+            return charListTag ? "\"\"" : "()";
+        }
 
         StringBuilder sb = new StringBuilder();
 
-        // Detect "string literal" lists, like ("a" "b" "c")
-        boolean isCharList = this.allString() && allSingleCharStrings();
+        boolean isCharList = this.isCharList();
 
         if (isCharList) {
             sb.append("\"");
@@ -235,4 +287,3 @@ public int size() {
     System.out.println(lst.head() instanceof String);
   }
 }
-

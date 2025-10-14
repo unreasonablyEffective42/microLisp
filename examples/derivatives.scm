@@ -81,5 +81,5 @@
 (print  "Example 3 (example 2 simplified):")
 (print (simplify (diff '(* x (^ x 3)) 'x)))
 
-(print "Example 3 (quotient rule):")
+(print "Example 4 (quotient rule):")
 (print (diff '(/ (^ x 2) (+ x 1)) 'x))
