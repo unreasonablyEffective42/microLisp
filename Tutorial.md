@@ -63,7 +63,7 @@ The numeric tower hierarchy (promotion direction):
                       │
                       ▼
                ┌──────────────┐
-               │ QUATERNION   │  (ℍ, 4D division ring)
+               │  QUATERNION  │  (ℍ, 4D division ring)
                └──────────────┘
 ```
 # Function Application
