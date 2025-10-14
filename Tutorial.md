@@ -97,7 +97,7 @@ Basic arithmetic is variadic in arguments.
 15/4
 ```
 # Data Structures
-Currently microLisp supports two main data structures, tuples with `::` and the `cons` cell.  <br/>`con` ing two expressions together produces a cons cell. The first element can be accessed with `head` and the second with `tail`.
+Currently microLisp supports two main data structures, tuples with `::` and the `cons` cell.  <br/>`cons` ing two expressions together produces a cons cell. The first element can be accessed with `head` and the second with `tail`.
 
 
 ```text
