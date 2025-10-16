@@ -426,6 +426,13 @@ private static Object quoteToValue(Node<Token> node) {
             // Create tuple based on arity (dispatches to Tuple2..Tuple9 or varargs fallback)
             return Trampoline.done(Tuple.of(elems.toArray()));
         }
+        if ("$".equals(t.value())) {
+            ArrayList<Object> elems = new ArrayList<>();
+            for (Node<Token> child : expr.getChildren()) {
+               elems.add(eval(child, env));
+            }
+            return Trampoline.done(Vector.of(elems.toArray()));
+        }
         // (lambda ...) — build closure, then staged application via applyProcedureT
         if (isLambda(t)) {
             ArrayList<Node<Token>> children = expr.getChildren();
@@ -577,7 +584,18 @@ private static Object quoteToValue(Node<Token> node) {
                     throw new IndexOutOfBoundsException("Tuple index " + index + " out of range [1," + tup.size() + "]");
 
                 return Trampoline.done(tup.get(index));
+            } else if (op instanceof Vector vec) {
+                if (argVals.size() != 1)
+                    throw new SyntaxException("Vector call expects exactly 1 index argument");
+                Object idxObj = argVals.get(0);
+                if (!(idxObj instanceof Number))
+                    throw new SyntaxException("Vector index must be a number, got: " + idxObj);
+                int index = (int)((Number) idxObj).intVal;
+                if (index < 0 || index > vec.size)
+                    throw new IndexOutOfBoundsException("Vector index " + index + "out of range [1," + vec.size + "]");
+                return Trampoline.done(vec.elems[index]);
             }
+
             else {
                 throw new SyntaxException("First position is not a procedure: " + sym);
             }
