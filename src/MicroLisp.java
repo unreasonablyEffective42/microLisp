@@ -24,6 +24,8 @@ public class MicroLisp{
     public static void main(String[] args){
         // ----- Create Initial Environment --------- 
         Environment environment = makeGlobalEnv();
+        FileHandling.addFileHandlingEnv(environment);
+        PixelGraphics.addPixelGraphicsEnv(environment);
         // ----- decode flags ------
         if (args[0].charAt(0) == '-'){
           for (int i = 1; i < args[0].length(); i++){
@@ -135,8 +137,7 @@ public class MicroLisp{
         Scanner scanner = new Scanner(System.in); 
         while(true){
             System.out.print(ORANGE + ">>>"+ RESET);
-            String input = scanner.nextLine();
-            FileHandling.addFileHandlingEnv(environment);
+            String input = scanner.nextLine(); 
             if(input.equals(":exit")){
                 break;
             }

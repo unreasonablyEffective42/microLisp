@@ -4,6 +4,8 @@ import java.io.IOException;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.BiFunction;
 import java.util.Scanner;
 import java.lang.Thread;
@@ -13,14 +15,14 @@ class ImageDisplay extends JFrame {
     private JLabel imageLabel;
     private BufferedImage image;
 
-    public ImageDisplay(BufferedImage image, int width, int height) {
-        this.image = image;
-        setTitle("Image Display");
+    public ImageDisplay(PixelGraphics image,String name){
+        this.image = image.canvas;
+        setTitle(name);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(width, height);
+        setSize(image.width, image.height);
         setLocationRelativeTo(null);
 
-        imageLabel = new JLabel(new ImageIcon(image));
+        imageLabel = new JLabel(new ImageIcon(this.image));
         add(imageLabel);
 
         setVisible(true);
@@ -36,6 +38,38 @@ class ImageDisplay extends JFrame {
 public class PixelGraphics{
     public int width, height;
     public BufferedImage canvas;
+    
+    @FunctionalInterface
+    public interface TriFunction<A, B, C, R> {
+        R apply(A a, B b, C c);
+    }
+    @FunctionalInterface 
+    public interface QuadFunction<A, B, C, D, R>{
+        R apply(A a, B b, C c, D d);
+    }
+
+    
+    public static void addPixelGraphicsEnv(Environment env){
+        env.addFrame(
+            new Pair<>("create-window", (BiFunction<PixelGraphics,LinkedList,ImageDisplay>) (image, name) -> { 
+                return new ImageDisplay(image,LinkedList.listToRawString(name));
+            }),
+            new Pair<>("refresh-window", (Consumer<ImageDisplay>) (window) -> window.refresh()),
+            new Pair<>("create-graphics-device", (BiFunction<Number,Number,PixelGraphics>) (width, height) -> new PixelGraphics((int)width.intVal, (int)height.intVal)),
+            new Pair<>("make-color", (TriFunction<Number,Number,Number,Integer>) (red,green,blue) -> (int)color((int)red.intVal, (int)green.intVal, (int)blue.intVal)),
+            new Pair<>("draw-pixel", (QuadFunction<PixelGraphics,Number,Number,Integer,String>) (image,x,y,color)-> {
+                try {
+                    image.putPixel((int)x.intVal,(int)y.intVal,color);
+                    return "#t";
+                }
+                catch (ArrayIndexOutOfBoundsException e){
+                    System.out.println(e);
+                    return "#f";
+                }
+            })
+
+        );
+    }
 
     public PixelGraphics(int width, int height){
         this.width = width;
@@ -146,7 +180,7 @@ public class PixelGraphics{
             System.err.println("Error saving PNG image: " + e.getMessage());
             e.printStackTrace();
         }
-        ImageDisplay window = new ImageDisplay(image.canvas, image.width, image.height);
+        ImageDisplay window = new ImageDisplay(image,"Animation");
         String toss = sc.nextLine();
         image.drawLine(0,399,299,0,g);
         image.drawCircle(200,100,40.0,b);
@@ -168,7 +202,7 @@ public class PixelGraphics{
             image.drawLine(0,300,50,100,g);
             window.refresh();
             wait(1000);
-            image.drawLine(0,300,50,100,r);
+            image.drawLine(0,500,50,100,r);
             image.drawCircle(200,100,40.0,g);
             window.refresh();
             wait(1000);
