@@ -1,8 +1,37 @@
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.function.BiFunction;
+import java.util.Scanner;
+import java.lang.Thread;
+
+
+class ImageDisplay extends JFrame {
+    private JLabel imageLabel;
+    private BufferedImage image;
+
+    public ImageDisplay(BufferedImage image, int width, int height) {
+        this.image = image;
+        setTitle("Image Display");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(width, height);
+        setLocationRelativeTo(null);
+
+        imageLabel = new JLabel(new ImageIcon(image));
+        add(imageLabel);
+
+        setVisible(true);
+    }
+
+    public void refresh() {
+        imageLabel.setIcon(new ImageIcon(image));
+        imageLabel.revalidate();
+        imageLabel.repaint();
+    }
+}
 
 public class PixelGraphics{
     public int width, height;
@@ -51,7 +80,7 @@ public class PixelGraphics{
     }
 
     public void drawLine(int x0, int x, int y0, int y, int color){
-       if ((x0 < x && x <= this.width) && (y0 < y && y <= this.height)){
+       if (true){
           double slope = ((double) y - y0)/(x - x0);
           int yc = 0;
           for (int i = x0; i <= x; i++){
@@ -80,11 +109,26 @@ public class PixelGraphics{
         );
     }
     
+    public static void wait(int ms){ 
+        try {
+            // Pause for 2 seconds (2000 milliseconds)
+            Thread.sleep(ms); 
+        } catch (InterruptedException e) {
+            System.err.println("Thread was interrupted while sleeping.");
+            Thread.currentThread().interrupt(); 
+        }
+    }
+    
 
     public static void main(String[] args){
+        Scanner sc = new Scanner(System.in);
         int c = color (100, 200, 150);
         int b = color (100, 0  , 200);
         int r = color (255, 0  , 0  );
+        int g = color (150, 0  , 150);
+        int o = color (245, 167, 66 );
+        int p = color (164, 66 , 245);
+
         PixelGraphics image = new PixelGraphics(400,300);
         image.fillCanvas(c);
         image.drawLine(0,300,50,100,b);
@@ -102,5 +146,33 @@ public class PixelGraphics{
             System.err.println("Error saving PNG image: " + e.getMessage());
             e.printStackTrace();
         }
+        ImageDisplay window = new ImageDisplay(image.canvas, image.width, image.height);
+        String toss = sc.nextLine();
+        image.drawLine(0,399,299,0,g);
+        image.drawCircle(200,100,40.0,b);
+        window.refresh();
+        toss = sc.nextLine();
+        image.drawLine(50,250,0,200,o);
+        image.drawCircle(300,200,40,p);
+        window.refresh();
+        while (true){
+            image.drawCircle(200,100,40.0,b);
+            image.drawLine(0,300,50,100,r);
+            window.refresh();
+            wait(1000);
+            image.drawCircle(200,100,40.0,r);
+            image.drawLine(0,300,50,100,o);
+            window.refresh();
+            wait(1000);
+            image.drawCircle(200,100,40.0,o);
+            image.drawLine(0,300,50,100,g);
+            window.refresh();
+            wait(1000);
+            image.drawLine(0,300,50,100,r);
+            image.drawCircle(200,100,40.0,g);
+            window.refresh();
+            wait(1000);
+        }
+        
     }
 }
