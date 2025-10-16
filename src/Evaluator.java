@@ -426,6 +426,7 @@ private static Object quoteToValue(Node<Token> node) {
             // Create tuple based on arity (dispatches to Tuple2..Tuple9 or varargs fallback)
             return Trampoline.done(Tuple.of(elems.toArray()));
         }
+        // ($ 1 2 3) - vector literal constructor 
         if ("$".equals(t.value())) {
             ArrayList<Object> elems = new ArrayList<>();
             for (Node<Token> child : expr.getChildren()) {
@@ -584,7 +585,9 @@ private static Object quoteToValue(Node<Token> node) {
                     throw new IndexOutOfBoundsException("Tuple index " + index + " out of range [1," + tup.size() + "]");
 
                 return Trampoline.done(tup.get(index));
-            } else if (op instanceof Vector vec) {
+            } 
+            // --- vector as callable object ---
+            else if (op instanceof Vector vec) {
                 if (argVals.size() != 1)
                     throw new SyntaxException("Vector call expects exactly 1 index argument");
                 Object idxObj = argVals.get(0);
