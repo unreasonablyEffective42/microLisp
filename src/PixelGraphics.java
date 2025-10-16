@@ -81,6 +81,12 @@ public class PixelGraphics{
             new Pair<>("wait", (Function<Number,String>) (time) -> {
                 wait((int)time.intVal);
                 return "#t";
+            }),
+            new Pair<>("image-width", (Function<PixelGraphics,Integer>) (img) -> {
+                return img.width;
+            }),
+            new Pair<>("image-height", (Function<PixelGraphics,Integer>) (img) -> {
+                return img.height;
             })
         );
     }

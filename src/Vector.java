@@ -1,5 +1,5 @@
 import java.util.function.Function;
-import java.util.ArrayList();
+import java.util.ArrayList;
 public class Vector{
     public Object[] elems;
     public int size;
@@ -9,14 +9,14 @@ public class Vector{
         size = nums.length;
     }
     Vector(LinkedList nums){
-        this.size = nums.size()
+        this.size = nums.size();
         LinkedList current = nums;
         ArrayList temp = new ArrayList();
         while(current != null){
-            temp.add(current);
-            current = current.tail();
+            temp.add(current.head());
+            current = (LinkedList)current.tail();
         }
-        Vector((Object[])temp.toArray())
+        elems = temp.toArray();
     }
 
     public static Vector of (Object[] nums){
@@ -29,8 +29,8 @@ public class Vector{
                 return Number.integer(vect.size);
             }),
             new Pair<>("vector", (Function<LinkedList, Vector>) (elems) -> {
-
-            }
+                return new Vector(elems);
+            })
         );
     }
 
