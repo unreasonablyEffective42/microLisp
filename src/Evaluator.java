@@ -674,6 +674,8 @@ private static Object quoteToValue(Node<Token> node) {
                 @SuppressWarnings("unchecked")
                 BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bf;
                 return Trampoline.done(op.apply(argVals.get(0), argVals.get(1)));
+            } else if (opVal instanceof Vector v) {
+                return Trampoline.done(applyIndexing(v, argVals));
             }
 
             throw new SyntaxException("First position is not a procedure: " + opVal);
@@ -804,5 +806,56 @@ private static Object quoteToValue(Node<Token> node) {
             return supplier.get();
         }
         throw new IllegalStateException("Unknown primitive type for operator: " + opName);
+    }
+
+    private static Object applyIndexing(Object target, List<Object> idxs) {
+        if (idxs.isEmpty()) {
+            throw new SyntaxException("Indexing expects at least one index");
+        }
+        Object current = target;
+        int from = 0;
+        while (from < idxs.size()) {
+            int i = toIndex(idxs.get(from++));  // 0-based per your example
+            if (current instanceof Vector v) {
+                boundsCheck(i, v.size);
+                current = v.elems[i];
+            }
+/*
+            else if (current instanceof Tuple t) {
+                boundsCheck(i, t.size());
+                current = t.get(i);
+            }
+            else if (current instanceof LinkedList<?> l) {
+                current = listNth(l, i); // implement efficient nth or iterate
+            } 
+*/
+            else {
+                throw new SyntaxException("Cannot index into: " + current);
+            }
+        }
+        return current;
+    }
+
+    private static int toIndex(Object o) {
+        // Your tower likely has its own Number type; support both.
+        if (o instanceof Number n) { // your numeric tower
+            return (int) n.intVal;     // or n.toInt(), whatever your API is
+        } else if (o instanceof java.lang.Number jn) {
+            return jn.intValue();
+        }
+        throw new SyntaxException("Index must be numeric, got: " + o);
+    }
+
+    private static void boundsCheck(int i, int n) {
+        if (i < 0 || i >= n) throw new SyntaxException("Index out of bounds: " + i + " (size " + n + ")");
+    }
+
+    // Example nth for your Lisp list if you want to support it:
+    private static Object listNth(LinkedList<?> l, int i) {
+        for (int k = 0; k < i; k++) {
+            if (l.tail() == null) throw new SyntaxException("Index out of bounds: " + i);
+            l = (LinkedList<?>) l.tail();
+        }
+        return l.head();
     }
 }
