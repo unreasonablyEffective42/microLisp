@@ -42,12 +42,12 @@
                      (let loop-y ((y 1) (alt 0))
                        (cond ((> y 100) '())
                              (else (cond ((even? a)
-                                          (cond ((eq? alt 1) (do (big-pixel img x y c) (loop-y (+ y 2) 0)))
+                                          (cond ((eq? alt 1) (do (big-pixel img (* x 2) (* y 2) c) (loop-y (+ y 2) 0)))
                                                 (else (loop-y (+ y 2) 1))))
                                          ((odd? a)
-                                          (cond ((eq? alt 0) (do (big-pixel img x y c) (loop-y (+ y 2) 1)))
+                                          (cond ((eq? alt 0) (do (big-pixel img (* x 2) (* y 2) c) (loop-y (+ y 2) 1)))
                                                 (else (loop-y (+ y 2) 0))))
                                          (else (print "idk how you got here"))))))
                      (loop-x (+ x 2) (+ a 1))))))))
 
-
+(define big-coord (lambda (num) (* num 2)))
