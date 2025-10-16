@@ -24,6 +24,7 @@ public class MicroLisp{
     public static void main(String[] args){
         // ----- Create Initial Environment --------- 
         Environment environment = makeGlobalEnv();
+        Vector.addVectorEnv(environment);
         FileHandling.addFileHandlingEnv(environment);
         PixelGraphics.addPixelGraphicsEnv(environment);
         // ----- decode flags ------

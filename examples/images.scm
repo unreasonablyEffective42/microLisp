@@ -1,4 +1,4 @@
-(define img (create-graphics-device 400 400))
+(define img (create-graphics-device 202 202))
 
 (define window (create-window img "test"))
 
@@ -48,6 +48,16 @@
                                           (cond ((eq? alt 0) (do (big-pixel img (* x 2) (* y 2) c) (loop-y (+ y 2) 1)))
                                                 (else (loop-y (+ y 2) 0))))
                                          (else (print "idk how you got here"))))))
+
                      (loop-x (+ x 2) (+ a 1))))))))
+(big-checkerboard img blue)
+
+(let loop ((c 1))
+  (cond ((> c 100) '())
+        (else (do (big-pixel img (* c 2) (* c 2) red)
+                  (loop (+ c 2))))))
+
+(refresh-window window)
+
 
 (define big-coord (lambda (num) (* num 2)))

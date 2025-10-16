@@ -1,3 +1,5 @@
+import java.util.function.Function;
+
 public class Vector{
     public Object[] elems;
     public int size;
@@ -9,6 +11,14 @@ public class Vector{
 
     public static Vector of (Object[] nums){
        return new Vector(nums);
+    }
+
+    public static void addVectorEnv(Environment env){
+        env.addFrame(
+            new Pair<>("size", (Function<Vector, Number>) (vect) -> {
+                return Number.integer(vect.size);
+            })
+        );
     }
 
     @Override
