@@ -54,9 +54,16 @@ public class PixelGraphics{
             new Pair<>("create-window", (BiFunction<PixelGraphics,LinkedList,ImageDisplay>) (image, name) -> { 
                 return new ImageDisplay(image,LinkedList.listToRawString(name));
             }),
-            new Pair<>("refresh-window", (Consumer<ImageDisplay>) (window) -> window.refresh()),
-            new Pair<>("create-graphics-device", (BiFunction<Number,Number,PixelGraphics>) (width, height) -> new PixelGraphics((int)width.intVal, (int)height.intVal)),
-            new Pair<>("make-color", (TriFunction<Number,Number,Number,Integer>) (red,green,blue) -> (int)color((int)red.intVal, (int)green.intVal, (int)blue.intVal)),
+            new Pair<>("refresh-window", (Function<ImageDisplay,String>) (window) -> { 
+                window.refresh();
+                return "#t"; 
+            }),
+            new Pair<>("create-graphics-device", (BiFunction<Number,Number,PixelGraphics>) (width, height) -> {
+                return new PixelGraphics((int)width.intVal, (int)height.intVal);
+            }),
+            new Pair<>("make-color", (TriFunction<Number,Number,Number,Integer>) (red,green,blue) -> {
+                return (int)color((int)red.intVal, (int)green.intVal, (int)blue.intVal);
+            }),
             new Pair<>("draw-pixel", (QuadFunction<PixelGraphics,Number,Number,Integer,String>) (image,x,y,color)-> {
                 try {
                     image.putPixel((int)x.intVal,(int)y.intVal,color);
@@ -66,8 +73,15 @@ public class PixelGraphics{
                     System.out.println(e);
                     return "#f";
                 }
+            }),
+            new Pair<>("fill", (BiFunction<PixelGraphics, Integer, String>) (img,color) ->{
+                img.fillCanvas(color);
+                return "#t";
+            }),
+            new Pair<>("wait", (Function<Number,String>) (time) -> {
+                wait((int)time.intVal);
+                return "#t";
             })
-
         );
     }
 

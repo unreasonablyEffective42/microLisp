@@ -3,6 +3,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 import java.util.Scanner;
 import java.math.BigInteger;
 
@@ -541,7 +542,28 @@ private static Object quoteToValue(Node<Token> node) {
                 Supplier<Object> sup = (Supplier<Object>) op;
                 return Trampoline.done(sup.get());
 
+            } else if (op instanceof PixelGraphics.TriFunction<?,?,?,?>) {
+                if (argVals.size() != 3)
+                    throw new SyntaxException("Procedure " + sym + " expects 3 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                PixelGraphics.TriFunction<Object,Object,Object,Object> tf = (PixelGraphics.TriFunction<Object,Object,Object,Object>) op;
+                return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2)));
+            } else if (op instanceof PixelGraphics.QuadFunction<?,?,?,?,?>) {
+                if (argVals.size() != 4)
+                    throw new SyntaxException("Procedure " + sym + " expects 4 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                PixelGraphics.QuadFunction<Object,Object,Object,Object,Object> tf = (PixelGraphics.QuadFunction<Object,Object,Object,Object,Object>) op;
+                return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3)));
             }
+/*
+            else if (op instanceof Consumer<?>) {
+                if (argVals.size() != 1)
+                    throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                Consumer<Object> con = (Consumer<Object>) op;
+                return Trampoline.done(con.accept(argVals.get(0)));
+            }
+*/
             // --- tuple as callable object ---
             else if (op instanceof Tuple tup) {
                 if (argVals.size() != 1)
