@@ -11,18 +11,16 @@ The syntax and semantics almost entirely follow from Scheme. Some differences in
 -   Lambdas of no arguments are not allowed.
 -   All special forms `lambda, cond, let, lets` bodies are a single expression instead of allowing multiple expressions. i.e `(lambda (x) (print x) (+ x 1))` does not `print x` and then `return x +1`. It just ignores the second expression. Use `(do expr1 expr2 ... exprn)` to sequentially evaluate expressions, which will discard all their values except for the final expression. To keep and then use sequential values, chain functions or use `lets`
 - Currently there is only `'` and `quote`, no quasiquoting `` ` `` , unquoting`,`, unquotesplicing `,@` etc 
-- Tail recursion is not yet implemented, and with the only looping construct being recursion, this interpreter is limited.
-
 
 To build, clone the repository  
 `git clone [https://github.com/unreasonablyeffective42/microlisp` 
 and from the directory ./MicroLisp, enter: `./BUILD` 
 Then you can run from a new terminal with `microlisp -ip` Optionally you can pass it a file to load as well `microlisp -flags file.scm`
 
-To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + optional files to be loaded.
+To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + flags + optional files to be loaded.
 
 After building try:
-`microlisp ./examples/lists.scm ./examples/examples.scm ./examples/primetest.scm` </br>
+`microlisp ./examples/lists.scm ./examples/examples.scm ./examples/primetest.scm`  
 `microlisp ./examples/lists.scm ./examples/gol.scm`
 
 The flags to pass are: 
