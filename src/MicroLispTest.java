@@ -5,7 +5,7 @@ import java.math.BigInteger;
 public class MicroLispTest {
 
     public static void main(String[] args) {
-        Environment env = MicroLisp.makeGlobalEnv();
+        Environment env = GlobalEnvironment.initGlobalEnvironment();
         int passed = 0, failed = 0;
 
         // --- Core language features ---
