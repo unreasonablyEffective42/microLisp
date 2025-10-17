@@ -58,6 +58,10 @@ public class PixelGraphics{
                 window.refresh();
                 return "#t"; 
             }),
+            new Pair<>("close-window", (Function<ImageDisplay,String>) (window) -> {
+                window.dispose();
+                return "#t";
+            }),
             new Pair<>("create-graphics-device", (BiFunction<Number,Number,PixelGraphics>) (width, height) -> {
                 return new PixelGraphics((int)width.intVal, (int)height.intVal);
             }),
