@@ -21,9 +21,10 @@ Then you can run from a new terminal with `microlisp -ip` Optionally you can pas
 
 To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + optional files to be loaded.
 
-After building try `microlisp ./examples/lists.scm ./examples/examples.scm ./examples/primetest.scm`
+After building try:
+`microlisp ./examples/lists.scm ./examples/examples.scm ./examples/primetest.scm`
+`microlisp ./examples/lists.scm ./examples/gol.scm`
 
-Currently there are two example files, use `microlisp -ip lists.scm examples.scm` to use the examples in examples.scm 
 The flags to pass are: 
 - i: interactive mode(repl).
 - p: context aware repl(will indent next lines appropriately during multiline input, does not work with copy/paste multiline inputs).
