@@ -7,12 +7,12 @@
 (define fact-helper (lambda (n a) (cond ((eq? n 0) a) (else (fact-helper (- n 1) (* a n))))))
 
 
-(define fibs (lambda (n) (fibshelper 0 1 n)))
+(define fibs (lambda (n) (fibshelper 0 1 n '())))
 
 (define fibshelper 
-  (lambda (a b n)
-    (cond ((eq? n 0) (cons a '() ))
-          (else (cons a (fibshelper b (+ a b) (- n 1)))))))
+  (lambda (a b n xs)
+    (cond ((eq? n 0) (reverse (cons a xs)))
+          (else (fibshelper b (+ a b) (- n 1) (cons a xs))))))
 
 (define pair
   (lambda (x y)

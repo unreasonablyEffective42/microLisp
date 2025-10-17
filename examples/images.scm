@@ -1,7 +1,3 @@
-(define img (create-graphics-device 202 202))
-
-(define window (create-window img "test"))
-
 (define red (make-color 255 0 0))
 (define green (make-color 0 255 0))
 (define blue (make-color 0 0 255))
@@ -26,10 +22,10 @@
                      (let loop-y ((y 0) (alt 0))
                        (cond ((> y 100) '())
                              (else (cond ((even? x)
-                                          (cond ((eq? alt 1) (do (draw-pixel img x y c) (loop-y (+ y 1) 0)))
+                                          (cond ((eq? alt 1) (do (draw-pixel image x y c) (loop-y (+ y 1) 0)))
                                                 (else (loop-y (+ y 1) 1))))
                                          ((odd? x)
-                                          (cond ((eq? alt 0) (do (draw-pixel img x y c) (loop-y (+ y 1) 1)))
+                                          (cond ((eq? alt 0) (do (draw-pixel image x y c) (loop-y (+ y 1) 1)))
                                                 (else (loop-y (+ y 1) 0))))
                                          (else (print "idk how you got here"))))))
                      (loop-x (+ x 1))))))))
@@ -42,24 +38,33 @@
                      (let loop-y ((y 1) (alt 0))
                        (cond ((> y 100) '())
                              (else (cond ((even? a)
-                                          (cond ((eq? alt 1) (do (big-pixel img (* x 2) (* y 2) c) (loop-y (+ y 2) 0)))
+                                          (cond ((eq? alt 1) (do (big-pixel image (* x 2) (* y 2) c) (loop-y (+ y 2) 0)))
                                                 (else (loop-y (+ y 2) 1))))
                                          ((odd? a)
-                                          (cond ((eq? alt 0) (do (big-pixel img (* x 2) (* y 2) c) (loop-y (+ y 2) 1)))
+                                          (cond ((eq? alt 0) (do (big-pixel image (* x 2) (* y 2) c) (loop-y (+ y 2) 1)))
                                                 (else (loop-y (+ y 2) 0))))
                                          (else (print "idk how you got here"))))))
 
                      (loop-x (+ x 2) (+ a 1))))))))
-(big-checkerboard img blue)
 
-(let loop ((c 1))
-  (cond ((> c 100) '())
-        (else (do (big-pixel img (* c 2) (* c 2) red)
-                  (loop (+ c 2))))))
+(define main
+  (lambda (s)
+    (lets ((f (make-file "./images/example.png"))
+           (img (create-graphics-device 202 202))
+           (window (create-window img "test")))
+      (do 
+        (big-checkerboard img blue)
+        (let loop ((c 1))
+          (cond ((> c 100) '())
+                (else (do 
+                        (big-pixel img (* c 2) (* c 2) red)
+                        (loop (+ c 2))))))
 
-(refresh-window window)
+        (let loop ((c 1))
+          (cond ((> c 100) '())
+                (else (do 
+                        (big-pixel img (* c 2) (- 199 (* c 2)) green)
+                        (loop (+ c 2))))))
+        (refresh-window window)
+        (write-image img f)))))
 
-
-(define big-coord (lambda (num) (* num 2)))
-
-(read)

@@ -28,24 +28,28 @@ public class MicroLisp{
         FileHandling.addFileHandlingEnv(environment);
         PixelGraphics.addPixelGraphicsEnv(environment);
         // ----- decode flags ------
-        if (args[0].charAt(0) == '-'){
-            for (int i = 1; i < args[0].length(); i++){
-                switch (args[0].charAt(i)) {
-                    case 'i': 
-                        interactive = true;
-                        break;
-                    case 'l':
-                        debugLevel = 1;
-                        break;
-                    case 'h':
-                        debugLevel = 2;
-                        break;
-                    case 'p':
-                        prettyprint = true;
-                    default:
-                        break;
-                }       
+        try {
+            if (args[0].charAt(0) == '-'){
+                for (int i = 1; i < args[0].length(); i++){
+                    switch (args[0].charAt(i)) {
+                        case 'i': 
+                            interactive = true;
+                            break;
+                        case 'l':
+                            debugLevel = 1;
+                            break;
+                        case 'h':
+                            debugLevel = 2;
+                            break;
+                        case 'p':
+                            prettyprint = true;
+                        default:
+                            break;
+                    }       
+                }
             }
+        } catch (ArrayIndexOutOfBoundsException e){
+            System.out.println("No files passed in non-interactive-mode");
         }
         // ----- Load and display the banner and text ---------
         if (interactive) {
@@ -79,17 +83,16 @@ public class MicroLisp{
             if (args.length > 0){
                 environment = loadOnStart(environment,args,0);
                 try {
-                    Parser m = new Parser("(main)");
+                    Parser m = new Parser("(main #t)");
                     Evaluator.eval(m.parse(),environment);
                 }
                 catch (RuntimeException e){
-                    System.out.println("main not found");
+                    if (e.getMessage().contains("Unbound variable 'main'"))
+                        System.out.println("main not found");
+                    else
+                        System.out.println("Error running main: " + e.getMessage());
                 }
             }
-            else{
-                System.out.println("No files passed in non-interactive-mode");
-            }
-
         }
     }
     static Environment loadOnStart(Environment environment,String[] args,int start){

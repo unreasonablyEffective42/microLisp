@@ -61,8 +61,22 @@ public class PixelGraphics{
             new Pair<>("create-graphics-device", (BiFunction<Number,Number,PixelGraphics>) (width, height) -> {
                 return new PixelGraphics((int)width.intVal, (int)height.intVal);
             }),
+            new Pair<>("write-image", (BiFunction<PixelGraphics,File,String>) (graphicsDevice, file) ->{
+                try {
+                    ImageIO.write(graphicsDevice.canvas, "png", file);
+                    System.out.println("Image " + file.getName() + " saved successfully");
+                    return "#t";
+                } catch (IOException e) {
+                    System.err.println("Error saving PNG image: " + e.getMessage());
+                    e.printStackTrace();
+                    return "#f";
+                }
+            }),
             new Pair<>("make-color", (TriFunction<Number,Number,Number,Integer>) (red,green,blue) -> {
                 return (int)color((int)red.intVal, (int)green.intVal, (int)blue.intVal);
+            }),
+            new Pair<>("make-rgba", (QuadFunction<Number,Number,Number,Number,Integer>) (alpha,red,green,blue) -> {
+                return (int)color((int)alpha.intVal, (int)red.intVal, (int)green.intVal, (int)blue.intVal);
             }),
             new Pair<>("draw-pixel", (QuadFunction<PixelGraphics,Number,Number,Integer,String>) (image,x,y,color)-> {
                 try {
@@ -171,62 +185,5 @@ public class PixelGraphics{
             System.err.println("Thread was interrupted while sleeping.");
             Thread.currentThread().interrupt(); 
         }
-    }
-    
-
-    public static void main(String[] args){
-        Scanner sc = new Scanner(System.in);
-        int c = color (100, 200, 150);
-        int b = color (100, 0  , 200);
-        int r = color (255, 0  , 0  );
-        int g = color (150, 0  , 150);
-        int o = color (245, 167, 66 );
-        int p = color (164, 66 , 245);
-
-        PixelGraphics image = new PixelGraphics(400,300);
-        image.fillCanvas(c);
-        image.drawLine(0,300,50,100,b);
-        image.drawCircle(90,150,30.0,r);
-        image.plotImplicit(
-            (x, y) -> Math.abs(Math.sqrt(Math.pow(x-50,2) + Math.pow(y-50,2)) - 20.0) < .5,
-            b
-        );
-
-        File out = new File("../images/output.png");
-        try {
-            ImageIO.write(image.canvas, "png", out);
-            System.out.println("PNG image saved successfully to "); 
-        } catch (IOException e) {
-            System.err.println("Error saving PNG image: " + e.getMessage());
-            e.printStackTrace();
-        }
-        ImageDisplay window = new ImageDisplay(image,"Animation");
-        String toss = sc.nextLine();
-        image.drawLine(0,399,299,0,g);
-        image.drawCircle(200,100,40.0,b);
-        window.refresh();
-        toss = sc.nextLine();
-        image.drawLine(50,250,0,200,o);
-        image.drawCircle(300,200,40,p);
-        window.refresh();
-        while (true){
-            image.drawCircle(200,100,40.0,b);
-            image.drawLine(0,300,50,100,r);
-            window.refresh();
-            wait(1000);
-            image.drawCircle(200,100,40.0,r);
-            image.drawLine(0,300,50,100,o);
-            window.refresh();
-            wait(1000);
-            image.drawCircle(200,100,40.0,o);
-            image.drawLine(0,300,50,100,g);
-            window.refresh();
-            wait(1000);
-            image.drawLine(0,500,50,100,r);
-            image.drawCircle(200,100,40.0,g);
-            window.refresh();
-            wait(1000);
-        }
-        
     }
 }

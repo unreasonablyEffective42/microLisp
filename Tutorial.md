@@ -97,7 +97,7 @@ Basic arithmetic is variadic in arguments.
 15/4
 ```
 # Data Structures
-Currently microLisp supports two main data structures, tuples with `::` and the `cons` cell.  <br/>`cons` ing two expressions together produces a cons cell. The first element can be accessed with `head` and the second with `tail`.
+Currently microLisp supports three main data structures, tuples with `::`, vectors with `$` and the `cons` cell.  <br/>`cons` ing two expressions together produces a cons cell. The first element can be accessed with `head` and the second with `tail`.
 
 
 ```text
@@ -180,6 +180,28 @@ Tuples, the other data structure are fixed size collections, from 2 to 9 element
 >>>(tup 1)
 2
 ```
+
+Lastly we have vectors, which are similar to tuples in that they are of fixed size, but they can be of any size, and also allow for multidimensional arrays by nesting.
+```
+>>>(define v ($ 1 2 3))
+>>>v 
+<1 2 3>
+>>>(v 1)
+2 
+>>>(define u ($ ($ 1 2 3) ($ 4 5 6) ($ 7 8 9)))
+>>>(u 2)
+<7 8 9>
+>>>((u 2) 1) ;(u 2) returns a vector, that itself can be indexed 
+8
+>>>(define xs '(1 2 3))
+>>>(define w (vector xs)) ;use the explicit vector constructor when using a list as input 
+>>>w 
+<1 2 3>
+>>>($ xs)
+<(1 2 3)>     ;a vector of a list, vs a vector made using the elements of the list
+```
+
+# Conditional Expressions
 For conditional expressions, we use `cond`. `cond` takes a series of expressions ,predicates, that must evaluate to a boolean expression, and the expression to be evaluated if that expression is true. 
 
 ```Scheme

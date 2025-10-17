@@ -72,14 +72,18 @@
 ; ============================================================
 ; Examples
 ; ============================================================
-(print "Example 1:(^ x 10/3)")
-(print (diff '(^ x 10/3) 'x))
+(define main
+  (lambda (s)
+    (do 
+      (print "Example 1:(^ x 10/3)")
+      (print (diff '(^ x 10/3) 'x))
 
-(print "Example 2:(* x (^ x 3))") 
-(print (diff '(* x (^ x 3)) 'x))
+      (print "Example 2:(* x (^ x 3))") 
+      (print (diff '(* x (^ x 3)) 'x))
 
-(print  "Example 3 (example 2 simplified):")
-(print (simplify (diff '(* x (^ x 3)) 'x)))
+      (print  "Example 3 (example 2 simplified):")
+      (print (simplify (diff '(* x (^ x 3)) 'x)))
 
-(print "Example 4 (quotient rule):")
-(print (diff '(/ (^ x 2) (+ x 1)) 'x))
+      (print "Example 4 (quotient rule):")
+      (print (diff '(/ (^ x 2) (+ x 1)) 'x)))))
+

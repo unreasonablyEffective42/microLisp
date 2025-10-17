@@ -180,7 +180,7 @@
                             (else (do (add-cell image (:: x y) white) (loop-x (+ x 1))))))
                     (loop-y (+ y 1))))))))
 (define main 
-  (lambda ()
+  (lambda (s)
     (lets ((view (create-graphics-device 400 400))
            (window (create-window view "GOL")))
       (let loop ((x 0) (board board))
