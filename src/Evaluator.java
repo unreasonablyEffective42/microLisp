@@ -4,7 +4,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.Consumer;
-import java.util.Scanner;
 import java.math.BigInteger;
 
 /*
@@ -26,7 +25,6 @@ public class Evaluator {
     public static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
     public static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE") || isType(t, "SYMBOL") && "quote".equals(t.value()); }
     public static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
-    public static boolean isPrimitive (Token<?, ?> t){ return isType(t, "PRIMITIVE"); }
     public static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
     public static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); } 
     public static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
@@ -36,40 +34,6 @@ public class Evaluator {
     public static boolean isLetNamed  (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
     public static boolean isApply     (Token<?, ?> t){ return isType(t, "APPLY"); }
     public static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
-
-    // ---------- primitive table ----------
-    public static Object getPrimitive(String op) {
-        return switch (op) {
-            // ---- arithmetic ----
-            case "PLUS"      -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.add((Number)x,(Number)y));
-            case "MINUS"     -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.sub((Number)x,(Number)y));
-            case "MULTIPLY"  -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.multiply((Number)x,(Number)y)); 
-            case "DIVIDE"    -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.divide((Number)x,(Number)y));
-            case "MODULO"    -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.mod((Number)x,(Number)y));
-            case "EXPONENT"  -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.pow((Number)x,(Number)y));
-            case "LT"        -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.lessThan((Number)x,(Number)y) ? "#t" : "#f");
-            case "GT"        -> (BiFunction<Object, Object, Object>) ((x, y) -> Number.greaterThan((Number)x,(Number)y) ? "#t" : "#f"); 
-            // ---- equality ----
-            case "EQ" -> (BiFunction<Object, Object, Object>) ((x, y) -> {
-                if (x == null || y == null) return "#f";
-                if (x instanceof Number && y instanceof Number)
-                    return Number.numericEquals((Number) x,(Number) y) ? "#t" : "#f";
-                if (x instanceof String && y instanceof String)
-                    return ((String)x).equals(y) ? "#t" : "#f";
-                if (x instanceof LinkedList && y instanceof LinkedList)
-                    return ((LinkedList<?>)x).equals(y) ? "#t" : "#f";
-                return "#f";
-            });
-
-            // ---- zero-arg primitives ----
-            case "READ" -> (Supplier<String>) () -> {
-                Scanner sc = new Scanner(System.in);
-                return sc.nextLine();
-            };
-
-            default -> throw new IllegalStateException("Unexpected operator: " + op);
-        };
-    }
 
     // ---------- list evaluation -------- 
     private static ArrayList<Object> evaluateList(ArrayList<Node<Token>> list, Environment env){
@@ -148,7 +112,6 @@ private static Object quoteToValue(Node<Token> node) {
             case "LETS":      return new Symbol("lets");
             case "LETR":      return new Symbol("letr");
             case "DEFINE":    return new Symbol("define");
-            case "PRIMITIVE": return new Symbol(((String) tval).toLowerCase());
             case "SYMBOL":    return new Symbol((String) tval);
             case "BOOLEAN":   return new Symbol((String) tval);
             case "NUMBER":    return tval;
@@ -604,17 +567,6 @@ private static Object quoteToValue(Node<Token> node) {
             }
         }
 
-        // Primitive-headed application: (+ 1 2 3), etc.
-        if (isPrimitive(t)){
-            ArrayList<Object> argVals = new ArrayList<>();
-            for (Node<Token> child : expr.getChildren()) {
-                argVals.add(eval(child, env)); // trampolined
-            }
-            @SuppressWarnings("unchecked")
-            Token<String,Object> procTok = (Token<String,Object>) t;
-            return applyProcedureT(procTok, argVals);
-        }
-
         // (list ...) literal node -> evaluate each element
         if (isList(t)) {
             int dot = -1;
@@ -726,11 +678,7 @@ private static Object quoteToValue(Node<Token> node) {
 
     // Trampolined procedure application: lambda body is executed via bounce
     public static Trampoline<Object> applyProcedureT(Token<String,Object> proc, ArrayList<Object> args) {
-        if (isPrimitive(proc)) {
-            String opName = (String) proc.value();
-            return Trampoline.done(applyPrimitive(opName, args));
-        }
-        else if (isClosure(proc)) {
+        if (isClosure(proc)) {
             @SuppressWarnings("unchecked")
             ArrayList<Token> closureParts = (ArrayList<Token>) proc.value();
 
@@ -772,40 +720,6 @@ private static Object quoteToValue(Node<Token> node) {
                else {
             throw new SyntaxException("First position is not a procedure: " + proc);
         }
-    }
-
-    private static Object applyPrimitive(String opName, ArrayList<Object> args) {
-        Object primitive = getPrimitive(opName);
-        // ---- BiFunction primitives (variadic support) ----
-        if (primitive instanceof BiFunction<?, ?, ?> bi) {
-            @SuppressWarnings("unchecked")
-            BiFunction<Object, Object, Object> op = (BiFunction<Object, Object, Object>) bi;
-            if (args.isEmpty()) {
-                if (opName.equals("PLUS")) return Number.integer(0);
-                if (opName.equals("MULTIPLY")) return Number.integer(1);
-                throw new IllegalStateException(opName + " requires at least one argument");
-            }
-            Object acc = args.get(0);
-            for (int i = 1; i < args.size(); i++) {
-                acc = op.apply(acc, args.get(i));
-            }
-            return acc;
-        }
-        // ---- Function primitives (single-arg) ----
-        else if (primitive instanceof Function<?, ?> fn) {
-            if (args.size() != 1)
-                throw new IllegalStateException(opName + " expects 1 argument, got " + args.size());
-            @SuppressWarnings("unchecked")
-            Function<Object, Object> op = (Function<Object, Object>) fn;
-            return op.apply(args.get(0));
-        }
-        // ---- Supplier primitives (zero-arg) ----
-        else if (primitive instanceof Supplier<?> supplier) {
-            if (!args.isEmpty())
-                throw new IllegalStateException(opName + " expects 0 arguments, got " + args.size());
-            return supplier.get();
-        }
-        throw new IllegalStateException("Unknown primitive type for operator: " + opName);
     }
 
     private static Object applyIndexing(Object target, List<Object> idxs) {

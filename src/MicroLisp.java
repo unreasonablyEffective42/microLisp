@@ -273,47 +273,5 @@ public class MicroLisp{
             }
             Evaluator.eval(form, env);
         }
-    }
-
-    private static String unescapeJava(String s) {
-        // Convert common ANSI escape encodings first
-        s = s.replace("\\u001b", "\u001b").replace("\\033", "\u001b");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '\\' && i + 1 < s.length()) {
-                char next = s.charAt(++i);
-                switch (next) {
-                    case 'n' -> sb.append('\n');
-                    case 't' -> sb.append('\t');
-                    case 'r' -> sb.append('\r');
-                    case 'b' -> sb.append('\b');
-                    case 'f' -> sb.append('\f');
-                    case '"' -> sb.append('"');
-                    case '\'' -> sb.append('\'');
-                    case '\\' -> sb.append('\\');
-                    case 'u' -> {
-                        // Unicode escape: \\uXXXX
-                        if (i + 4 < s.length()) {
-                            String hex = s.substring(i + 1, i + 5);
-                            try {
-                                int code = Integer.parseInt(hex, 16);
-                                sb.append((char) code);
-                                i += 4;
-                            } catch (NumberFormatException e) {
-                                sb.append("\\u").append(hex);
-                            }
-                        } else {
-                            sb.append("\\u");
-                        }
-                    }
-                    default -> sb.append(next);
-                }
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
-    }
-
+    }  
 }

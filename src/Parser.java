@@ -14,7 +14,7 @@ public class Parser {
     Token eof = new Token("EOF", "EOF");
     List keywords = Arrays.asList(
             "COND", "QUOTE", "LAMBDA", 
-            "PRIMITIVE", "DEFINE", 
+            "DEFINE", 
             "LIST", "DO", "LET", "LETS", "LETR");
     boolean quoting = false;
     public Parser(String src) {
