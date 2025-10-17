@@ -783,12 +783,4 @@ public class Parser {
         // --- FINAL FALLBACK to satisfy compiler ---
         return new Node<>(new Token<>("EOF","EOF"));
     } // end of parse()
-
-    public static void main(String[] args) {
-        String src = "(x -> f -> g)"; 
-        Parser p = new Parser(src);
-        Node parsed = p.parse();
-        parsed.printNodes(0);
-    }
-
 }

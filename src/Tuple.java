@@ -197,13 +197,4 @@ public abstract class Tuple {
             default -> throw new IllegalArgumentException("Tuple size > 9 not supported");
         };
     }
-
-    public static void main(String[] args){
-        Tuple a = Tuple.of(2,3,4);
-        Tuple b = Tuple.of('2','l',4,5);
-        Tuple c = Tuple.of(Number.rational(3,5),Number.complex(Number.integer(4),Number.rational(-8,3)));
-        System.out.println(a);
-        System.out.println(b);
-        System.out.println(c);
-    }
 }

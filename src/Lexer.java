@@ -212,12 +212,4 @@ public class Lexer {
         // --- fallback ---
         throw new SyntaxException("Unexpected character '" + currentChar + "' at position " + pos);
     }
-    public static void main(String[] args){
-        Lexer l1 = new Lexer("(x -> f -> g)");
-        Token current = l1.getNextToken();
-        while (!current.type().equals("EOF")){
-            System.out.println(current);
-            current = l1.getNextToken();
-        }
-    }
 }

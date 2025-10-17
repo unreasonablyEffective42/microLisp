@@ -79,18 +79,4 @@ public class FileHandling{
             })
         );
   }
-  
-  public static void main(String[] args){
-    try{
-      File f = new File("text.txt");
-      //BufferedReader reader = new BufferedReader(new FileReader("input.txt"));
-      FileWriter writer = new FileWriter(f);
-      writer.write("Hello, World!\n"); 
-      writer.write("FileIO");
-      writer.close();
-      System.out.println("Wrote to file :" + f.getName());
-    } catch(IOException e){
-      e.printStackTrace();
-    }
-  }
 }

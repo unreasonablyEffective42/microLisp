@@ -250,40 +250,29 @@ public class LinkedList<T> {
         }
         return true;
     }
-  public void setHead(T newHead){
-    this.list.first = newHead;
-  }
+    public void setHead(T newHead){
+        this.list.first = newHead;
+    }
 
-  public void setTail(LinkedList lst){
-    this.list.second = lst;
-  }
+    public void setTail(LinkedList lst){
+       this.list.second = lst;
+    }
 
   
-public int size() {
-    if (this.list == null) return 0; // empty list 
-    int count = 0;
-    LinkedList<?> current = this;
-    while (current != null && current.list != null) {
-        count++;
-        Object tail = current.tail();
-        if (tail instanceof LinkedList<?>) {
-            current = (LinkedList<?>) tail;
-        } else {
-            // improper list tail (non-LinkedList value)
-            break;
+    public int size() {
+        if (this.list == null) return 0; // empty list 
+        int count = 0;
+        LinkedList<?> current = this;
+        while (current != null && current.list != null) {
+            count++;
+            Object tail = current.tail();
+            if (tail instanceof LinkedList<?>) {
+                current = (LinkedList<?>) tail;
+            } else {
+                // improper list tail (non-LinkedList value)
+                break;
+            }
         }
+        return count;
     }
-    return count;
-}
-
-  public static void main(String[] args){
-    LinkedList lst = new LinkedList<>("a","b","c","d");
-    LinkedList lst2 = new LinkedList<>(1,2,3,4);
-    System.out.println(lst);
-    System.out.println(lst2);
-    System.out.println(lst.size());
-    System.out.println(lst.allString());
-    System.out.println(lst2.allString());
-    System.out.println(lst.head() instanceof String);
-  }
 }
