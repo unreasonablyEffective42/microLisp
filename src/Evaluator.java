@@ -478,6 +478,7 @@ private static Object quoteToValue(Node<Token> node) {
                     return applyProcedureT(procTok, new ArrayList<>());
                 }
                 return applyProcedureT(procTok, argVals);
+
             } else if (op instanceof Supplier<?> supplier) {
                 if (!argVals.isEmpty())
                     throw new SyntaxException("Procedure " + sym + " expects 0 arguments, got " + argVals.size());
@@ -513,28 +514,54 @@ private static Object quoteToValue(Node<Token> node) {
                 Supplier<Object> sup = (Supplier<Object>) op;
                 return Trampoline.done(sup.get());
 
-            } else if (op instanceof PixelGraphics.TriFunction<?,?,?,?>) {
-                if (argVals.size() != 3)
-                    throw new SyntaxException("Procedure " + sym + " expects 3 arguments, got " + argVals.size());
-                @SuppressWarnings("unchecked")
-                PixelGraphics.TriFunction<Object,Object,Object,Object> tf = (PixelGraphics.TriFunction<Object,Object,Object,Object>) op;
-                return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2)));
-            } else if (op instanceof PixelGraphics.QuadFunction<?,?,?,?,?>) {
-                if (argVals.size() != 4)
-                    throw new SyntaxException("Procedure " + sym + " expects 4 arguments, got " + argVals.size());
-                @SuppressWarnings("unchecked")
-                PixelGraphics.QuadFunction<Object,Object,Object,Object,Object> tf = (PixelGraphics.QuadFunction<Object,Object,Object,Object,Object>) op;
-                return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3)));
-            }
-/*
-            else if (op instanceof Consumer<?>) {
+            } else if (op instanceof Consumer<?>) {
                 if (argVals.size() != 1)
                     throw new SyntaxException("Procedure " + sym + " expects 1 argument, got " + argVals.size());
                 @SuppressWarnings("unchecked")
                 Consumer<Object> con = (Consumer<Object>) op;
-                return Trampoline.done(con.accept(argVals.get(0)));
+                con.accept(argVals.get(0));
+                return Trampoline.done("#t");
+
+            } else if (op instanceof TriFunction<?,?,?,?>) {
+                if (argVals.size() != 3)
+                    throw new SyntaxException("Procedure " + sym + " expects 3 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                TriFunction<Object,Object,Object,Object> tf = (TriFunction<Object,Object,Object,Object>) op;
+                return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2)));
+
+            } else if (op instanceof QuadFunction<?,?,?,?,?>) {
+                if (argVals.size() != 4)
+                    throw new SyntaxException("Procedure " + sym + " expects 4 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                QuadFunction<Object,Object,Object,Object,Object> tf = (QuadFunction<Object,Object,Object,Object,Object>) op;
+                return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3)));
+
+            } else if (op instanceof PentaFunction<?, ?, ?, ?, ?, ?>) {
+                if (argVals.size() != 5)
+                    throw new SyntaxException("Procedure " + sym + " expects 5 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                PentaFunction<Object,Object,Object,Object,Object,Object> tf =
+                    (PentaFunction<Object,Object,Object,Object,Object,Object>) op;
+                return Trampoline.done(
+                    tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3), argVals.get(4)));
+
+            } else if (op instanceof BiConsumer<?,?>) {
+                if (argVals.size() != 2)
+                    throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                BiConsumer<Object,Object> bc = (BiConsumer<Object,Object>) op;
+                bc.accept(argVals.get(0), argVals.get(1));
+                return Trampoline.done("#t");
+
+            } else if (op instanceof TriConsumer<?,?,?>) {
+                if (argVals.size() != 3)
+                    throw new SyntaxException("Procedure " + sym + " expects 3 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                TriConsumer<Object,Object,Object> tc = (TriConsumer<Object,Object,Object>) op;
+                tc.accept(argVals.get(0), argVals.get(1), argVals.get(2));
+                return Trampoline.done("#t");
             }
-*/
+
             // --- tuple as callable object ---
             else if (op instanceof Tuple tup) {
                 if (argVals.size() != 1)

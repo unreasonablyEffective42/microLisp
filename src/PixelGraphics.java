@@ -4,10 +4,8 @@ import java.io.IOException;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.BiFunction;
-import java.util.Scanner;
 import java.lang.Thread;
 
 
@@ -38,15 +36,6 @@ class ImageDisplay extends JFrame {
 public class PixelGraphics{
     public int width, height;
     public BufferedImage canvas;
-    
-    @FunctionalInterface
-    public interface TriFunction<A, B, C, R> {
-        R apply(A a, B b, C c);
-    }
-    @FunctionalInterface 
-    public interface QuadFunction<A, B, C, D, R>{
-        R apply(A a, B b, C c, D d);
-    }
 
     
     public static void addPixelGraphicsEnv(Environment env){
