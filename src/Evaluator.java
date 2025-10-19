@@ -536,7 +536,7 @@ private static Object quoteToValue(Node<Token> node) {
                 QuadFunction<Object,Object,Object,Object,Object> tf = (QuadFunction<Object,Object,Object,Object,Object>) op;
                 return Trampoline.done(tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3)));
 
-            } else if (op instanceof PentaFunction<?, ?, ?, ?, ?, ?>) {
+            } else if (op instanceof PentaFunction<?,?,?,?,?,?>) {
                 if (argVals.size() != 5)
                     throw new SyntaxException("Procedure " + sym + " expects 5 arguments, got " + argVals.size());
                 @SuppressWarnings("unchecked")

@@ -24,6 +24,33 @@
             xs)
      z)))
 
+(define zip
+  (lambda (xs ys)
+    (let loop ((xs xs) (ys ys) (zs '()))
+      (cond ((or (null? xs) (null? ys)) (reverse zs))
+            (else (loop (tail xs) (tail ys) (cons (list (head xs) (head ys)) zs)))))))
+
+(define zip-with
+  (lambda (fn xs ys)
+    (let loop ((xs xs) (ys ys) (zs '()))
+      (cond ((or (null? xs) (null? ys)) (reverse zs))
+            (else (loop (tail xs) (tail ys) (cons (fn (head xs) (head ys)) zs)))))))
+
+(define append
+  (lambda (xs ys)
+    (let loop ((xs xs) (ys ys) (zs '()))
+      (cond ((and (null? xs) (null? ys)) (reverse zs))
+            ((and (null? xs) (list? ys)) (loop xs (tail ys) (cons (head ys) zs)))
+            ((null? xs) (loop xs '() (cons ys zs)))
+            (else (loop (tail xs) ys (cons (head xs) zs)))))))
+
+(define flatten
+  (lambda (xs)
+    (let loop ((xs xs) (zs '()))
+      (cond ((null? xs) (reverse zs))
+            ((list? (head xs)) (loop (append (head xs) (tail xs)) zs))
+            (else (loop (tail xs) (cons (head xs) zs)))))))
+
 (define reverse (lambda (xs) (foldl (lambda (x y) (cons y x)) '() xs)))
 
 (define lcomp 

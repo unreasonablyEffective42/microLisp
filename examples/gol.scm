@@ -26,7 +26,8 @@
       ($ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)  
       ($ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
-;coordinates are tuples
+;coordinates are tuples, return the coordinate's value 
+;if a given coordinate is out of bounds, return 0
 (define index-coord
   (lambda (board coord)
     (let ((x (coord 0)) (y (coord 1)))
@@ -56,23 +57,17 @@
             ((< neighbors 2) 0)
             (else 0)))))
 
+;Make a new board from the current board state
 (define update
   (lambda (board)
     (let ((s (size board))) 
       (let loop-y ((y 0) (rows '()))
-        (cond
-          ((eq? y s)
-           (vector (reverse rows)))                 ; rows are already vectors
-          (else
-           (loop-y (+ y 1)
-             (cons
-               (let loop-x ((x 0) (xs '()))
-                 (cond
-                   ((eq? x s) (vector (reverse xs))) ; vector of numbers
-                   (else
-                    (loop-x (+ x 1)
-                            (cons (new-value board (:: x y)) xs))))) ; <-- PARENS WERE MISSING
-               rows))))))))
+        (cond ((eq? y s) (vector (reverse rows)))
+              (else (loop-y (+ y 1) (cons 
+                                      (let loop-x ((x 0) (xs '()))
+                                        (cond ((eq? x s) (vector (reverse xs)))
+                                              (else (loop-x (+ x 1) (cons (new-value board (:: x y)) xs)))))
+                                      rows))))))))
 
 ;gui logic 
 (define s (- (size board) 1))
@@ -128,6 +123,7 @@
           (cond ((eq? x 50) (print "done"))
                 (else (loop (+ x 1) (update board))))
           (close-window window))))))
+
 ;Other boards 
 
 ;(define board 

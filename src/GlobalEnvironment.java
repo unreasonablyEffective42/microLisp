@@ -26,6 +26,10 @@ public class GlobalEnvironment {
                 if (x instanceof Symbol) return "#t";
                 return "#f";
             }),
+            new Pair<>("list?", (Function<Object,String>) (x) -> {
+                if (x instanceof LinkedList) return "#t";
+                return "#f";
+            }),
             new Pair<>("even?", (Function<Object, String>) (x) -> {
                 if (!(x instanceof Number n))
                     throw new RuntimeException("even?: expected number, got " + x);
