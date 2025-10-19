@@ -47,7 +47,7 @@ Goal: Improve the developer experience through a more interactive and informativ
 Goal: Introduce module loading and produce full user and developer documentation.
 
 ### Tasks:
-- Implement (import "file.scm") for lexical loading and evaluation.
+- Implement (import "file.mu") for lexical loading and evaluation.
 - Add optional precompiled cache support (.mlc files).
 - Write the Language Manual (docs/language.md) covering syntax, semantics, and built-ins.
 - Write the Developer Guide (docs/architecture.md) describing internal structure and conventions.
@@ -61,5 +61,4 @@ Goal: Package, tag, and publish the official MicroLisp 1.0 release.
 - Add versioned ASCII banner and runtime version printing (MICROLISP v1.0).
 - Write CHANGELOG.md summarizing key features and milestones.
 - Tag and publish v1.0.0 release with both JAR and native builds.
-
 

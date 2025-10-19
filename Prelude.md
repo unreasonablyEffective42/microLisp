@@ -29,7 +29,7 @@
     color, make-rgba), drawing primitives (draw-pixel, fill), timing (wait), and dimension
     accessors (image-width, image-height)
 
-  Optional lists.scm Utilities
+  Optional lists.mu Utilities
 
   - Tail recursive map, filter, foldl, and foldr, giving higher-order list
     transforms built atop head, tail, cons, and reverse

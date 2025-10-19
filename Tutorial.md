@@ -691,7 +691,7 @@ We can also implement `map` and `filter` in terms of `foldr`
            xs)))
 ```
 
-Though these implementations are not as efficient as they could be. Check out their tail recursive definitions in `lists.scm` </br>
+Though these implementations are not as efficient as they could be. Check out their tail recursive definitions in `lists.mu` </br>
 Higher order functions can even be used to make data types. While the internal representation of `cons` is not in terms of functions, we could implement `cons` with nothing but `lambda` if we want to.
 
 ```Scheme 
