@@ -55,7 +55,7 @@ public class Lexer {
     //or functions. Returns a LABEL token with the label 
     private Token symbol() {
         StringBuilder res = new StringBuilder();
-        while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar)) {
+        while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar) || Character.isDigit(this.currentChar)) {
             res.append(currentChar);
             this.advance();
         }

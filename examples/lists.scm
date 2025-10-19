@@ -30,6 +30,13 @@
       (cond ((or (null? xs) (null? ys)) (reverse zs))
             (else (loop (tail xs) (tail ys) (cons (list (head xs) (head ys)) zs)))))))
 
+(define zip-3 
+  (lambda (xs ys ws)
+    (let loop ((xs xs) (ys ys) (ws ws) (zs '()))
+      (cond ((or (or (null? xs) (null? ys)) (null? ws)) (reverse zs))
+            (else (loop (tail xs) (tail ys) (tail ws) (cons (list (head xs) (head ys) (head ws)) zs)))))))
+
+
 (define zip-with
   (lambda (fn xs ys)
     (let loop ((xs xs) (ys ys) (zs '()))
