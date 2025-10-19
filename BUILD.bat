@@ -33,7 +33,14 @@ if errorlevel 1 (
     echo Compile failed.
     exit /b 1
 )
-copy /Y src\banner.txt out\ >nul
+echo Copying resources...
+copy src\banner.txt out\ >nul 2>&1
+
+if exist src\lib (
+    mkdir out\lib >nul 2>&1
+    xcopy src\lib out\lib /E /I /Y >nul
+)
+
 echo Compilation complete.
 echo.
 
