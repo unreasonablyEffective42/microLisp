@@ -4,6 +4,9 @@
 
 import java.util.Scanner;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.function.Supplier;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -75,6 +78,46 @@ public class FileHandling{
                 } catch (IOException e) {
                     System.out.println("Error writing to file: " + file.getName() + " " +e);
                     return "#f";
+                }
+            }),
+            new Pair<>("import", (Function<Object, String>) (resource) -> {
+                String filename;
+                if (resource instanceof Symbol sym) {
+                    filename = sym.name;
+                } else if (resource instanceof String s) {
+                    filename = s;
+                } else {
+                    throw new RuntimeException("import: expected symbol or string, got " + resource);
+                }
+                if (!filename.endsWith(".mu"))
+                    filename += ".mu"; 
+                try (InputStream inClasspath = FileHandling.class.getResourceAsStream("/lib/" + filename)) { 
+                    InputStream in;
+                    if (inClasspath != null) {
+                        in = inClasspath;
+                    } else { 
+                        Path localPath = Path.of(filename);
+                        if (!Files.exists(localPath)) {
+                            throw new FileNotFoundException("File not found in lib/ or current directory: " + filename);
+                        }
+                        in = Files.newInputStream(localPath);
+                    }
+                    // Read source and evaluate sequentially
+                    String src = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                    Parser parser = new Parser(src);
+                    Node current = parser.parse();
+                    while (!((Token) current.value).type().equals("EOF")) {
+                        Evaluator.eval(current, env);
+                        current = parser.parse();
+                    }
+
+                    return "#t";
+
+                } catch (FileNotFoundException e) {
+                    // neither in /lib/ nor in local filesystem
+                    throw new RuntimeException("import: cannot find " + filename);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to import resource: " + filename, e);
                 }
             })
         );

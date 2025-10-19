@@ -1,3 +1,4 @@
+(import lists.mu)
 ;  R-pentomino on 25x25     
   (define board                                               
    ($ ($ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)  

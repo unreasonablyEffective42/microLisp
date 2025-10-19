@@ -397,6 +397,36 @@ private static Object quoteToValue(Node<Token> node) {
             }
             return Trampoline.done(Vector.of(elems.toArray()));
         }
+
+        // (import foo) special form — do NOT evaluate the argument
+        if ("import".equals(t.value())) {
+            if (expr.getChildren().size() != 1) {
+                throw new SyntaxException("import takes exactly one argument");
+            }
+            Node<Token> argNode = expr.getChildren().get(0);
+
+            Object rawArg;
+            Token<?,?> argTok = argNode.getValue();
+            // Extract symbol name or string literal directly
+            if (isSymbol(argTok)) {
+                rawArg = new Symbol((String) argTok.value());
+            } else if (isString(argTok)) {
+                rawArg = argTok.value();
+            } else {
+                throw new SyntaxException("import: expected symbol or string, got " + argTok.type());
+            }
+
+            Object importer = env.lookup("import")
+                .orElseThrow(() -> new RuntimeException("import function not bound"));
+
+            if (importer instanceof Function<?,?> f) {
+                @SuppressWarnings("unchecked")
+                Function<Object,Object> f1 = (Function<Object,Object>) f;
+                return Trampoline.done(f1.apply(rawArg));
+            } else {
+                throw new SyntaxException("import binding is not callable: " + importer);
+            }
+        }
         // (lambda ...) — build closure, then staged application via applyProcedureT
         if (isLambda(t)) {
             ArrayList<Node<Token>> children = expr.getChildren();

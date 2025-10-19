@@ -9,15 +9,21 @@ rm -rf out
 mkdir out
 echo "Compiling MicroLisp"
 javac -d out $(find src -name "*.java")
+
+# 2. Copy resources
+echo "Copying resources"
 cp src/banner.txt out/
-# 2. Package jar
+mkdir -p out/lib
+cp -r src/lib/* out/lib/ 2>/dev/null || true
+
+# 3. Package jar
 echo "Packaging MicroLisp.jar"
 jar cfm MicroLisp.jar manifest.mf -C out .
 
-# 3. Ensure ~/bin exists
+# 4. Ensure ~/bin exists
 mkdir -p "$HOME/bin"
 
-# 4. Create launcher in ~/bin
+# 5. Create launcher in ~/bin
 echo "Creating Launcher"
 cat >"$HOME/bin/microlisp" <<'EOF'
 #!/usr/bin/env bash
@@ -25,7 +31,7 @@ exec java -jar "$HOME/MicroLisp/MicroLisp.jar" "$@"
 EOF
 chmod +x "$HOME/bin/microlisp"
 echo "Checking USR/bin/ added to PATH"
-# 5. Check PATH
+# 6. Check PATH
 if ! echo "$PATH" | grep -q "$HOME/bin"; then
     echo 'export PATH="$HOME/bin:$PATH"' >>"$HOME/.bashrc"
     echo
