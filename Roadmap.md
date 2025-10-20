@@ -8,10 +8,10 @@ Goal: Finalize evaluator semantics and ensure consistency across core syntax for
 
 ### Tasks:
 - ~~Verify let, lets evaluation order, shadowing, and environment rules.~~
-- Implement quasiquote, unquote, and unquote-splicing.
+- ~~Implement quasiquote, unquote, and unquote-splicing.~~
 - Standardize argument arity checking across all built-ins.
 - Improve error messages with consistent formatting and REPL colorization.
-- Add test cases for nested quoting and sequential bindings.
+- ~~Add test cases for nested quoting and sequential bindings.~~
 
 ## Milestone 2 – Standard Library Hardening
 Goal: Expand and finalize the core standard library to provide essential utilities on par with classic Lisps.
@@ -47,7 +47,7 @@ Goal: Improve the developer experience through a more interactive and informativ
 Goal: Introduce module loading and produce full user and developer documentation.
 
 ### Tasks:
-- Implement (import "file.scm") for lexical loading and evaluation.
+- ~~Implement (import "file.scm") for lexical loading and evaluation.~~
 - Add optional precompiled cache support (.mlc files).
 - Write the Language Manual (docs/language.md) covering syntax, semantics, and built-ins.
 - Write the Developer Guide (docs/architecture.md) describing internal structure and conventions.
@@ -57,8 +57,8 @@ Goal: Introduce module loading and produce full user and developer documentation
 Goal: Package, tag, and publish the official MicroLisp 1.0 release.
 
 ### Tasks:
-- Update build scripts (BUILD.sh, BUILD.bat) for reproducible builds.
-- Add versioned ASCII banner and runtime version printing (MICROLISP v1.0).
+- ~~Update build scripts (BUILD.sh, BUILD.bat) for reproducible builds.~~
+- ~~Add versioned ASCII banner and runtime version printing (MICROLISP v1.0).~~
 - Write CHANGELOG.md summarizing key features and milestones.
 - Tag and publish v1.0.0 release with both JAR and native builds.
 

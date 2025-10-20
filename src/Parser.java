@@ -13,8 +13,8 @@ public class Parser {
     Lexer lexer;
     Token eof = new Token("EOF", "EOF");
     List keywords = Arrays.asList(
-            "COND", "QUOTE", "LAMBDA", 
-            "DEFINE", 
+            "COND", "QUOTE", "LAMBDA", "UNQUOTE",
+            "DEFINE", "QQUOTE", "UNQUOTESPLICE",
             "LIST", "DO", "LET", "LETS", "LETR");
     boolean quoting = false;
     public Parser(String src) {
@@ -30,58 +30,101 @@ public class Parser {
             return parseQuoted();
         }
 
+        if (tok.type().equals("QQUOTE")){
+            return parseQQuoted();
+        }
+
+        if (tok.type().equals("UNQUOTE")) {
+            return parseUnquote();
+        }
+
+        if (tok.type().equals("UNQUOTESPLICE")) {
+            return parseUnquoteSplicing();
+        }
+
+
         if (tok.type().equals("LPAREN")) {
             Node<Token> listNode = new Node<>(new Token("LIST",""));
-            Token inner = normalizeNumberToken(lexer.getNextToken());
-            if (inner.type().equals("RPAREN")){
+
+            // Empty list?
+            Token look = lexer.peekNextToken();
+            if (look.type().equals("RPAREN")) {
+                normalizeNumberToken(lexer.getNextToken()); // consume ')'
                 return listNode;
             }
-            while (!inner.type().equals("RPAREN")) {
-                if (inner.type().equals("LPAREN")) {
-                    lexer.backUp();
-                    listNode.addChild(parseDatum()); 
-                } else if (inner.type().equals("QUOTE")) {
-                    // In datum/list context, 'x should become the literal list (quote x)
-                    listNode.createChild(new Token("SYMBOL", "quote")); // first element
-                    listNode.addChild(parseDatum());                    // second element is the datum after 'quote'
-                } else {
-                    listNode.createChild(inner);
+
+            // Parse elements until ')'
+            while (true) {
+                listNode.addChild(parseDatum());  // ← one *datum* per element, no raw-token children
+
+                Token next = lexer.peekNextToken();
+                if (next.type().equals("RPAREN")) {
+                    normalizeNumberToken(lexer.getNextToken()); // consume ')'
+                    break;
                 }
-                inner = normalizeNumberToken(lexer.getNextToken());
+                // else: loop to parse next element (do not consume anything here)
             }
+
             return listNode;
-        } 
+        }
+
         else {
             return new Node<>(tok);
         }
 
     }
-     
-    // Handles quote shorthand: 'x, ''x, '''x, etc.  Never uses backUp().
-    private Node<Token> parseQuoted() {
-        // Count consecutive QUOTE tokens: '''x  => depth = 3
+
+    private Node<Token> parseUnquote() {
+        Node<Token> n = new Node<>(new Token("UNQUOTE",""));
+        n.addChild(this.parse());
+        return n;
+    }
+
+    private Node<Token> parseUnquoteSplicing() {
+        Node<Token> n = new Node<>(new Token("UNQUOTESPLICE",""));
+        n.addChild(this.parse());
+        return n;
+    }
+
+    private Node<Token> parseQQuoted() {
         int depth = 1;
-        while (lexer.peekNextToken().type().equals("QUOTE")) {
-            normalizeNumberToken(lexer.getNextToken()); // consume the extra ' token
+        while (lexer.peekNextToken().type().equals("QQUOTE")) {
+            normalizeNumberToken(lexer.getNextToken()); // consume extra `
             depth++;
         }
 
-        // After consuming all leading quotes, there MUST be a datum
-        Token<?,?> look = lexer.peekNextToken();
-        if (look.type().equals("EOF")) {
+        if (lexer.peekNextToken().type().equals("EOF")) {
+            throw new SyntaxException("Unexpected EOF while parsing quasiquote");
+        }
+
+        // Always parse the *next datum*
+        Node<Token> inner = parseDatum();
+
+        // Wrap depth times with QQUOTE
+        for (int i = 0; i < depth; i++) {
+            Node<Token> q = new Node<>(new Token<>("QQUOTE", ""));
+            q.addChild(inner);
+            inner = q;
+        }
+        return inner;
+    }
+ 
+    // Handles quote shorthand: 'x, ''x, '''x, etc. 
+    private Node<Token> parseQuoted() {
+        int depth = 1;
+        while (lexer.peekNextToken().type().equals("QUOTE")) {
+            normalizeNumberToken(lexer.getNextToken()); // consume extra '
+            depth++;
+        }
+
+        if (lexer.peekNextToken().type().equals("EOF")) {
             throw new SyntaxException("Unexpected EOF while parsing quote");
         }
 
-        // Parse the innermost datum *without* consuming '(' here
-        Node<Token> inner;
-        if (look.type().equals("LPAREN")) {
-            // parseDatum() itself will pull the '(' and read the list datum
-            inner = parseDatum();
-        } else {
-            inner = new Node<>(normalizeNumberToken(lexer.getNextToken()));
-        }
+        // Always parse the *next datum* (could start with (, ', `, , ,@, symbol, number, ...)
+        Node<Token> inner = parseDatum();
 
-        // Wrap it depth times: x -> (quote x) -> (quote (quote x)) -> ...
+        // Wrap depth times with QUOTE
         for (int i = 0; i < depth; i++) {
             Node<Token> q = new Node<>(new Token<>("QUOTE", ""));
             q.addChild(inner);
@@ -89,6 +132,7 @@ public class Parser {
         }
         return inner;
     }
+
 
     private Number parseNumber(String raw) {
         String val = raw.trim();
@@ -372,6 +416,11 @@ public class Parser {
             node.addChild(parseDatum());   // parse raw datum
             return node;
         }
+        else if (current.type().equals("QQUOTE")) {
+            Node<Token> node = new Node<>(new Token("QQUOTE",""));
+            node.addChild(parseDatum());
+            return node;
+        }
         // ---------- list / s-expression ----------
         else if (current.type().equals("LPAREN")) {
             current = normalizeNumberToken(lexer.getNextToken());
@@ -413,6 +462,40 @@ public class Parser {
                     Token closer = normalizeNumberToken(lexer.getNextToken());
                     if (!closer.type().equals("RPAREN")) {
                         throw new SyntaxException("Lambda must end with ')', found: " + closer);
+                    }
+                    return node;
+                }
+                if (node.getValue().type().equals("QQUOTE")) {
+                    if (current.type().equals("LPAREN")) {
+                        lexer.backUp();
+                        Node<Token> datum = parseDatum();
+                        Token<?, ?> maybeCloser = lexer.peekNextToken();
+                        if (maybeCloser.type().equals("RPAREN")) {
+                            normalizeNumberToken(lexer.getNextToken());
+                        } else if (!maybeCloser.type().equals("EOF")) {
+                            throw new SyntaxException("quasi-quote: expected ')' to close (quasi-quote ...), found: " + maybeCloser);
+                        }
+                        node.addChild(datum);
+                        return node;
+                    }
+
+                    if (current.type().equals("QQUOTE")) {
+                        node.addChild(parseQQuoted());
+                        Token<?, ?> outerClose = lexer.peekNextToken();
+                        if (outerClose.type().equals("RPAREN")) {
+                            normalizeNumberToken(lexer.getNextToken());
+                        } else if (!outerClose.type().equals("EOF")) {
+                            throw new SyntaxException("quasi-quote: expected ')' to close (quasi-quote ...), found: " + outerClose);
+                        }
+                        return node;
+                    }
+
+                    node.createChild(current);
+                    Token<?, ?> outerClose = lexer.peekNextToken();
+                    if (outerClose.type().equals("RPAREN")) {
+                        normalizeNumberToken(lexer.getNextToken());
+                    } else if (!outerClose.type().equals("EOF")) {
+                        throw new SyntaxException("quasi-quote: expected ')' to close (quasi-quote ...), found: " + outerClose);
                     }
                     return node;
                 }
@@ -646,6 +729,9 @@ public class Parser {
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
                         current = normalizeNumberToken(lexer.getNextToken());
+                    } else if (current.type().equals("QQUOTE")) {
+                        node.addChild(parseQQuoted());
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("SYMBOL") || current.type().equals("NUMBER") ||
                               current.type().equals("BOOLEAN") || current.type().equals("CHARACTER") ||
                               current.type().equals("STRING")) {
@@ -678,6 +764,9 @@ public class Parser {
                         current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("QUOTE")) {
                         apply.addChild(parseQuoted());
+                        current = normalizeNumberToken(lexer.getNextToken());
+                    } else if (current.type().equals("QQUOTE")) {
+                        apply.addChild(parseQQuoted());
                         current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         apply.createChild(current);
@@ -720,6 +809,9 @@ public class Parser {
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
                         current = normalizeNumberToken(lexer.getNextToken());
+                    } else if (current.type().equals("QQUOTE")) {
+                        node.addChild(parseQQuoted());
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         node.createChild(current);
                         current = normalizeNumberToken(lexer.getNextToken());
@@ -744,6 +836,9 @@ public class Parser {
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
                         current = normalizeNumberToken(lexer.getNextToken());
+                    } else if (current.type().equals("QQUOTE")) {
+                        node.addChild(parseQQuoted());
+                        current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         node.createChild(current);
                         current = normalizeNumberToken(lexer.getNextToken());
@@ -766,6 +861,9 @@ public class Parser {
                         current = normalizeNumberToken(lexer.getNextToken());
                     } else if (current.type().equals("QUOTE")) {
                         node.addChild(parseQuoted());
+                        current = normalizeNumberToken(lexer.getNextToken());
+                    } else if (current.type().equals("QQUOTE")) {
+                        node.addChild(parseQQuoted());
                         current = normalizeNumberToken(lexer.getNextToken());
                     } else {
                         node.createChild(current);

@@ -16,24 +16,27 @@ import java.math.BigInteger;
 public class Evaluator {
     Evaluator() {}
     // ---------- token helpers ----------
-    public static boolean isType      (Token<?, ?> t, String ty) { return ty.equals(t.type()); }
-    public static boolean isNumber    (Token<?, ?> t){ return isType(t, "NUMBER"); }
-    public static boolean isString    (Token<?, ?> t){ return isType(t, "STRING"); }
-    public static boolean isSymbol    (Token<?, ?> t){ return isType(t, "SYMBOL"); }
-    public static boolean isLambda    (Token<?, ?> t){ return isType(t, "LAMBDA"); }
-    public static boolean isList      (Token<?, ?> t){ return isType(t, "LIST"); }
-    public static boolean isCond      (Token<?, ?> t){ return isType(t, "COND"); }
-    public static boolean isQuote     (Token<?, ?> t){ return isType(t, "QUOTE") || isType(t, "SYMBOL") && "quote".equals(t.value()); }
-    public static boolean isBool      (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
-    public static boolean isClosure   (Token<?, ?> t){ return isType(t, "CLOSURE"); }
-    public static boolean isDefine    (Token<?, ?> t){ return isType(t, "DEFINE"); } 
-    public static boolean isDo        (Token<?, ?> t){ return isType(t, "DO"); }
-    public static boolean isLet       (Token<?, ?> t){ return isType(t, "LET"); }
-    public static boolean isLets      (Token<?, ?> t){ return isType(t, "LETS"); }
-    public static boolean isLetr      (Token<?, ?> t){ return isType(t, "LETR"); }
-    public static boolean isLetNamed  (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
-    public static boolean isApply     (Token<?, ?> t){ return isType(t, "APPLY"); }
-    public static boolean isAtom      (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
+    public static boolean isType          (Token<?, ?> t, String ty) { return ty.equals(t.type()); }
+    public static boolean isNumber        (Token<?, ?> t){ return isType(t, "NUMBER"); }
+    public static boolean isString        (Token<?, ?> t){ return isType(t, "STRING"); }
+    public static boolean isSymbol        (Token<?, ?> t){ return isType(t, "SYMBOL"); }
+    public static boolean isLambda        (Token<?, ?> t){ return isType(t, "LAMBDA"); }
+    public static boolean isList          (Token<?, ?> t){ return isType(t, "LIST"); }
+    public static boolean isCond          (Token<?, ?> t){ return isType(t, "COND"); }
+    public static boolean isQuote         (Token<?, ?> t){ return isType(t, "QUOTE"); }
+    public static boolean isQQuote        (Token<?, ?> t){ return isType(t, "QQUOTE"); }
+    public static boolean isUnQuote       (Token<?, ?> t){ return isType(t, "UNQUOTE"); }
+    public static boolean isUnQuoteSplice (Token<?, ?> t){ return isType(t, "UNQUOTESPLICE"); }
+    public static boolean isBool          (Token<?, ?> t){ return isType(t, "BOOLEAN"); }
+    public static boolean isClosure       (Token<?, ?> t){ return isType(t, "CLOSURE"); }
+    public static boolean isDefine        (Token<?, ?> t){ return isType(t, "DEFINE"); } 
+    public static boolean isDo            (Token<?, ?> t){ return isType(t, "DO"); }
+    public static boolean isLet           (Token<?, ?> t){ return isType(t, "LET"); }
+    public static boolean isLets          (Token<?, ?> t){ return isType(t, "LETS"); }
+    public static boolean isLetr          (Token<?, ?> t){ return isType(t, "LETR"); }
+    public static boolean isLetNamed      (Token<?, ?> t){ return isType(t, "LET-NAMED"); }
+    public static boolean isApply         (Token<?, ?> t){ return isType(t, "APPLY"); }
+    public static boolean isAtom          (Token<?, ?> t){ return isType(t, "NUMBER") || isType(t, "BOOLEAN") ; }
 
     // ---------- list evaluation -------- 
     private static ArrayList<Object> evaluateList(ArrayList<Node<Token>> list, Environment env){
@@ -44,83 +47,218 @@ public class Evaluator {
         return out;
     }
 
-private static Object quoteToValue(Node<Token> node) {
-    Token<?,?> tok = node.getValue();
+    private static Object quoteToValue(Node<Token> node) {
+        Token<?,?> tok = node.getValue();
 
-    // Empty list
-    if ((tok == null || tok.type() == null) && node.getChildren().isEmpty()) {
-        return new LinkedList<>();
-    }
-
-    // Quoted list
-    if (tok != null && "LIST".equals(tok.type())) {
-        ArrayList<Node<Token>> children = node.getChildren();
-        if (children.isEmpty()) {
+        // Empty list
+        if ((tok == null || tok.type() == null) && node.getChildren().isEmpty()) {
             return new LinkedList<>();
         }
 
-        boolean allSingleChars = true;
-        StringBuilder chars = new StringBuilder(children.size());
-        for (Node<Token> child : children) {
-            Token<?,?> childTok = child.getValue();
-            if (childTok == null || !"STRING".equals(childTok.type())) {
-                allSingleChars = false;
-                break;
+        // Quoted list
+        if (tok != null && "LIST".equals(tok.type())) {
+            ArrayList<Node<Token>> children = node.getChildren();
+            if (children.isEmpty()) {
+                return new LinkedList<>();
             }
-            String val = (String) childTok.value();
-            if (val.length() != 1) {
-                allSingleChars = false;
-                break;
+
+            boolean allSingleChars = true;
+            StringBuilder chars = new StringBuilder(children.size());
+            for (Node<Token> child : children) {
+                Token<?,?> childTok = child.getValue();
+                if (childTok == null || !"STRING".equals(childTok.type())) {
+                    allSingleChars = false;
+                    break;
+                }
+                String val = (String) childTok.value();
+                if (val.length() != 1) {
+                    allSingleChars = false;
+                    break;
+                }
+                chars.append(val);
             }
-            chars.append(val);
+            if (allSingleChars) {
+                return LinkedList.fromString(chars.toString());
+            }
+
+            ArrayList<Object> elems = new ArrayList<>();
+            for (Node<Token> child : children) {
+                elems.add(quoteToValue(child));
+            }
+            return new LinkedList<>(elems);
         }
-        if (allSingleChars) {
-            return LinkedList.fromString(chars.toString());
+
+        // Nested quote nodes → build (quote <datum>) recursively
+        if (tok != null && "QUOTE".equals(tok.type())) {
+            ArrayList<Object> elems = new ArrayList<>();
+            elems.add(new Symbol("quote"));
+            if (!node.getChildren().isEmpty()) {
+                elems.add(quoteToValue(node.getChildren().get(0)));
+            }
+            return new LinkedList<>(elems);
+        }
+
+        // Strings become linked-list char sequences
+        if (tok != null && "STRING".equals(tok.type())) {
+            return LinkedList.fromString((String) tok.value());
+        }
+
+        // Primitives and symbols stay as symbols/numbers
+        if (tok != null) {
+            String ttype = String.valueOf(tok.type());
+            Object tval  = tok.value();
+            switch (ttype) {
+                case "LAMBDA":    return new Symbol("lambda");
+                case "COND":      return new Symbol("cond");
+                case "DO":        return new Symbol("do");
+                case "LET":       return new Symbol("let");
+                case "LETS":      return new Symbol("lets");
+                case "LETR":      return new Symbol("letr");
+                case "DEFINE":    return new Symbol("define");
+                case "SYMBOL":    return new Symbol((String) tval);
+                case "BOOLEAN":   return new Symbol((String) tval);
+                case "NUMBER":    return tval;
+            }
+        }
+
+        // Default
+        return tok == null ? null : tok.value();
+    }
+
+    // Marker used during quasiquote expansion to represent an unquote-splicing result
+    private static final class SpliceMarker {
+        final Object value;
+        SpliceMarker(Object value) { this.value = value; }
+    }
+
+    private static Object expandQuasiQuote(Node<Token> node, int depth, Environment env) {
+        Token<?, ?> tok = node.getValue();
+        String type = tok == null ? null : String.valueOf(tok.type());
+
+        if ("QQUOTE".equals(type)) {
+            Object inner = quoteExpression(node.getChildren().get(0));
+            return makeLiteralList("quasi-quote", inner);
+        }
+
+        if ("UNQUOTE".equals(type)) {
+            if (depth == 1) {
+                return eval(node.getChildren().get(0), env);
+            }
+            Object inner = quoteExpression(node.getChildren().get(0));
+            return makeLiteralList("unquote", inner);
+        }
+
+        if ("UNQUOTESPLICE".equals(type)) {
+            if (depth == 1) {
+                Object spliceVal = eval(node.getChildren().get(0), env);
+                return new SpliceMarker(spliceVal);
+            }
+            Object inner = quoteExpression(node.getChildren().get(0));
+            return makeLiteralList("unquote-splicing", inner);
+        }
+
+        if ("LIST".equals(type)) {
+            return expandQuasiQuoteList(node.getChildren(), depth, env);
+        }
+
+        return quoteToValue(node);
+    }
+
+    private static Object expandQuasiQuoteList(List<Node<Token>> elems, int depth, Environment env) {
+        ArrayList<Object> acc = new ArrayList<>();
+        for (Node<Token> child : elems) {
+            Object part = expandQuasiQuote(child, depth, env);
+            if (part instanceof SpliceMarker marker) {
+                appendSpliceValues(acc, marker.value);
+            } else {
+                acc.add(part);
+            }
+        }
+        return buildListFrom(acc);
+    }
+
+    private static void appendSpliceValues(ArrayList<Object> acc, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (!(value instanceof LinkedList<?> list)) {
+            throw new SyntaxException("unquote-splicing expects a list, got: " + value);
+        }
+        LinkedList<?> current = list;
+        while (current != null && !current.isEmpty()) {
+            acc.add(current.head());
+            Object tail = current.tail();
+            if (tail instanceof LinkedList<?>) {
+                current = (LinkedList<?>) tail;
+            } else {
+                if (tail != null) {
+                    acc.add(tail);
+                }
+                break;
+            }
+        }
+    }
+
+    private static LinkedList<Object> buildListFrom(ArrayList<Object> elems) {
+        return new LinkedList<>(elems);
+    }
+
+    private static LinkedList<Object> makeLiteralList(String headSymbol, Object datum) {
+        ArrayList<Object> elems = new ArrayList<>(2);
+        elems.add(new Symbol(headSymbol));
+        elems.add(datum);
+        return new LinkedList<>(elems);
+    }
+
+    private static Object quoteExpression(Node<Token> node) {
+        if (node == null) return null;
+        Token<?, ?> tok = node.getValue();
+        String type = tok == null ? null : String.valueOf(tok.type());
+
+        if ("LIST".equals(type)) {
+            ArrayList<Object> elems = new ArrayList<>();
+            for (Node<Token> child : node.getChildren()) {
+                elems.add(quoteExpression(child));
+            }
+            return new LinkedList<>(elems);
+        }
+
+        if (node.getChildren().isEmpty()) {
+            return quoteAtom(tok);
         }
 
         ArrayList<Object> elems = new ArrayList<>();
-        for (Node<Token> child : children) {
-            elems.add(quoteToValue(child));
+        elems.add(quoteAtom(tok));
+        for (Node<Token> child : node.getChildren()) {
+            elems.add(quoteExpression(child));
         }
         return new LinkedList<>(elems);
     }
 
-    // Nested quote nodes → build (quote <datum>) recursively
-    if (tok != null && "QUOTE".equals(tok.type())) {
-        ArrayList<Object> elems = new ArrayList<>();
-        elems.add(new Symbol("quote"));
-        if (!node.getChildren().isEmpty()) {
-            elems.add(quoteToValue(node.getChildren().get(0)));
+    private static Object quoteAtom(Token<?, ?> tok) {
+        if (tok == null || tok.type() == null) {
+            return null;
         }
-        return new LinkedList<>(elems);
-    }
-
-    // Strings become linked-list char sequences
-    if (tok != null && "STRING".equals(tok.type())) {
-        return LinkedList.fromString((String) tok.value());
-    }
-
-    // Primitives and symbols stay as symbols/numbers
-    if (tok != null) {
         String ttype = String.valueOf(tok.type());
-        Object tval  = tok.value();
-        switch (ttype) {
-            case "LAMBDA":    return new Symbol("lambda");
-            case "COND":      return new Symbol("cond");
-            case "DO":        return new Symbol("do");
-            case "LET":       return new Symbol("let");
-            case "LETS":      return new Symbol("lets");
-            case "LETR":      return new Symbol("letr");
-            case "DEFINE":    return new Symbol("define");
-            case "SYMBOL":    return new Symbol((String) tval);
-            case "BOOLEAN":   return new Symbol((String) tval);
-            case "NUMBER":    return tval;
-        }
+        Object tval = tok.value();
+        return switch (ttype) {
+            case "LAMBDA" -> new Symbol("lambda");
+            case "COND" -> new Symbol("cond");
+            case "DO" -> new Symbol("do");
+            case "LET" -> new Symbol("let");
+            case "LETS" -> new Symbol("lets");
+            case "LETR" -> new Symbol("letr");
+            case "DEFINE" -> new Symbol("define");
+            case "QQUOTE" -> new Symbol("quasi-quote");
+            case "UNQUOTE" -> new Symbol("unquote");
+            case "UNQUOTESPLICE" -> new Symbol("unquote-splicing");
+            case "SYMBOL" -> new Symbol((String) tval);
+            case "BOOLEAN" -> new Symbol((String) tval);
+            case "STRING" -> LinkedList.fromString((String) tval);
+            case "NUMBER" -> tval;
+            default -> tval;
+        };
     }
-
-    // Default
-    return tok == null ? null : tok.value();
-}
     // ----- COND -----
     private static Trampoline<Object> evaluateCondT(ArrayList<Node<Token>> clauses, Environment env) {
         return Trampoline.more(() -> loopCond(clauses, 0, env));
@@ -347,6 +485,18 @@ private static Object quoteToValue(Node<Token> node) {
             // into a runtime value using quoteToValue for all cases.
             Node<Token> quoted = expr.getChildren().get(0);
             return Trampoline.done(quoteToValue(quoted));
+        }
+
+        if (isQQuote(t)){
+            if (expr.getChildren().size() != 1) {
+                throw new SyntaxException("quasi-quote takes exactly one argument, got: " + expr.getChildren().size());
+            }
+            Node<Token> qquoted = expr.getChildren().get(0);
+            Object qqValue = expandQuasiQuote(qquoted, 1, env);
+            if (qqValue instanceof SpliceMarker) {
+                throw new SyntaxException("unquote-splicing is only valid within a list");
+            }
+            return Trampoline.done(qqValue);
         }
 
         // (define name expr)

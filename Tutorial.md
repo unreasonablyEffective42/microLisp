@@ -754,4 +754,23 @@ We can use `eval` to evaluate a quoted expression
 3
 ```
 
-When we use `'()`, we are quoting the empty list (), so that we can pass it as a value instead of evaluating it. Because the literal structure of MicroLisp code takes the form of nested linked lists, and MicroLisp is made to process lists using `head` and `tail`,  we get the neat property of `Homoiconicity`, which is that the code itself is exactly the kind of data we process. This means that MicroLisp programs can easily modify another MicroLisp program. Using `quote` and `unquote`, we can do structural transformations on code, and then evaluate them after, all while in the runtime.
+When we write `'()`, we’re quoting the empty list so it’s treated as a value, not evaluated. Because MicroLisp programs are lists of lists, and the language already operates on lists with head and tail, MicroLisp is `homoiconic`: code has the same shape as the data we process. That makes it easy for programs to inspect and transform other programs. With `quasiquote` ``` ` ```, `unquote` `,`, and unquote-splicing (,@), you get a practical toolkit for metaprogramming—building structured code templates with computed parts—without resorting to fragile string hacks. In most other languages you’d end up concatenating strings, re-parsing them, and effectively rebuilding a mini lexer–parser–interpreter pipeline just to do what MicroLisp does directly. This seamless movement between code and data is a big part of why Lisps are so expressive.
+
+`Quasi-quote` ``` ` ``` works just like `quote`, but we are able to selectively `unquote` `,` pieces of the quoted expression to evaluate them. compare:
+```
+>>>'(1 (+ 2 3)  ;we just return the code literal unchanged
+(1 (+ 2 3))
+>>>`(1 ,(+ 2 3)) ;create a quoted expression, but evaluate the (+ 2 3)
+(1 5)
+>>>'(1 (map (lambda (x) (^ x 2)) '(2 3 4)))
+(1 (map (lambda (x) (^ x 2)) '(2 3 4)))
+>>>`(1 ,(map (lambda (x) (^ x 2)) '(2 3 4)))
+(1 (4 9 16))
+```
+
+`unquote-splicing`, `,@` is another powerful tool, we evaluate the expression to be unquoted, if the result is a list, we flatten it out into the quoted expression:
+```
+>>>`(1 ,@(map (lambda (x) (^ x 2)) '(2 3 4)))
+(1 4 9 16))
+```
+

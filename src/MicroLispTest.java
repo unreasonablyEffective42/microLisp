@@ -25,6 +25,11 @@ public class MicroLispTest {
         if (test("Quote lambda form", testEval("'(lambda (x) (+ x 1))", "(lambda (x) (+ x 1))", env))) passed++; else failed++;
         if (test("Quote define form", testEval("'(define foo 5)", "(define foo 5)", env))) passed++; else failed++;
         if (test("Quote cond form", testEval("'(cond (#t 1) (else 2))", "(cond (#t 1) (else 2))", env))) passed++; else failed++; 
+        if (test("Quasiquote unquote evaluates expression", testEval("`(1 ,(+ 2 3))", "(1 5)", env))) passed++; else failed++;
+        if (test("Quasiquote splice literal list", testEval("`(1 ,@(2 3))", "(1 2 3)", env))) passed++; else failed++;
+        if (test("Quasiquote splice evaluated list", testEval("`(1 ,@(list 2 3))", "(1 2 3)", env))) passed++; else failed++;
+        if (test("Quasiquote nested unquote", testEval("`(foo `(bar ,(+ 1 2)))", "(foo (quasi-quote (bar (unquote (+ 1 2)))))", env))) passed++; else failed++;
+        if (test("Quasiquote nested splice", testEval("`(a `(b ,@(list 1 2)))", "(a (quasi-quote (b (unquote-splicing (1 2)))))", env))) passed++; else failed++;
         // ---
         if (test("String literal", testEval("\"abc\"", "\"abc\"", env))) passed++; else failed++;
         if (test("Print output", testPrint("(print \"hello\")", "hello\n", env))) passed++; else failed++;

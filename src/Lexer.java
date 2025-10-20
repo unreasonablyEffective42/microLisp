@@ -14,7 +14,7 @@ public class Lexer {
     Character currentChar;
     //for comparing tokens to the EOF token
     static Token eof = new Token("EOF", "EOF");
-    List<Character> parsableSymbols = Arrays.asList('-','+','*','%','!','?','/','|','^','&','$','@','`','\\',':','[',']','_','=','.',',','<','>');
+    List<Character> parsableSymbols = Arrays.asList('-','+','*','%','!','?','/','|','^','&','$','\\',':','[',']','_','=','.','<','>');
     List<Character> numericSymbols = Arrays.asList('i','j','k','-','+','/','.');
     List<Token> tokens = new ArrayList<>();
     //Constructor
@@ -62,16 +62,19 @@ public class Lexer {
         String res2 = res.toString();
         // --- special keywords ---
         switch (res2) {
-            case "lambda": return new Token("LAMBDA", "");
-            case "cond":   return new Token("COND", "");
-            case "quote":  return new Token("QUOTE", "");
-            case "define": return new Token("DEFINE", "");
-            case "list":   return new Token("LIST", "");
-            case "do":     return new Token("DO", "");
-            case "let":    return new Token("LET", "");
-            case "lets":   return new Token("LETS", "");
-            case "letr":   return new Token("LETR", "");
-            case "eq?":    return new Token("SYMBOL", "eq?"); // eq? now just a symbol
+            case "lambda":         return new Token("LAMBDA", "");
+            case "cond":           return new Token("COND", "");
+            case "quote":          return new Token("QUOTE", "");
+            case "quasi-quote":    return new Token("QQUOTE", "");
+            case "unquote":        return new Token("UNQUOTE","");
+            case "unquote-splice": return new Token("UNQUOTESPLICE","");
+            case "define":         return new Token("DEFINE", "");
+            case "list":           return new Token("LIST", "");
+            case "do":             return new Token("DO", "");
+            case "let":            return new Token("LET", "");
+            case "lets":           return new Token("LETS", "");
+            case "letr":           return new Token("LETR", "");
+            case "eq?":            return new Token("SYMBOL", "eq?"); // eq? now just a symbol
         }
 
         // --- arithmetic and logical operators as symbols ---
@@ -196,6 +199,18 @@ public class Lexer {
             this.advance();
             return new Token<>("QUOTE", "");
         }
+        else if (this.currentChar == '`') {
+            this.advance();
+            return new Token<>("QQUOTE", "");
+        }
+        else if (this.currentChar == ',') {
+            this.advance();
+            if (this.currentChar == '@') {
+                this.advance();
+                return new Token<>("UNQUOTESPLICE","");
+            }
+            return new Token<>("UNQUOTE", "");
+        } 
         else if (this.currentChar == '.') {
             this.advance();
             return new Token<>("DOT", ".");
