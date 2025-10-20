@@ -5,8 +5,9 @@
 import java.util.Scanner;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
 import java.util.function.Supplier;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -91,17 +92,8 @@ public class FileHandling{
                 }
                 if (!filename.endsWith(".mu"))
                     filename += ".mu"; 
-                try (InputStream inClasspath = FileHandling.class.getResourceAsStream("/lib/" + filename)) { 
-                    InputStream in;
-                    if (inClasspath != null) {
-                        in = inClasspath;
-                    } else { 
-                        Path localPath = Path.of(filename);
-                        if (!Files.exists(localPath)) {
-                            throw new FileNotFoundException("File not found in lib/ or current directory: " + filename);
-                        }
-                        in = Files.newInputStream(localPath);
-                    }
+                try {
+                    InputStream in = resolveImportStream(filename);
                     // Read source and evaluate sequentially
                     String src = new String(in.readAllBytes(), StandardCharsets.UTF_8);
                     Parser parser = new Parser(src);
@@ -114,12 +106,41 @@ public class FileHandling{
                     return "#t";
 
                 } catch (FileNotFoundException e) {
-                    // neither in /lib/ nor in local filesystem
                     throw new RuntimeException("import: cannot find " + filename);
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to import resource: " + filename, e);
                 }
             })
         );
+  }
+
+  private static InputStream resolveImportStream(String filename) throws IOException {
+      InputStream in = FileHandling.class.getResourceAsStream("/lib/" + filename);
+      if (in != null) {
+          return in;
+      }
+
+      Path localPath = Path.of(filename);
+      if (Files.exists(localPath)) {
+          return Files.newInputStream(localPath);
+      }
+
+      Path found = findInWorkspace(filename);
+      if (found != null) {
+          return Files.newInputStream(found);
+      }
+
+      throw new FileNotFoundException("File not found in lib/ or workspace: " + filename);
+  }
+
+  private static Path findInWorkspace(String filename) throws IOException {
+      Path start = Path.of(".").toAbsolutePath().normalize();
+      try (Stream<Path> stream = Files.walk(start)) {
+          return stream
+                  .filter(Files::isRegularFile)
+                  .filter(p -> p.getFileName().toString().equals(filename))
+                  .findFirst()
+                  .orElse(null);
+      }
   }
 }

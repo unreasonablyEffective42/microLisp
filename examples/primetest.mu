@@ -1,4 +1,6 @@
 ;a prime number stress test, do: microlisp lists.mu examples.mu primetest.mu to run
+(import examples.mu)
+
 (define main
   (lambda (s)
     (print (sieve (lcomp 2 10000)))))

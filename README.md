@@ -1,4 +1,4 @@
-# This is all mostly out of date and needs a re-write 
+# This is all subject to frequent changes
 MicroLisp is a lightweight lisp interpreter loosely based on the syntax and semantics of the Scheme programming language.
 
 This is an honors project for my Java programming class at CCD.
@@ -10,7 +10,7 @@ The syntax and semantics almost entirely follow from Scheme. Some differences in
 - `car` and `cdr` are replaced with `head` and `tail` 
 - `(define (fnName arg1 arg2 ...) functionBody)` is instead <br/> `(define fnName (lambda (arg1 arg2 ...) functionBody))`
 -   All special forms `lambda, cond, let, lets` bodies are a single expression instead of allowing multiple expressions. i.e `(lambda (x) (print x) (+ x 1))` does not `print x` and then `return x +1`. It just ignores the second expression. Use `(do expr1 expr2 ... exprn)` to sequentially evaluate expressions, which will discard all their values except for the final expression. To keep and then use sequential values, chain functions or use `lets`
-- Currently there is only `'` and `quote`, no quasiquoting `` ` `` , unquoting`,`, unquotesplicing `,@` etc 
+- Full Scheme style `quote`,`quasi-quote`,`unquote`,`unquote-splicing`
 
 To build, clone the repository  
 `git clone [https://github.com/unreasonablyeffective42/microlisp` 
@@ -20,8 +20,10 @@ Then you can run from a new terminal with `microlisp -ip` Optionally you can pas
 To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + flags + optional files to be loaded.
 
 After building try:
-- `microlisp ./examples/examples.mu ./examples/primetest.mu`  
+- `microlisp ./examples/primetest.mu`  
 - `microlisp ./examples/gol.mu`
+- microlisp -i ./examples/examples.mu 
+- >>>(fibs 1000)
 
 The flags to pass are: 
 - i: interactive mode(repl). (best for multi-line copy/paste inputs)
