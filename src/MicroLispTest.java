@@ -30,6 +30,8 @@ public class MicroLispTest {
         if (test("Quasiquote splice evaluated list", testEval("`(1 ,@(list 2 3))", "(1 2 3)", env))) passed++; else failed++;
         if (test("Quasiquote nested unquote", testEval("`(foo `(bar ,(+ 1 2)))", "(foo (quasi-quote (bar (unquote (+ 1 2)))))", env))) passed++; else failed++;
         if (test("Quasiquote nested splice", testEval("`(a `(b ,@(list 1 2)))", "(a (quasi-quote (b (unquote-splicing (1 2)))))", env))) passed++; else failed++;
+        if (test("Vector addition", testEval("(+ ($ 1 2) ($ 3 4))", "<4 6>", env))) passed++; else failed++;
+        if (test("Vector scalar multiply", testEval("(* ($ 1 2) 3)", "<3 6>", env))) passed++; else failed++;
         // ---
         if (test("String literal", testEval("\"abc\"", "\"abc\"", env))) passed++; else failed++;
         if (test("Print output", testPrint("(print \"hello\")", "hello\n", env))) passed++; else failed++;

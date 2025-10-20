@@ -150,13 +150,30 @@ public class GlobalEnvironment {
         );
         environment.addFrame(
             new Pair<>("+", (Function<LinkedList<?>, Object>) (args) -> {
+                if (args == null || args.head() == null) {
+                    return Number.integer(0);
+                }
+
+                Object first = args.head();
+                if (first instanceof Vector vec) {
+                    LinkedList<?> current = (args.tail() instanceof LinkedList<?> next) ? next : null;
+                    Vector acc = vec;
+                    while (current != null && current.head() != null) {
+                        Object element = current.head();
+                        if (!(element instanceof Vector other)) {
+                            throw new RuntimeException("+: mixed vector/non-vector arguments");
+                        }
+                        acc = Number.add(acc, other);
+                        Object tail = current.tail();
+                        current = (tail instanceof LinkedList<?> nextTail) ? nextTail : null;
+                    }
+                    return acc;
+                }
+
                 Number sum = Number.integer(0);
                 LinkedList<?> current = args;
-                if (current == null || current.head() == null) {
-                    return sum;
-                }
                 while (current != null && current.head() != null) {
-                    Object head = current.head(); 
+                    Object head = current.head();
                     if (!(head instanceof Number n))
                         throw new RuntimeException("+: expected number, got " + head + " (type " + head.getClass() + ")");
                     sum = Number.add(sum, n);
@@ -170,9 +187,30 @@ public class GlobalEnvironment {
                 if (args == null || args.head() == null)
                     return Number.integer(0);
                 Object first = args.head();
+                Object tail = args.tail();
+
+                if (first instanceof Vector vec) {
+                    if (tail == null) {
+                        return Number.multiply(Number.integer(-1), vec);
+                    }
+                    if (!(tail instanceof LinkedList<?> current)) {
+                        return vec;
+                    }
+                    Vector acc = vec;
+                    while (current.head() != null) {
+                        Object head = current.head();
+                        if (!(head instanceof Vector other))
+                            throw new RuntimeException("-: mixed vector/non-vector arguments");
+                        acc = Number.sub(acc, other);
+                        Object nextTail = current.tail();
+                        if (!(nextTail instanceof LinkedList<?> next)) break;
+                        current = next;
+                    }
+                    return acc;
+                }
+
                 if (!(first instanceof Number result))
                     throw new RuntimeException("-: expected number, got " + first);
-                Object tail = args.tail();
                 if (tail == null) {
                     return Number.sub(Number.zero(result), result);
                 }
@@ -189,11 +227,25 @@ public class GlobalEnvironment {
                 return result;
             }),
             new Pair<>("*", (Function<LinkedList<?>, Object>) (args) -> {
-                Number prod = Number.integer(1);
-                LinkedList<?> current = args;
-                if (current == null || current.head() == null) {
-                    return prod;
+                if (args == null || args.head() == null) {
+                    return Number.integer(1);
                 }
+                Object first = args.head();
+                LinkedList<?> current = args.tail() instanceof LinkedList<?> next ? next : null;
+
+                if (first instanceof Vector vec) {
+                    if (current == null || current.head() == null)
+                        throw new RuntimeException("*: vector multiplication requires scalar argument");
+                    Object scalarObj = current.head();
+                    if (!(scalarObj instanceof Number scalar))
+                        throw new RuntimeException("*: expected scalar with vector, got " + scalarObj);
+                    if (current.tail() != null && current.tail() instanceof LinkedList<?> more && more.head() != null)
+                        throw new RuntimeException("*: too many arguments after vector");
+                    return Number.multiply(vec, scalar);
+                }
+
+                Number prod = Number.integer(1);
+                current = args;
                 while (current != null && current.head() != null) {
                     Object head = current.head();
                     if (!(head instanceof Number n))

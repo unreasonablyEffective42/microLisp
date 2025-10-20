@@ -1,5 +1,7 @@
 import java.util.function.Function;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 public class Vector{
     public Object[] elems;
     public int size;
@@ -18,6 +20,12 @@ public class Vector{
         }
         elems = temp.toArray();
     }
+
+    Vector(Vector other) {
+        this.elems = Arrays.copyOf(other.elems, other.size);
+        this.size  = other.size;
+    }
+
 
     public static Vector of (Object[] nums){
        return new Vector(nums);

@@ -43,7 +43,7 @@ import java.math.BigInteger;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-
+import java.util.ArrayList;
 public final class Number {
     enum Type { INT, BIGINT, FLOAT, BIGFLOAT, RATIONAL, BIGRATIONAL, COMPLEX, QUATERNION }
 
@@ -79,6 +79,7 @@ public final class Number {
     private static final Number ONE_BIGRATIONAL  = Number.rational(BigInteger.ONE, BigInteger.ONE);
     private static final Number ONE_COMPLEX      = Number.complex(ONE_INT, ZERO_INT);
     private static final Number ONE_QUATERNION   = Number.quaternion(ONE_INT, ZERO_INT, ZERO_INT, ZERO_INT);
+
 
 
     
@@ -445,7 +446,19 @@ public final class Number {
                 throw new IllegalStateException("unknown numeric type: " + n.type);
         }
     }
-
+    
+    private static Vector negate(Vector v){
+        Object[] elems = new Object[v.size];
+        for (int i = 0; i < v.size; i++){
+            Object val = v.elems[i];
+            if (val instanceof Number n){
+                elems[i] = negate(n);
+            } else {
+                throw new RuntimeException("Vector negate expects numeric component, got " + val);
+            }
+        }
+        return new Vector(elems);
+    }
 
     // ---- Addition ----
     public static Number add(Number a, Number b) {
@@ -481,7 +494,28 @@ public final class Number {
                 throw new IllegalStateException("Unknown type: " + a.type);
         }
     }
+
+    public static Vector add(Vector a, Vector b){
+        if (a.size != b.size){
+            throw new RuntimeException("Vector addition arity mismatch");
+        }
+        Object[] elems = new Object[a.size];
+        for (int i = 0; i < a.size; i++){
+            Object left = a.elems[i];
+            Object right = b.elems[i];
+            if (left instanceof Number nl && right instanceof Number nr) {
+                elems[i] = add(nl, nr);
+            } else {
+                throw new RuntimeException("Vector addition expects numeric components, got: " + left + ", " + right);
+            }
+        }
+        return new Vector(elems);
+    }
     public static Number sub(Number a, Number b){
+        return add(a, negate(b));
+    }
+
+    public static Vector sub(Vector a, Vector b){
         return add(a, negate(b));
     }
     // ---- add helpers ----
@@ -700,7 +734,22 @@ public final class Number {
         }
     }
 
-    
+    public static Vector multiply(Number a, Vector b){
+        Object[] elems = new Object[b.size];
+        for (int i = 0; i < b.size; i++){
+            Object comp = b.elems[i];
+            if (!(comp instanceof Number n)) {
+                throw new RuntimeException("Vector multiply expects numeric component, got " + comp);
+            }
+            elems[i] = multiply(a, n);
+        }
+        return new Vector(elems);
+    }
+
+    public static Vector multiply(Vector a, Number b){
+        return multiply(b,a);
+    }
+
 
     private static Number multiplyInt(Number a, Number b) {
         try{
