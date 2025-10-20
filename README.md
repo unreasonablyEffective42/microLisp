@@ -20,8 +20,8 @@ Then you can run from a new terminal with `microlisp -ip` Optionally you can pas
 To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + flags + optional files to be loaded.
 
 After building try:
-`microlisp ./examples/lists.mu ./examples/examples.mu ./examples/primetest.mu`  
-`microlisp ./examples/lists.mu ./examples/gol.mu`
+- `microlisp ./examples/examples.mu ./examples/primetest.mu`  
+- `microlisp ./examples/gol.mu`
 
 The flags to pass are: 
 - i: interactive mode(repl). (best for multi-line copy/paste inputs)
