@@ -1,3 +1,4 @@
+# This is all mostly out of date and needs a re-write 
 MicroLisp is a lightweight lisp interpreter loosely based on the syntax and semantics of the Scheme programming language.
 
 This is an honors project for my Java programming class at CCD.
