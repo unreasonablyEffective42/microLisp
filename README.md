@@ -13,7 +13,7 @@ The syntax and semantics almost entirely follow from Scheme. Some differences in
 - Full Scheme style `quote`,`quasi-quote`,`unquote`,`unquote-splicing`
 
 To build, clone the repository  
-`git clone [https://github.com/unreasonablyeffective42/microlisp` 
+`git clone https://github.com/unreasonablyeffective42/microlisp` 
 and from the directory ./MicroLisp, enter: `./BUILD` 
 Then you can run from a new terminal with `microlisp -ip` Optionally you can pass it a file to load as well `microlisp -flags file.mu`
 
