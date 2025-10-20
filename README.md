@@ -22,7 +22,7 @@ To build it yourself, navigate to the MicroLisp directory then `javac -d ./out .
 After building try:
 - `microlisp ./examples/primetest.mu`  
 - `microlisp ./examples/gol.mu`
-- microlisp -i ./examples/examples.mu 
+- `microlisp -i ./examples/examples.mu` 
     - \>\>\>(fibs 1000)
     - \>\>\>(factorial 10000)
 
