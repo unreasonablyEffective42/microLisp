@@ -774,3 +774,4 @@ When we write `'()`, we’re quoting the empty list so it’s treated as a value
 (1 4 9 16))
 ```
 
+MicroLisp supports file imports. The standard library imports can be imported with `(import libname.mu)`, The interpreter will also search all of the local directory for imports for multi file programs.

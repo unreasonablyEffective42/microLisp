@@ -23,7 +23,8 @@ After building try:
 - `microlisp ./examples/primetest.mu`  
 - `microlisp ./examples/gol.mu`
 - microlisp -i ./examples/examples.mu 
-- >>>(fibs 1000)
+    - \>\>\>(fibs 1000)
+    - \>\>\>(factorial 10000)
 
 The flags to pass are: 
 - i: interactive mode(repl). (best for multi-line copy/paste inputs)
