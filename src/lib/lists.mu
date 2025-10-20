@@ -66,10 +66,6 @@
       (cond ((eq? m n) (cons m xs))
             (else (loop n (- m 1) (cons m xs)))))))
 
-(define chars->string
-  (lambda (chars)
-    (foldl (lambda (acc ch) (cons ch acc)) "" (reverse chars))))
-
 (define words
   (lambda (str)
     (let loop ((word "")
