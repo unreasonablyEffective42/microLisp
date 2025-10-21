@@ -11,10 +11,14 @@
 (define ymax -0.499))
 (define height 600)
 (define width 800)
-
+(define gamma 2.2)
 (define cmplx (lambda (re im) (+ re (* im 0+i))))
 
-(define greyscale (lambda (sat) (make-color sat sat sat)))
+
+(define greyscale 
+  (lambda (its) 
+    (let ((sat (floor (* 255 (^ its (/ 1 gamma))))))
+      (make-color (- 255 sat) (- 255 sat) (- 255 sat)))))
 
 (define blue-to-red
   (lambda (k)
@@ -27,8 +31,8 @@
 
 (define rescale 
   (lambda (its)
-    (cond ((> its iters) 255)
-          (else (floor (/ (+ (* 255 (- its 1))(/ (- iters 1) 2)) iters))))))
+    (cond ((> its iters) 1.0)
+          (else (to-inexact (/ its iters))))))
 
 (define color (lambda (its) (greyscale (rescale its))))
 
