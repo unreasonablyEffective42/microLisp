@@ -1,6 +1,6 @@
 ;; mandelbrot.mu — classic escape-time, MicroLisp core forms only
 
-(define iters 150)
+(define iters 200)
 ;(define xmin -2)
 ;(define xmax 0.5)
 ;(define ymin -1.3)
@@ -9,8 +9,8 @@
 (define xmax -0.786)
 (define ymin -0.1652)
 (define ymax -0.1558)
-(define height 900)
-(define width 1200)
+(define height 2400)
+(define width 3200)
 (define gamma 2.2)
 
 ;these are for making colors
@@ -98,7 +98,7 @@
            (b (floor (* 255 (^ b_lin (/ 1 gamma))))))
       (make-color r g b))))
 
-(define color (lambda (its) (rainbow-ish (rescale its))))
+(define color (lambda (its) (greyscale (rescale its))))
 
 
 ;this is for simulating the mandelbrot
@@ -123,7 +123,7 @@
 (define canvas (create-graphics-device width height))
 (define window (create-window canvas "mandelbrot"))
 
-(define f (make-file "./images/mandelbrot17.png"))
+(define f (make-file "./images/mandelbrot19.png"))
 
 (define main 
   (lambda (s)
@@ -137,8 +137,8 @@
                                       (draw-pixel canvas x y (color (mandel-point (cmplx (xr x) (yr y)))))
                                       (loopy (+ y 1))))))
                     (print x) 
+                    (refresh-window window)
                     (loopx (+ x 1))))))
-      (refresh-window window)
       (write-image canvas f)
       (print "done"))))
 
