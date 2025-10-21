@@ -315,8 +315,22 @@ public class GlobalEnvironment {
             new Pair<>("complex-magnitude", (Function<Number,Number>) (z) -> {
                 if (z.type == Number.Type.COMPLEX) {
                     return Number.real(Math.sqrt(Math.pow(Number.toDouble(z.real),2) + Math.pow(Number.toDouble(z.ipart),2)));
-                }else {
-                  return Number.ZERO_INT;
+                }else{
+                  return z;
+                }
+            }),
+            new Pair<>("floor", (Function<Number,Number>) (x) -> {
+                if (x.type == Number.Type.INT) {
+                    return x;
+                }
+                if (x.type == Number.Type.RATIONAL) {
+                    return Number.integer((int) Math.floor((Number.toInexact(x)).floatVal));
+                }
+                if (x.type == Number.Type.FLOAT) {
+                    return Number.integer((int) Math.floor(x.floatVal));
+                }
+                else{
+                    return Number.ZERO_INT;
                 }
             }),
             new Pair<>("eq?", (Function<LinkedList<?>, Object>) (args) -> {
