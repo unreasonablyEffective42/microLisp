@@ -298,7 +298,27 @@ public class GlobalEnvironment {
                     return lx.equals(ly) ? "#t" : "#f";
                 return "#f";
             }),
-
+            new Pair<>("real", (Function<Number,Number>) (z) -> {
+                if (z.type == Number.Type.COMPLEX || z.type == Number.Type.QUATERNION){
+                    return z.real;
+                } else {
+                    return z;
+                }
+            }),
+            new Pair<>("imaginary", (Function<Number,Number>) (z) -> {
+                if (z.type == Number.Type.COMPLEX) {
+                    return z.ipart;
+                } else {
+                    return Number.ZERO_INT;
+                }
+            }),
+            new Pair<>("complex-magnitude", (Function<Number,Number>) (z) -> {
+                if (z.type == Number.Type.COMPLEX) {
+                    return Number.real(Math.sqrt(Math.pow(Number.toDouble(z.real),2) + Math.pow(Number.toDouble(z.ipart),2)));
+                }else {
+                  return Number.ZERO_INT;
+                }
+            }),
             new Pair<>("eq?", (Function<LinkedList<?>, Object>) (args) -> {
                 if (args == null || args.head() == null)
                     return "#f";

@@ -34,8 +34,8 @@
     (let ((x (coord 0)) (y (coord 1)))
       (cond ((< x 0) 0)
             ((< y 0) 0)
-            ((> x (-(size board) 1)) 0)
-            ((> y (- (size board) 1)) 0)
+            ((> x (- (length board) 1)) 0)
+            ((> y (- (length board) 1)) 0)
             (else ((board y) x))))))
 
 ;Calculate the number of living neighbors to an x,y coordinate
@@ -61,17 +61,17 @@
 ;Make a new board from the current board state
 (define update
   (lambda (board)
-    (let ((s (size board))) 
+    (let ((s (length board))) 
       (let loop-y ((y 0) (rows '()))
-        (cond ((eq? y s) (vector (reverse rows)))
+        (cond ((eq? y s) (list->vector (reverse rows)))
               (else (loop-y (+ y 1) (cons 
                                       (let loop-x ((x 0) (xs '()))
-                                        (cond ((eq? x s) (vector (reverse xs)))
+                                        (cond ((eq? x s) (list->vector (reverse xs)))
                                               (else (loop-x (+ x 1) (cons (new-value board (:: x y)) xs)))))
                                       rows))))))))
 
 ;gui logic 
-(define s (- (size board) 1))
+(define s (- (length board) 1))
 (define black (make-color 0 0 0))
 (define white (make-color 255 255 255))
 

@@ -62,23 +62,23 @@ public final class Number {
     public final Number kpart;      // k component
 
     // ------ Cached constants ------
-    private static final Number ZERO_INT         = Number.integer(0);
-    private static final Number ZERO_BIGINT      = Number.integer(BigInteger.ZERO);
-    private static final Number ZERO_FLOAT       = Number.real(0.0);
-    private static final Number ZERO_BIGFLOAT    = Number.real(BigDecimal.ZERO);
-    private static final Number ZERO_RATIONAL    = Number.rational(0, 1);
-    private static final Number ZERO_BIGRATIONAL = Number.rational(BigInteger.ZERO, BigInteger.ONE);
-    private static final Number ZERO_COMPLEX     = Number.complex(ZERO_INT, ZERO_INT);
-    private static final Number ZERO_QUATERNION  = Number.quaternion(ZERO_INT, ZERO_INT, ZERO_INT, ZERO_INT);
+    public static final Number ZERO_INT         = Number.integer(0);
+    public static final Number ZERO_BIGINT      = Number.integer(BigInteger.ZERO);
+    public static final Number ZERO_FLOAT       = Number.real(0.0);
+    public static final Number ZERO_BIGFLOAT    = Number.real(BigDecimal.ZERO);
+    public static final Number ZERO_RATIONAL    = Number.rational(0, 1);
+    public static final Number ZERO_BIGRATIONAL = Number.rational(BigInteger.ZERO, BigInteger.ONE);
+    public static final Number ZERO_COMPLEX     = Number.complex(ZERO_INT, ZERO_INT);
+    public static final Number ZERO_QUATERNION  = Number.quaternion(ZERO_INT, ZERO_INT, ZERO_INT, ZERO_INT);
 
-    private static final Number ONE_INT          = Number.integer(1);
-    private static final Number ONE_BIGINT       = Number.integer(BigInteger.ONE);
-    private static final Number ONE_FLOAT        = Number.real(1.0);
-    private static final Number ONE_BIGFLOAT     = Number.real(BigDecimal.ONE);
-    private static final Number ONE_RATIONAL     = Number.rational(1, 1);
-    private static final Number ONE_BIGRATIONAL  = Number.rational(BigInteger.ONE, BigInteger.ONE);
-    private static final Number ONE_COMPLEX      = Number.complex(ONE_INT, ZERO_INT);
-    private static final Number ONE_QUATERNION   = Number.quaternion(ONE_INT, ZERO_INT, ZERO_INT, ZERO_INT);
+    public static final Number ONE_INT          = Number.integer(1);
+    public static final Number ONE_BIGINT       = Number.integer(BigInteger.ONE);
+    public static final Number ONE_FLOAT        = Number.real(1.0);
+    public static final Number ONE_BIGFLOAT     = Number.real(BigDecimal.ONE);
+    public static final Number ONE_RATIONAL     = Number.rational(1, 1);
+    public static final Number ONE_BIGRATIONAL  = Number.rational(BigInteger.ONE, BigInteger.ONE);
+    public static final Number ONE_COMPLEX      = Number.complex(ONE_INT, ZERO_INT);
+    public static final Number ONE_QUATERNION   = Number.quaternion(ONE_INT, ZERO_INT, ZERO_INT, ZERO_INT);
 
 
 
@@ -295,7 +295,7 @@ public final class Number {
         }
     }
 
-    private static double toDouble(Number n) {
+    public static double toDouble(Number n) {
         return switch (n.type) {
             case INT          -> (double) n.intVal;
             case BIGINT       -> n.bigVal.doubleValue();

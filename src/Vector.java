@@ -33,11 +33,14 @@ public class Vector{
 
     public static void addVectorEnv(Environment env){
         env.addFrame(
-            new Pair<>("size", (Function<Vector, Number>) (vect) -> {
+            new Pair<>("length", (Function<Vector, Number>) (vect) -> {
                 return Number.integer(vect.size);
             }),
-            new Pair<>("vector", (Function<LinkedList, Vector>) (elems) -> {
+            new Pair<>("list->vector", (Function<LinkedList, Vector>) (elems) -> {
                 return new Vector(elems);
+            }),
+            new Pair<>("vector->list", (Function<Vector, LinkedList>) (vector) -> {
+                return new LinkedList(vector.elems);
             })
         );
     }

@@ -66,17 +66,5 @@
       (cond ((eq? m n) (cons m xs))
             (else (loop n (- m 1) (cons m xs)))))))
 
-(define words
-  (lambda (str)
-    (let loop ((word "")
-               (ws '())
-               (str str)) 
-        (cond ((null? str) (map chars->string (map reverse (reverse (cons word ws)))))
-              ((or (eq? (head str) " ")
-                   (eq? (head str) "\n"))
-               (loop "" (cons  word ws) (tail str)))
-              (else (loop (cons (head str) word) ws (tail str)))))))
-
-
 
 

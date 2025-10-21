@@ -24,3 +24,15 @@
 (define string-append
   (lambda (str1 str2)
     (list->string (append str1 str2))))
+
+(define words
+  (lambda (str)
+    (let loop ((word "")
+               (ws '())
+               (str str)) 
+        (cond ((null? str) (map chars->string (map reverse (reverse (cons word ws)))))
+              ((or (eq? (head str) " ")
+                   (eq? (head str) "\n"))
+               (loop "" (cons  word ws) (tail str)))
+              (else (loop (cons (head str) word) ws (tail str)))))))
+

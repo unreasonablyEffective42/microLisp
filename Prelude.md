@@ -20,7 +20,7 @@
 • Extended Runtime Libraries
 
   - Vector utilities size and vector expose fixed-size array support backed by Vector.of and
-    linked-list conversion
+    linked-list conversion, (vector->list), (list->vector)
   - File helpers read, read-from-file, make-file, write-to-file cover REPL evaluation of a line,
     file -> char-list reads, file creation, and text writes (expecting a File handle and char-list
     payload) 
