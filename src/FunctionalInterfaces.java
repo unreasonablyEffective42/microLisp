@@ -14,6 +14,11 @@ interface PentaFunction<A, B, C, D, E, R> {
 }
 
 @FunctionalInterface
+interface HexFunction<A,B,C,D,E,F,R> {
+    R apply(A a, B b, C c, D d, E e, F f);
+}
+
+@FunctionalInterface
 interface BiConsumer<A, B> {
     void accept(A a, B b);
 }

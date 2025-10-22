@@ -94,6 +94,19 @@ public class PixelGraphics{
             }),
             new Pair<>("image-height", (Function<PixelGraphics,Integer>) (img) -> {
                 return img.height;
+            }),
+            new Pair<>("lines", (HexFunction<PixelGraphics, Number, Number, Number, Number, Integer, String>)
+                (img, x0, y0, x1, y1, color) -> {
+                    img.drawLineBresenham((int) x0.intVal,(int) y0.intVal,(int) x1.intVal,(int) y1.intVal, (int) color);
+                    return "#t";
+            }),
+            new Pair<>("circle", (PentaFunction<PixelGraphics, Number, Number, Number, Integer, String>)
+                (img, cx, cy, r, color) -> {
+                    // Defensive: ignore negative radii
+                    int R = (int) r.intVal;
+                    if (R < 0) return "#t";
+                    img.drawCircleBresenham((int) cx.intVal, (int) cy.intVal, R, color);
+                    return "#t";
             })
         );
     }
@@ -140,19 +153,14 @@ public class PixelGraphics{
         canvas.setRGB(x,y,color);
     }
 
-    public void drawLine(int x0, int x, int y0, int y, int color){
-       if (true){
-          double slope = ((double) y - y0)/(x - x0);
-          int yc = 0;
-          for (int i = x0; i <= x; i++){
-              yc = (int) Math.floor(i*slope);
-              this.canvas.setRGB(i,yc+y0,color);
-          }
-       }else{
-         System.out.println("out of bounds");
-       }
 
+    // Inside PixelGraphics (add anywhere among instance methods)
+    private void putPixelSafe(int x, int y, int color) {
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            canvas.setRGB(x, y, color);
+        }
     }
+
     public void plotImplicit(BiFunction<Integer,Integer ,Boolean> isPoint,int color){
         for (int i = 0; i < this.width; i++){
             for (int j = 0; j < this.height; j++){
@@ -161,6 +169,54 @@ public class PixelGraphics{
                 }
             }
         }   
+    }
+
+    public void drawLineBresenham(int x0, int y0, int x1, int y1, int color) {
+        int dx = Math.abs(x1 - x0);
+        int sx = x0 < x1 ? 1 : -1;
+        int dy = -Math.abs(y1 - y0);
+        int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy; // = dx - |dy|
+
+        while (true) {
+            putPixelSafe(x0, y0, color);
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = err << 1;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+    }
+
+    private void plot8(int cx, int cy, int x, int y, int color) {
+        putPixelSafe(cx + x, cy + y, color);
+        putPixelSafe(cx + y, cy + x, color);
+        putPixelSafe(cx + y, cy - x, color);
+        putPixelSafe(cx + x, cy - y, color);
+        putPixelSafe(cx - x, cy + y, color);
+        putPixelSafe(cx - y, cy + x, color);
+        putPixelSafe(cx - y, cy - x, color);
+        putPixelSafe(cx - x, cy - y, color);
+    }
+
+    public void drawCircleBresenham(int cx, int cy, int r, int color) {
+        if (r < 0) return;
+        int x = 0;
+        int y = r;
+        int d = 1 - r;            // decision variable
+
+        plot8(cx, cy, x, y, color);
+        while (y > x) {
+            if (d < 0) {
+                // Choose E: d += 2x + 3
+                d += (x << 1) + 3;
+            } else {
+                // Choose SE: d += 2(x - y) + 5 ; y--
+                d += ((x - y) << 1) + 5;
+                y--;
+            }
+            x++;
+            plot8(cx, cy, x, y, color);
+        }
     }
 
     public void drawCircle(int x, int y, double r, int color){

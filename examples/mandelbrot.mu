@@ -1,6 +1,5 @@
-;; mandelbrot.mu — classic escape-time, MicroLisp core forms only
-
-(define iters 200)
+;constants
+(define iters 300)
 ;(define xmin -2)
 ;(define xmax 0.5)
 ;(define ymin -1.3)
@@ -9,8 +8,8 @@
 (define xmax -0.786)
 (define ymin -0.1652)
 (define ymax -0.1558)
-(define height 2400)
-(define width 3200)
+(define height 9600)
+(define width 12800)
 (define gamma 2.2)
 
 ;these are for making colors
@@ -49,8 +48,6 @@
            (b (floor (* 255 (^ b-lin (/ 1 gamma))))))
       (make-color r g b))))
 
-
-;; helpers
 (define clamp
   (lambda (x lo hi)
     (cond ((< x lo) lo)
@@ -61,7 +58,7 @@
   (lambda (a b t)
     (+ a (* (- b a) t))))
 
-;; black -> red -> orange -> yellow -> green -> blue -> white
+; black -> red -> orange -> yellow -> green -> blue -> white
 (define rainbow-ish
   (lambda (val)
     (lets ((v  (- 1 val))
@@ -70,9 +67,9 @@
            (i (cond ((> idx 5) 5) (else idx)))   ; clamp index to 0..5
            (t (/ (- v (* i seg)) seg))           ; 0..1 position within segment
 
-           ;; endpoints for each segment i
-           ;; 0: black->red, 1: red->orange, 2: orange->yellow,
-           ;; 3: yellow->green, 4: green->blue, 5: blue->white
+           ; endpoints for each segment i
+           ; 0: black->red, 1: red->orange, 2: orange->yellow,
+           ; 3: yellow->green, 4: green->blue, 5: blue->white
            (r0 (cond ((eq? i 0) 0.0) ((eq? i 1) 1.0) ((eq? i 2) 1.0)
                      ((eq? i 3) 1.0) ((eq? i 4) 0.0) (else 0.0)))
            (g0 (cond ((eq? i 0) 0.0) ((eq? i 1) 0.0) ((eq? i 2) 0.5)
@@ -87,18 +84,16 @@
            (b1 (cond ((eq? i 0) 0.0) ((eq? i 1) 0.0) ((eq? i 2) 0.0)
                      ((eq? i 3) 0.0) ((eq? i 4) 1.0) (else 1.0)))
 
-           ;; linear 0..1 per channel within the segment
            (r_lin (lerp r0 r1 t))
            (g_lin (lerp g0 g1 t))
            (b_lin (lerp b0 b1 t))
-
-           ;; apply gamma like your greyscale: x^(1/gamma), then to 0..255
+ 
            (r (floor (* 255 (^ r_lin (/ 1 gamma)))))
            (g (floor (* 255 (^ g_lin (/ 1 gamma)))))
            (b (floor (* 255 (^ b_lin (/ 1 gamma))))))
       (make-color r g b))))
 
-(define color (lambda (its) (greyscale (rescale its))))
+(define color (lambda (its) (rainbow-ish (rescale its))))
 
 
 ;this is for simulating the mandelbrot
@@ -123,7 +118,7 @@
 (define canvas (create-graphics-device width height))
 (define window (create-window canvas "mandelbrot"))
 
-(define f (make-file "./images/mandelbrot19.png"))
+(define f (make-file "./images/mandelbrot21.png"))
 
 (define main 
   (lambda (s)

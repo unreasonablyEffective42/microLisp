@@ -48,7 +48,6 @@ Goal: Introduce module loading and produce full user and developer documentation
 
 ### Tasks:
 - ~~Implement (import "file.scm") for lexical loading and evaluation.~~
-- Add optional precompiled cache support (.mlc files).
 - Write the Language Manual (docs/language.md) covering syntax, semantics, and built-ins.
 - Write the Developer Guide (docs/architecture.md) describing internal structure and conventions.
 - Include example programs (life.microlisp, fractals.microlisp, vector-demo.microlisp).

@@ -725,6 +725,15 @@ public class Evaluator {
                 return Trampoline.done(
                     tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3), argVals.get(4)));
 
+            } else if (op instanceof HexFunction<?,?,?,?,?,?,?>) {
+                if (argVals.size() != 6)
+                    throw new SyntaxException("Procedure " + sym + " expects 6 arguments, got " + argVals.size());
+                @SuppressWarnings("unchecked")
+                HexFunction<Object,Object,Object,Object,Object,Object,Object> tf =
+                    (HexFunction<Object,Object,Object,Object,Object,Object,Object>) op;
+                return Trampoline.done(
+                    tf.apply(argVals.get(0), argVals.get(1), argVals.get(2), argVals.get(3), argVals.get(4), argVals.get(5)));
+
             } else if (op instanceof BiConsumer<?,?>) {
                 if (argVals.size() != 2)
                     throw new SyntaxException("Procedure " + sym + " expects 2 arguments, got " + argVals.size());
