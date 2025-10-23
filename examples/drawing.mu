@@ -17,6 +17,22 @@
 (define blue   (make-color 0 0 255))
 (define white  (make-color 255 255 255))
 
+(define make-ball
+   (lambda (r x y u vx vy m)
+     (lets ((v  (^ (+ (^ xy 2) (^ vy 2)) 0.5))
+            (U  (* m 9.81 y))
+            (KE (* 0.5 m (^ v 2))))
+       (lambda (msg)
+          (cond ((eq? msg 'coords) `(,x ,y))
+                ((eq? msg 'radius) r)
+                ((eq? msg 'vx) vx)
+                ((eq? msg 'vy) vy)
+                ((eq? msg 'v) v)
+                ((eq? msg 'potential) U)
+                ((eq? msg 'kinetic) KE)
+                ((eq? msg 'update) 0)
+                (else (do (print "error invalid message to ball") #f)))))))
+
 (define main 
   (lambda (s)
     (lets ((canvas (create-graphics-device 500 500))
@@ -24,9 +40,9 @@
       (do 
         (let loop ((t 0))
             (let ((x1 (lerp 100 400 t))
-                (y1 (lerp 100 300 t))
-                (x2 (lerp 450 50  t))
-                (y2 (lerp 450 50  t)))
+                  (y1 (lerp 100 300 t))
+                  (x2 (lerp 450 50  t))
+                  (y2 (lerp 450 50  t)))
               (cond ((> t 1) #t)
                     (else (do
                             (fill canvas white)
@@ -48,5 +64,17 @@
                             (refresh-window window) 
                             (wait 10)
                             (loop (+ t 0.01)))))))
-
+        (let loop ((t 0))
+            (let ((x1 (lerp 300 200 t))
+                  (y1 (lerp 100 400  t))
+                  (x2 (lerp 50  120 t))
+                  (y2 (lerp 450 350  t)))
+              (cond ((> t 1) #t)
+                    (else (do
+                            (fill canvas white)
+                            (circle canvas (floor x1) (floor y1) 30 red)
+                            (circle canvas (floor x2) (floor y2) 20 blue)
+                            (refresh-window window) 
+                            (wait 10)
+                            (loop (+ t 0.01)))))))
         (close-window window)))))

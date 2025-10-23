@@ -1,5 +1,5 @@
 ;constants
-(define iters 300)
+(define iters 100)
 ;(define xmin -2)
 ;(define xmax 0.5)
 ;(define ymin -1.3)
@@ -8,8 +8,8 @@
 (define xmax -0.786)
 (define ymin -0.1652)
 (define ymax -0.1558)
-(define height 9600)
-(define width 12800)
+(define height 1200)
+(define width 1600)
 (define gamma 2.2)
 
 ;these are for making colors
@@ -61,7 +61,7 @@
 ; black -> red -> orange -> yellow -> green -> blue -> white
 (define rainbow-ish
   (lambda (val)
-    (lets ((v  (- 1 val))
+    (lets ((v  val)
            (seg (/ 1.0 6.0))
            (idx (floor (/ v seg)))              ; 0..6 (6 only when v=1)
            (i (cond ((> idx 5) 5) (else idx)))   ; clamp index to 0..5
@@ -118,7 +118,7 @@
 (define canvas (create-graphics-device width height))
 (define window (create-window canvas "mandelbrot"))
 
-(define f (make-file "./images/mandelbrot21.png"))
+(define f (make-file "./images/mandelbrot24.png"))
 
 (define main 
   (lambda (s)
