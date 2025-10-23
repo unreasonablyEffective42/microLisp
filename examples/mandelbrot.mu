@@ -1,15 +1,34 @@
 ;constants
-(define iters 100)
+(define iters 300)
 ;(define xmin -2)
 ;(define xmax 0.5)
 ;(define ymin -1.3)
 ;(define ymax 1.3))
-(define xmin -0.799)  
-(define xmax -0.786)
-(define ymin -0.1652)
-(define ymax -0.1558)
-(define height 1200)
-(define width 1600)
+
+
+;(define xmin -0.799)  
+;(define xmax -0.7925)
+;(define ymin -0.1652)
+;(define ymax -0.1558)
+
+
+; aspect = W/H, base_half_height = 1.0 if your initial y-range is [-1, 1]
+(define mandelbrot-bounds
+  (lambda (cx cy zoom aspect base_half_height)
+    (lets ((hh (/ base_half_height zoom))
+           (hw (* aspect hh)))
+      ($ (- cx hw) (+ cx hw) (- cy hh) (+ cy hh)))))
+
+(define ratio 16/9)
+(define cx -0.7435669)
+(define cy 0.1314023))
+(define bounds (mandelbrot-bounds cx cy 1344.9 ratio 1.96875))
+(define xmin (bounds 0))
+(define xmax (bounds 1))
+(define ymin (bounds 2))
+(define ymax (bounds 3))
+(define height 8640)
+(define width 15360)
 (define gamma 2.2)
 
 ;these are for making colors
@@ -61,7 +80,7 @@
 ; black -> red -> orange -> yellow -> green -> blue -> white
 (define rainbow-ish
   (lambda (val)
-    (lets ((v  val)
+    (lets ((v  (- 1 val))
            (seg (/ 1.0 6.0))
            (idx (floor (/ v seg)))              ; 0..6 (6 only when v=1)
            (i (cond ((> idx 5) 5) (else idx)))   ; clamp index to 0..5
@@ -69,7 +88,7 @@
 
            ; endpoints for each segment i
            ; 0: black->red, 1: red->orange, 2: orange->yellow,
-           ; 3: yellow->green, 4: green->blue, 5: blue->white
+           ; 3: yellow->green, 4: green->blue2 5: blue->white
            (r0 (cond ((eq? i 0) 0.0) ((eq? i 1) 1.0) ((eq? i 2) 1.0)
                      ((eq? i 3) 1.0) ((eq? i 4) 0.0) (else 0.0)))
            (g0 (cond ((eq? i 0) 0.0) ((eq? i 1) 0.0) ((eq? i 2) 0.5)

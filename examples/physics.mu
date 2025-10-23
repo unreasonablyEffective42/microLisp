@@ -3,14 +3,14 @@
 (define black  (make-color 0 0 0))
 (define white  (make-color 255 255 255))
 (define yellow (make-color 255 255 0))
-(define width 500)
-(define height 500)
+(define width 750)
+(define height 750)
 (define xmin 0)
 (define xmax 40)
 (define ymin 0)
 (define ymax 40)
 
-(define g 9.81)
+(define g -9.81)
 
 (define abs
   (lambda (n)
@@ -41,23 +41,15 @@
 (define xr (rescale-dec xmin xmax width))
 (define yr (rescale-dec ymin ymax height))
 ;convert math coords to pixel coords
-(define xp (rescale-pix 0 width (- xmax xmin))))
-(define yp (rescale-pix height 0 (- ymax ymin))))
-
-(define object 
-  (lambda (x y z)
-    (lambda (msg)
-      (cond ((eq? msg 'x) x)
-            ((eq? msg 'y) y)
-            ((eq? msg 'z) z)
-            (else "error")))))
+(define xp (rescale-pix 0 width (- xmax xmin)))
+(define yp (rescale-pix height 0 (- ymax ymin)))
 
 (define make-ball
    (lambda (r x y vx vy m c) 
      (lambda (msg)
-       (lets ((v (^ (+ (^ vx 2) (^ vy 2)) 0.5))
-              (u (* m g y))
-              (k (* 0.5 m (^ v 2))))
+       (lets ((v (^ (+ (^ vx 2) (^ vy 2)) 0.5)) ;velocity magnitude (m/s) 
+              (u (* m g y))                     ;potential energy   (J)
+              (k (* 0.5 m (^ v 2))))            ;kinetic energy     (J)
          (cond ((eq? msg 'coords) ($ x y))
                ((eq? msg 'x)         x)
                ((eq? msg 'y)         y)
@@ -106,33 +98,45 @@
 
 (define display-ball 
   (lambda (img ball)
-    (let ((cx    (yp (ball 'x)))
-          (cy    (xp (ball 'y)))
+    (let ((cx    (xp (ball 'x)))
+          (cy    (yp (ball 'y)))
           (r     (xp (ball 'radius)))
           (color (ball 'color)))
       (circle img cx cy r color))))
+
+(define gravitational-acceleration 
+  (lambda (ball t) 
+    (lets ((x0  (ball 'x))
+           (y0  (ball 'y))
+           (vx0 (ball 'vx))
+           (vy0 (ball 'vy)) 
+           (x1  (+ (* vx0 t) x0))
+           (y1  (+ (* 0.5 g (^ t 2)) (* vy0 t) y0))
+           (vy1 (+ (* g t) vy0)))
+      ((ball 'update) x1 y1 vx0 vy1))))
+        
 
 ;r x y vx vy m c
 (define main
   (lambda (s)
     (lets ((canvas (create-graphics-device width height))
            (window (create-window canvas "Physics Sim"))
-           (fl (make-wall 0  450 500 450 black))
-           (b1 (make-ball 2  20 20 0 0 0 red))
+           (fl (make-wall 0  1  40 1 black))
+           (b1 (make-ball 2  20 35 0 0 0 red))
            (b2 (make-ball 3  10 10 0 0 0 blue))
-           (b3 (make-ball 4  3  5  0 0 0 black))
-           (b4 (make-ball 5  5  0  0 0 0 yellow)))
-      (do 
-        (display-ball canvas b1)
-        (display-ball canvas b2)
-        (display-ball canvas b3)
-        (display-ball canvas b4)
-        (display-wall canvas fl)
-        (draw-pixel canvas (xp 1) (yp 1) black)
-        (draw-pixel canvas (xp 2) (yp 1) black)
-        (draw-pixel canvas (xp 10) (yp 1) black)
-        (refresh-window window)
-        (print (overlap? b1 b2))
-        (print (overlap? b1 b3))
-        (print (overlap? b2 b4))
-        ))))
+           (b3 (make-ball 4  10 20 0 0 0 black))
+           (b4 (make-ball 3  25 10 0 0 0 yellow)))
+      (let loop ((t 0) (b1 b1))
+        (cond ((> t 1) (do (print "done") (close-window window) #t))
+              (else (do 
+                      (fill canvas white)
+                      (display-ball canvas b1)
+                      (refresh-window window)
+                      (wait 5)
+                      (loop (+ t 0.0001) (gravitational-acceleration b1 t)))))))))
+
+
+
+
+
+
