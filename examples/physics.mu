@@ -1,3 +1,4 @@
+(import lists)
 (define red    (make-color 255 0 0))
 (define blue   (make-color 0 0 255))
 (define black  (make-color 0 0 0))
@@ -6,9 +7,9 @@
 (define width 750)
 (define height 750)
 (define xmin 0)
-(define xmax 40)
+(define xmax 100)
 (define ymin 0)
-(define ymax 40)
+(define ymax 100)
 
 (define g -9.81)
 
@@ -122,18 +123,18 @@
     (lets ((canvas (create-graphics-device width height))
            (window (create-window canvas "Physics Sim"))
            (fl (make-wall 0  1  40 1 black))
-           (b1 (make-ball 2  20 35 0 0 0 red))
-           (b2 (make-ball 3  10 10 0 0 0 blue))
-           (b3 (make-ball 4  10 20 0 0 0 black))
-           (b4 (make-ball 3  25 10 0 0 0 yellow)))
-      (let loop ((t 0) (b1 b1))
+           (balls (list
+             (make-ball 2  10 55 7.5 25 0 red)
+             (make-ball 3  10 10 9 35 0 blue)
+             (make-ball 4  10 20 25 10 0 black)))) 
+      (let loop ((t 0) (balls balls))
         (cond ((> t 1) (do (print "done") (close-window window) #t))
               (else (do 
                       (fill canvas white)
-                      (display-ball canvas b1)
+                      (map (lambda (ball) (display-ball canvas ball)) balls)
                       (refresh-window window)
                       (wait 5)
-                      (loop (+ t 0.0001) (gravitational-acceleration b1 t)))))))))
+                      (loop (+ t 0.0001) (map (lambda (ball) (gravitational-acceleration ball t)) balls)))))))))
 
 
 
