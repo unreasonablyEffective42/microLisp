@@ -43,12 +43,12 @@ public class GlobalEnvironment {
                 return Number.numericEquals(remainder, Number.zero(remainder)) ? "#f" : "#t";
             }),
             new Pair<>("!",(Function<String, String>) (x) -> x.equals("#t") ? "#f" : "#t"),
-            new Pair<>("and", (BiFunction<String, String, String>) (p, q) ->
-                (p.equals("#t") && q.equals("#t")) ? "#t" : "#f"
+            new Pair<>("and", (BiFunction<Object, Object, String>) (p, q) ->
+                (p.toString().equals("#t") && q.toString().equals("#t")) ? "#t" : "#f"
             ),
-            new Pair<>("not", (Function<String,String>) (x) -> x.equals("#t") ? "#f" : "#t"),
-            new Pair<>("or", (BiFunction<String, String, String>) (p, q) ->
-                (p.equals("#t") || q.equals("#t")) ? "#t" : "#f"
+            new Pair<>("not", (Function<Object,String>) (x) -> x.toString().equals("#t") ? "#f" : "#t"),
+            new Pair<>("or", (BiFunction<Object, Object, String>) (p, q) ->
+                (p.toString().equals("#t") || q.toString().equals("#t")) ? "#t" : "#f"
             ),
             new Pair<>("xor", (BiFunction<String, String, String>) (p, q) ->
                 ((p.equals("#t") && !q.equals("#t")) || (q.equals("#t") && !p.equals("#t"))) ? "#t" : "#f"
@@ -332,6 +332,24 @@ public class GlobalEnvironment {
                 else{
                     return Number.ZERO_INT;
                 }
+            }),
+            new Pair<>("sin", (Function<Number,Number>) (x) -> { 
+                return Number.real(Math.sin((double)Number.toInexact(x).floatVal));
+            }),
+            new Pair<>("cos", (Function<Number,Number>) (x) -> {
+                return Number.real(Math.cos((double)Number.toInexact(x).floatVal));
+            }), 
+            new Pair<>("tan", (Function<Number,Number>) (x) -> {
+                return Number.real(Math.tan((double)Number.toInexact(x).floatVal));
+            }), 
+            new Pair<>("arcsin", (Function<Number,Number>) (x) -> { 
+                return Number.real(Math.asin((double)Number.toInexact(x).floatVal));
+            }),
+            new Pair<>("arccos", (Function<Number,Number>) (x) -> {
+                return Number.real(Math.acos((double)Number.toInexact(x).floatVal));
+            }), 
+            new Pair<>("arctan", (Function<Number,Number>) (x) -> {
+                return Number.real(Math.atan((double)Number.toInexact(x).floatVal));
             }),
             new Pair<>("eq?", (Function<LinkedList<?>, Object>) (args) -> {
                 if (args == null || args.head() == null)
