@@ -1,5 +1,6 @@
 import java.util.function.Function;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import java.math.BigInteger;
 
 public class GlobalEnvironment {
@@ -116,7 +117,12 @@ public class GlobalEnvironment {
                 return LinkedList.fromString("");
             }),
             new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
-            new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n))
+            new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
+            new Pair<>("clear", (Supplier<Object>) () -> {
+                System.out.print("\u001b[2J\u001b[H");
+                System.out.flush();
+                return "#t";
+            })
         );
         environment.addFrame(
             new Pair<>("eval", (Function<Object,Object>) (str) -> {

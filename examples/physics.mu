@@ -46,7 +46,7 @@
 (define yp (rescale-pix height 0 (- ymax ymin)))
 
 (define make-ball
-   (lambda (r x y vx vy m c) 
+   (lambda (r x y vx vy m c id) 
      (lambda (msg)
        (lets ((v (^ (+ (^ vx 2) (^ vy 2)) 0.5)) ;velocity magnitude (m/s) 
               (u (* m g y))                     ;potential energy   (J)
@@ -63,9 +63,10 @@
                ((eq? msg 'potential) u)
                ((eq? msg 'kinetic)   k)
                ((eq? msg 'color)     c)
+               ((eq? msg 'id)        id)
                ((eq? msg 'update)
                  (lambda (nx ny vx vy)
-                   (make-ball r nx ny vx vy m c)))
+                   (make-ball r nx ny vx vy m c id)))
                (else (do (print "error invalid message to ball") #f)))))))
 
 (define make-wall
@@ -157,12 +158,12 @@
            (walls (list  
              (make-wall 0  3  100 3 black)
              (make-wall 1  0  1   100 black)
-             (make-wall 99 0  99   100 black)))
+             (make-wall 99 0  99  100 black)))
            (balls (list
-             (make-ball 2  10 55 7.5 25 0 red)
-             (make-ball 3  10 10 9 35 0 blue)
-             (make-ball 4  10 20 25 10 0 black)))) 
-      (let loop ((t 0) (balls balls))
+             (make-ball 2  10 55 3 25 1 red   'ball1)
+             (make-ball 3  10 10 9   35 1 blue  'ball2)
+             (make-ball 4  10 20 5  10 1 black 'ball3)))) 
+      (let loop ((t 0) (balls balls) (a 0))
         (cond ((> t 1) (do (print "done") (close-window window) #t))
               (else 
                 (do 
@@ -170,8 +171,8 @@
                     (map (lambda (wall) (display-wall canvas wall)) walls)
                     (map (lambda (ball) (display-ball canvas ball)) balls)
                     (refresh-window window)
-                    (wait 5)
-                    (loop (+ t 0.00005) (map (lambda (ball) (gravitational-acceleration ball t))                                           
+                    ;(wait 5)
+                    (loop (+ t 0.00001) (map (lambda (ball) (gravitational-acceleration ball t))                                           
                                             (map (lambda (ball)
                                                     (foldl (lambda (b wall)
                                                             (cond ((boundary-collision? b wall)
@@ -184,7 +185,8 @@
                                                                     (else b)))
                                                         ball
                                                         walls))
-                                                balls))))))))))
+                                                balls)) (cond ((eq? a 100) (do (clear) (print "Time: " t) (map (lambda (ball) (do (printf (ball 'id)) (printf " ")(print (- (ball 'kinetic) (ball 'potential))))) balls) 0))
+                                                              (else (+ a 1)))))))))))
 
 
 
