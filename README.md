@@ -12,9 +12,12 @@ The syntax and semantics almost entirely follow from Scheme. Some differences in
 -   All special forms `lambda, cond, let, lets` bodies are a single expression instead of allowing multiple expressions. i.e `(lambda (x) (print x) (+ x 1))` does not `print x` and then `return x +1`. It just ignores the second expression. Use `(do expr1 expr2 ... exprn)` to sequentially evaluate expressions, which will discard all their values except for the final expression. To keep and then use sequential values, chain functions or use `lets`
 - Full Scheme style `quote`,`quasi-quote`,`unquote`,`unquote-splicing`
 
+You need JDK v21+ to build this project 
+
 To build, clone the repository  
 `git clone https://github.com/unreasonablyeffective42/microlisp` 
-and from the directory ./MicroLisp, enter: `./BUILD` 
+and from the directory ./MicroLisp, enter(if on linux): `./BUILD` (or just `BUILD` if on windows).
+It will compile, build the resources, and create a shim script for command line execution as well as update your environment variables.
 Then you can run from a new terminal with `microlisp -ip` Optionally you can pass it a file to load as well `microlisp -flags file.mu`
 
 To build it yourself, navigate to the MicroLisp directory then `javac -d ./out ./src/*.java` To run just `java -cp ./out/ MicroLisp` + flags + optional files to be loaded.
@@ -25,6 +28,8 @@ After building try:
 - `microlisp -i ./examples/examples.mu` 
     - \>\>\>(fibs 1000)
     - \>\>\>(factorial 10000)
+- There is a fractal generator in `mandelbrot.mu`
+- And I am currently working on a physics simulator in physics.mu
 
 The flags to pass are: 
 - i: interactive mode(repl). (best for multi-line copy/paste inputs)
