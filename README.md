@@ -3,10 +3,10 @@ MicroLisp is a lightweight lisp interpreter loosely based on the syntax and sema
 
 This is an honors project for my Java programming class at CCD.
 
-This interpreter currently supports A full numeric tower(fixed and unlimited precision Integers, Rationals, Reals, Complex and Quaternions), string literals, lists, vectors, tuples, functions and tail optimized recursion.
+This interpreter currently supports A full numeric tower(fixed and unlimited precision Integers, Rationals, Reals, Complex and Quaternions, recursively i.e quaternions with arbitrary precision rational coefficients), string literals, lists, vectors, tuples, first class functions  w/ tail optimized recursion and lexical scoping.
 
 The syntax and semantics almost entirely follow from Scheme. Some differences include: 
-- "Purely" functional. There is no mutation at the language level. IO is impure, but has functional semantics.
+- "Purely" functional. There is no mutation(like `set!` at the language level. IO is impure, but has functional semantics.
 - `car` and `cdr` are replaced with `head` and `tail` 
 - `(define (fnName arg1 arg2 ...) functionBody)` is instead <br/> `(define fnName (lambda (arg1 arg2 ...) functionBody))`
 -   All special forms `lambda, cond, let, lets` bodies are a single expression instead of allowing multiple expressions. i.e `(lambda (x) (print x) (+ x 1))` does not `print x` and then `return x +1`. It just ignores the second expression. Use `(do expr1 expr2 ... exprn)` to sequentially evaluate expressions, which will discard all their values except for the final expression. To keep and then use sequential values, chain functions or use `lets`
@@ -28,8 +28,11 @@ After building try:
 - `microlisp -i ./examples/examples.mu` 
     - \>\>\>(fibs 1000)
     - \>\>\>(factorial 10000)
-- There is a fractal generator in `mandelbrot.mu`
+- There is a fractal generator in `mandelbrot.mu`, constants are declared in the top `defines`, you can choose a resolution, zoom level, aspect ratio, and a few color pallets I have made, you can also make your own with `lerp` and the coordinate transformers `xr` `yr`
 - And I am currently working on a physics simulator in physics.mu
+
+I have built in libraries currently for lists HOF and string processing ,do `(import lists)`, or `(import strings)`
+I have also implemented basic file IO, as well as a simple pixel graphics library capable of rendering 24-32 Bit color in a window or saving to PNG.
 
 The flags to pass are: 
 - i: interactive mode(repl). (best for multi-line copy/paste inputs)
