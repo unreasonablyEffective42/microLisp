@@ -34,6 +34,29 @@ After building try:
 I have built in libraries currently for lists HOF and string processing ,do `(import lists)`, or `(import strings)`
 I have also implemented basic file IO, as well as a simple pixel graphics library capable of rendering 24-32 Bit color in a window or saving to PNG.
 
+microlisp also supports native java interop, to add custom java code, create a new class, then in the class create a method like `void addClassnameEnvironment(Environment env)`, in which you can then add in new symbol bindings to java,
+```
+//example how the GlobalEnvironment class exports its definitions
+public static Environment initGlobalEnvironment(){
+        Environment environment = new Environment(
+            new Pair<>("else", "#t"),
+            new Pair<>("number?", (Function<Object,String>) (x) -> {
+                if (x instanceof Number) return "#t";
+                return "#f";
+            }),
+            new Pair<>("symbol?", (Function<Object,String>) (x) -> {
+                if (x instanceof Symbol) return "#t";
+                return "#f";
+            }),
+            new Pair<>("list?", (Function<Object,String>) (x) -> {
+                if (x instanceof LinkedList) return "#t";
+                return "#f";
+            }),
+...
+```
+call your method in MicroLisp.java with the other addClassEnvironment(env) calls near the top.
+In FunctionalInterfaces.java I have already added interfaces for TriFunction, QuadFunction, PentaFunction, HexFunction, BiConsumer and TriConsumer.
+
 The flags to pass are: 
 - i: interactive mode(repl). (best for multi-line copy/paste inputs)
 - p: context aware repl(will indent next lines appropriately during multiline input, does not work with copy/paste multiline inputs).
