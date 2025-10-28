@@ -53,11 +53,13 @@
               (k (* 0.5 m (^ v 2)))             ;kinetic energy     (J)
               (p (* m v)))                      ;momentum           (kgm/s)
          (cond ((eq? msg 'coords) ($ x y))
+               ((eq? msg 'v)      ($ vx vy))
                ((eq? msg 'x)         x)
                ((eq? msg 'y)         y)
                ((eq? msg 'radius)    r)
                ((eq? msg 'vx)        vx)
                ((eq? msg 'vy)        vy)
+               ((eq? msg 'mass)      m)
                ((eq? msg 'momentum)  p)
                ((eq? msg 'velocity)  v)
                ((eq? msg 'potential) u)
@@ -112,6 +114,41 @@
       (cond ((> d r) #f)
             (else #t)))))
 
+(define distance 
+  (lambda (x1 y1 x2 y2)
+    (let ((x (^ (- x2 x1) 2))
+          (y (^ (- y2 y1) 2)))
+      (^ (+ x y) 0.5))))
+
+(define ball-collision? 
+  (lambda (ball1 ball2)
+    (lets ((r (+ (ball1 'radius) (ball2 'radius)))
+           (x1 (ball1 'x))
+           (y1 (ball1 'y))
+           (x2 (ball2 'x))
+           (y2 (ball2 'y))
+           (d  (distance x1 y1 x2 y2)))
+      (cond ((> d r) #f)
+            ((eq? (ball1 'id) (ball2 'id)) #f)
+            (else #t)))))
+
+(define collide 
+  (lambda (ball1 ball2)
+    (cond ((ball-collision? ball1 ball2)
+            (lets ((m1  (ball1 'mass))
+                   (m2  (ball2 'mass))
+                   (x1  (ball1 'coords))
+                   (x2  (ball2 'coords))
+                   (v1  (ball1 'v))
+                   (v2  (ball2 'v))
+                   (k   (/ (* 2 m2) (+ m1 m2)))
+                   (w   (/ (dot (vsub v1 v2) (vsub x1 x2)) (^ (vector-magnitude (vsub x1 x2)) 2)))
+                   (vf (vsub v1 (smul (* k w) (vsub x1 x2)))))
+              ((ball1 'update) (x1 0) (x1 1) (vf 0) (vf 1))))
+          (else ball1))))
+
+
+
 (define display-wall
   (lambda (img wall)
     (lines img (xp (wall 'x0)) (yp (wall 'y0)) (xp (wall 'x1)) (yp (wall 'y1)) (wall 'color))))
@@ -139,6 +176,18 @@
   (lambda (v1 v2) 
     (+ (* (v1 0) (v2 0)) (* (v1 1) (v2 1)))))
 
+(define vadd 
+  (lambda (v1 v2) 
+    ($ (+ (v1 0) (v2 0)) (+ (v1 1) (v2 1)))))
+
+(define vsub
+  (lambda (v1 v2) 
+    ($ (- (v1 0) (v2 0)) (- (v1 1) (v2 1)))))
+
+(define smul
+  (lambda (s v)
+    ($ (* s (v 0)) (* 2 (v 1)))))
+
 (define reflect 
   (lambda (v n)
     (lets ((vx0 (v 0))
@@ -151,7 +200,7 @@
       ($ vx vy))))
 
 ;currently cursed
-;r x y vx vy m c
+;r x y vx vy m c id
 (define main
   (lambda (s)
     (lets ((canvas (create-graphics-device width height))
@@ -172,21 +221,30 @@
                     (map (lambda (wall) (display-wall canvas wall)) walls)
                     (map (lambda (ball) (display-ball canvas ball)) balls)
                     (refresh-window window)
-                    (loop (+ t ts) ts (map (lambda (ball) (gravitational-acceleration ball ts))                                           
-                                            (map (lambda (ball)
-                                                    (foldl (lambda (b wall)
-                                                            (cond ((boundary-collision? b wall)
-                                                                    (lets ((n (wall 'normal))
-                                                                            (v0 ($ (b 'vx) (b 'vy)))
-                                                                            (x  (b 'x))
-                                                                            (y  (b 'y))
-                                                                            (v1 (reflect v0 n)))
+                    (let ((balls (map (lambda (ball1) (map (lambda (ball2) (collide ball1 ball2)) balls) balls))))
+                      (loop (+ t ts) ts (map (lambda (ball) (gravitational-acceleration ball ts))                                           
+                                               (map (lambda (ball)
+                                                      (foldl (lambda (b wall)
+                                                              (cond ((boundary-collision? b wall)
+                                                                      (lets ((n (wall 'normal))
+                                                                             (v0 ($ (b 'vx) (b 'vy)))
+                                                                             (x  (b 'x))
+                                                                             (y  (b 'y))
+                                                                             (v1 (reflect v0 n)))
                                                                     ((b 'update) x y (v1 0) (v1 1))))
                                                                     (else b)))
                                                         ball
                                                         walls))
                                                 balls)) (cond ((eq? a 100) (do (clear) (print "Time: " t) (map (lambda (ball) (do (printf (ball 'id)) (printf " ")(print (- (ball 'kinetic) (ball 'potential))))) balls) 0))
-                                                              (else (+ a 1)))))))))))
+                                                              (else (+ a 1))))))))))))
+
+
+(define ball1 (make-ball 10 5 5 0 0 0 0 1))
+(define ball2 (make-ball 8 15 15 0 0 0 0 1)) 
+(define ball3 (make-ball 5 20 20 0 0 0 0 2))
+
+
+
 
 
 
