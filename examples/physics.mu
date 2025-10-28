@@ -186,7 +186,7 @@
 
 (define smul
   (lambda (s v)
-    ($ (* s (v 0)) (* 2 (v 1)))))
+    ($ (* s (v 0)) (* s (v 1)))))
 
 (define reflect 
   (lambda (v n)
@@ -221,7 +221,11 @@
                     (map (lambda (wall) (display-wall canvas wall)) walls)
                     (map (lambda (ball) (display-ball canvas ball)) balls)
                     (refresh-window window)
-                    (let ((balls (map (lambda (ball1) (map (lambda (ball2) (collide ball1 ball2)) balls) balls))))
+                    (let ((balls (map (lambda (ball1)
+                                        (foldl (lambda (b2 acc) (collide acc b2))
+                                               ball1 
+                                               balls))
+                                      balls)))
                       (loop (+ t ts) ts (map (lambda (ball) (gravitational-acceleration ball ts))                                           
                                                (map (lambda (ball)
                                                       (foldl (lambda (b wall)
