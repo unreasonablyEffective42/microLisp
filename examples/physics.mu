@@ -246,7 +246,7 @@
                                                   ball1 
                                                   balls))
                                          balls)))
-                            (cond ((eq? a 100) (do 
+                            (cond ((eq? a 10) (do 
                                                  (clear) 
                                                  (print "Time: ") 
                                                  (print t) 
