@@ -4,6 +4,8 @@
 (define black  (make-color 0 0 0))
 (define white  (make-color 255 255 255))
 (define yellow (make-color 255 255 0))
+(define purple (make-color 255 0 255))
+(define green  (make-color 0 255 50))
 (define width 750)
 (define height 750)
 (define xmin 0)
@@ -207,12 +209,15 @@
            (window (create-window canvas "Physics Sim"))
            (walls (list  
              (make-wall 0  3  100 3 black)
+             (make-wall 0  99 100 99 black)
              (make-wall 1  0  1   100 black)
              (make-wall 99 0  99  100 black)))
            (balls (list
-             (make-ball 2  10 55 3 25 1 red   'ball1)
-             (make-ball 3  10 10 9   35 1 blue  'ball2)
-             (make-ball 4  10 20 5  10 1 black 'ball3)))) 
+             (make-ball 2  10 55 3 25 1 red      'red___)
+             (make-ball 3  10 10 9 35 2 blue     'blue__)
+             (make-ball 4  10 20 5 10 3 black    'black_)
+             (make-ball 5  50 70 12 3 7 green    'green_)
+             (make-ball 3  30 20 -5 -20 5 purple 'purple)))) 
       (let loop ((t 0) (ts 0.01) (balls balls) (a 0))
         (cond ((> t 100) (do (print "done") (close-window window) #t))
               (else 
@@ -221,45 +226,33 @@
                     (map (lambda (wall) (display-wall canvas wall)) walls)
                     (map (lambda (ball) (display-ball canvas ball)) balls)
                     (refresh-window window)
-                    (let ((balls (map (lambda (ball1)
-                                        (foldl (lambda (b2 acc) (collide acc b2))
-                                               ball1 
-                                               balls))
-                                      balls)))
-                      (loop (+ t ts) ts (map (lambda (ball) (gravitational-acceleration ball ts))                                           
-                                               (map (lambda (ball)
-                                                      (foldl (lambda (b wall)
-                                                              (cond ((boundary-collision? b wall)
-                                                                      (lets ((n (wall 'normal))
-                                                                             (v0 ($ (b 'vx) (b 'vy)))
-                                                                             (x  (b 'x))
-                                                                             (y  (b 'y))
-                                                                             (v1 (reflect v0 n)))
-                                                                    ((b 'update) x y (v1 0) (v1 1))))
-                                                                    (else b)))
-                                                        ball
-                                                        walls))
-                                                balls)) (cond ((eq? a 100) (do (clear) (print "Time: " t) (map (lambda (ball) (do (printf (ball 'id)) (printf " ")(print (- (ball 'kinetic) (ball 'potential))))) balls) 0))
-                                                              (else (+ a 1))))))))))))
-
-
-(define ball1 (make-ball 10 5 5 0 0 0 0 1))
-(define ball2 (make-ball 8 15 15 0 0 0 0 1)) 
-(define ball3 (make-ball 5 20 20 0 0 0 0 2))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                    (loop (+ t ts) 
+                          ts 
+                          (map (lambda (ball) (gravitational-acceleration ball ts))                                           
+                               (map (lambda (ball)
+                                       (foldl (lambda (b wall)
+                                                (cond ((boundary-collision? b wall)
+                                                        (lets ((n (wall 'normal))
+                                                               (v0 ($ (b 'vx) (b 'vy)))
+                                                               (x  (b 'x))
+                                                               (y  (b 'y))
+                                                               (v1 (reflect v0 n)))
+                                                               ((b 'update) x y (v1 0) (v1 1))))
+                                                      (else b)))
+                                              ball
+                                              walls))
+                                    (map (lambda (ball1)
+                                           (foldl (lambda (acc b2) (collide acc b2))
+                                                  ball1 
+                                                  balls))
+                                         balls)))
+                            (cond ((eq? a 100) (do 
+                                                 (clear) 
+                                                 (print "Time: ") 
+                                                 (print t) 
+                                                 (map (lambda (ball) (do (printf (ball 'id)) (printf " energy ")(printf (- (ball 'kinetic) (ball 'potential)))(print "j")))
+                                                      balls) 
+                                                 (printf "Total Energy: ") 
+                                                 (print (foldl (lambda (s ball) (+ s (- (ball 'kinetic) (ball 'potential)))) 0 balls))
+                                                 0))
+                                  (else (+ a 1)))))))))))
