@@ -116,6 +116,9 @@ public class GlobalEnvironment {
                 System.out.print(unescapeJava(out));
                 return LinkedList.fromString("");
             }),
+            new Pair<>("string", (Function<Object, String>) x -> {
+                return x.toString();
+            }),
             new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
             new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
             new Pair<>("clear", (Supplier<Object>) () -> {

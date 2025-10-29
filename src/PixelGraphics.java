@@ -107,6 +107,13 @@ public class PixelGraphics{
                     if (R < 0) return "#t";
                     img.drawCircleBresenham((int) cx.intVal, (int) cy.intVal, R, color);
                     return "#t";
+            }),
+            new Pair<>("fill-circle", (PentaFunction<PixelGraphics, Number, Number, Number, Integer, String>)
+                (img, cx, cy, r, color) -> {
+                    int R = (int) r.intVal;
+                    if (R < 0) return "#t";
+                    img.fillCircle((int) cx.intVal, (int) cy.intVal, R, color);
+                    return "#t";
             })
         );
     }
@@ -151,6 +158,18 @@ public class PixelGraphics{
 
     public void putPixel(int x, int y, int color){
         canvas.setRGB(x,y,color);
+    }
+
+    public void fillCircle(int cx, int cy, int radius, int color) {
+        int r2 = radius * radius;
+        for (int dy = -radius; dy <= radius; dy++) {
+            int yy = cy + dy;
+            for (int dx = -radius; dx <= radius; dx++) {
+                if (dx * dx + dy * dy <= r2) {
+                    putPixelSafe(cx + dx, yy, color);
+                }
+            }
+        }
     }
 
 
