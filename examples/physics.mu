@@ -217,14 +217,17 @@
              (make-ball 3  10 10 9 35 2 blue     'blue__)
              (make-ball 4  10 20 5 10 3 black    'black_)
              (make-ball 5  50 70 12 3 7 green    'green_)
-             (make-ball 3  30 20 -5 -20 5 purple 'purple)))) 
-      (let loop ((t 0) (ts 0.01) (balls balls) (a 0))
-        (cond ((> t 100) (do (print "done") (close-window window) #t))
+             (make-ball 3  30 20 -5 -20 5 purple 'purple)))
+           (frames (make-frame-buffer))
+           (file (make-file "./video/Simulation2.mp4")))
+      (let loop ((t 0) (ts 0.0083333333) (balls balls) (a 0))
+        (cond ((> t 15) (do (encode frames 120 file)(print "done") (close-window window) #t))
               (else 
                 (do 
                     (fill canvas white)
                     (map (lambda (wall) (display-wall canvas wall)) walls)
                     (map (lambda (ball) (display-ball canvas ball)) balls)
+                    (add-frame frames canvas)
                     (refresh-window window)
                     (loop (+ t ts) 
                           ts 

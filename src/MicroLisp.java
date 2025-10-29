@@ -27,6 +27,7 @@ public class MicroLisp{
         Vector.addVectorEnv(environment);
         FileHandling.addFileHandlingEnv(environment);
         PixelGraphics.addPixelGraphicsEnv(environment);
+        VideoEncoder.addVideoEnv(environment);
         // ----- decode flags ------
         try {
             if (args[0].charAt(0) == '-'){

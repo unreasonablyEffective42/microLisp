@@ -233,14 +233,17 @@
              (make-ball 1.5   90 35 -9 35 3 red      'red7_)
              (make-ball 1.5   90 39 -9 35 3 red      'red8_)
              (make-ball 1.5   90 43 -9 35 3 red      'red9_)
-             (make-ball 1.5   90 47 -9 35 3 red      'red10)))) 
-      (let loop ((t 0) (ts 0.01) (balls balls) (a 0))
-        (cond ((> t 100) (do (print "done") (close-window window) #t))
+             (make-ball 1.5   90 47 -9 35 3 red      'red10)))
+           (frames (make-frame-buffer))
+           (file (make-file "./video/Simulation.mp4")))
+      (let loop ((t 0) (ts 0.01666666) (balls balls) (a 0))
+        (cond ((> t 20) (do (encode frames 60 file) (print "done") (close-window window) #t))
               (else 
                 (do 
                     (fill canvas white)
                     (map (lambda (wall) (display-wall canvas wall)) walls)
                     (map (lambda (ball) (display-ball canvas ball)) balls)
+                    (add-frame frames canvas)
                     (refresh-window window)
                     (loop (+ t ts) 
                           ts 
@@ -262,7 +265,7 @@
                                                   ball1 
                                                   balls))
                                          balls)))
-                            (cond ((eq? a 100) (do 
+                            (cond ((eq? a 10) (do 
                                                  (clear) 
                                                  (print "Time: ") 
                                                  (print t) 
