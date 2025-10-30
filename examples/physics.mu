@@ -15,6 +15,7 @@
 (define ymax 100)
 
 (define g -9.81)
+(define e 0.8)
 
 (define abs
   (lambda (n)
@@ -143,10 +144,11 @@
                    (x1  (ball1 'coords))
                    (x2  (ball2 'coords))
                    (v1  (ball1 'v))
-                   (v2  (ball2 'v))
-                   (k   (/ (* 2 m2) (+ m1 m2)))
+                   (v2  (ball2 'v)) 
+                   (k   (/ (* (+ 1 e) m2) (+ m1 m2)))
                    (w   (/ (dot (vsub v1 v2) (vsub x1 x2)) (^ (vector-magnitude (vsub x1 x2)) 2)))
                    (vf (vsub v1 (smul (* k w) (vsub x1 x2)))))
+
               ((ball1 'update) (x1 0) (x1 1) (vf 0) (vf 1))))
           (else ball1))))
 
@@ -200,8 +202,8 @@
            (nx  (n 0))
            (ny  (n 1))
            (vn  (dot v n))
-           (vx  (- vx0 (* 2 vn nx)))
-           (vy  (- vy0 (* 2 vn ny))))
+           (vx  (- vx0 (* (+ 1 e) vn nx)))
+           (vy  (- vy0 (* (+ 1 e) vn ny))))
       ($ vx vy))))
 
 ;currently cursed
@@ -222,10 +224,10 @@
              (make-ball 5  50 70 12 3 7 green     'green_)
              (make-ball 6  60 40 -10 -10 9 orange 'orange)
              (make-ball 3  30 20 -5 -20 5 purple  'purple))) 
-           (file (make-file "./video/Simulation5.mp4"))
+           (file (make-file "./video/Simulation6.mp4"))
            (nothing (start-recording canvas 120 file)))
       (let loop ((t 0) (ts 0.0083333333) (balls balls) (a 0))
-        (cond ((> t 60) (do (stop-recording canvas) (print "done") (close-window window) #t))
+        (cond ((> t 20) (do (stop-recording canvas) (print "done") (close-window window) #t))
               (else 
                 (do 
                     (fill canvas white)
