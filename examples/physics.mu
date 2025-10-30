@@ -222,10 +222,10 @@
              (make-ball 5  50 70 12 3 7 green     'green_)
              (make-ball 6  60 40 -10 -10 9 orange 'orange)
              (make-ball 3  30 20 -5 -20 5 purple  'purple))) 
-           (file (make-file "./video/Simulation3.mp4"))
+           (file (make-file "./video/Simulation5.mp4"))
            (nothing (start-recording canvas 120 file)))
       (let loop ((t 0) (ts 0.0083333333) (balls balls) (a 0))
-        (cond ((> t 30) (do (stop-recording canvas) (print "done") (close-window window) #t))
+        (cond ((> t 60) (do (stop-recording canvas) (print "done") (close-window window) #t))
               (else 
                 (do 
                     (fill canvas white)
