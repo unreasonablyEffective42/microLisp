@@ -3,6 +3,8 @@ MicroLisp is a lightweight lisp interpreter loosely based on the syntax and sema
 
 This is an honors project for my Java programming class at CCD.
 
+There is a [tutorial](https://github.com/unreasonablyEffective42/microLisp/blob/master/Tutorial.md)
+
 This interpreter currently supports A full numeric tower(fixed and unlimited precision Integers, Rationals, Reals, Complex and Quaternions, recursively i.e quaternions with arbitrary precision rational coefficients), string literals, lists, vectors, tuples, first class functions  w/ tail optimized recursion and lexical scoping.
 
 The syntax and semantics almost entirely follow from Scheme. Some differences include: 
