@@ -24,12 +24,14 @@ Atomics are the simplest expressions, just evaluating to themselves. The atomic 
 >>>'()
 ()
 ```
-Lists, tuples, and strings also evaluate to themselves
+Lists, tuples, vectors and strings also evaluate to themselves
 ```text
 >>>'(1 2 3)
 (1 2 3)
 >>>(:: 1 2 3)
 (1, 2, 3)
+>>>(& 1 2 3)
+<1 2 3>
 >>>"Test"
 "Test"
 ```
