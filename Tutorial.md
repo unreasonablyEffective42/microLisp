@@ -8,7 +8,7 @@ To run MicroLisp in interactive mode, do `microlisp -i` in your terminal.
 ```
 
 <para>
-MicroLisp is a dialect of Lisp that runs on the JVM. It is "purely" functional, in this case meaning that mutation is not just disallowed, but is not possible. Like Scheme, microLisp is lexically scoped.Everything in MicroLisp is an expression. </para>
+MicroLisp is a dialect of Lisp that runs on the JVM. It is "purely" functional, in this case meaning that mutation is not just disallowed, but is not possible. Like Scheme, microLisp is lexically scoped.Everything in MicroLisp is an expression. I have attemptted to make every code example copy paste compatible if the interpreter is run with the -i flag (interactive). -ip will perform autoformatting on newlines by adding appropriate indentations for each line, but is not compatible with copy paste.</para>
 
 # Types 
 Atomics are the simplest expressions, just evaluating to themselves. The atomic expressions are: numbers, booleans, characters and the empty list.
