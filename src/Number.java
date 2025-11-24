@@ -1270,6 +1270,16 @@ public final class Number {
         double expValue = toDouble(exponent);
         if (!Double.isFinite(baseValue) || !Double.isFinite(expValue))
             throw new ArithmeticException("Exponentiation out of range");
+        if (baseValue < 0) {
+            double magnitude = Math.pow(-baseValue, expValue);
+            double angle = Math.PI * expValue;
+            double realPart = magnitude * Math.cos(angle);
+            double imagPart = magnitude * Math.sin(angle);
+            if (!Double.isFinite(realPart) || !Double.isFinite(imagPart))
+                throw new ArithmeticException("Exponentiation result undefined for given operands");
+            return Number.complex(Number.real(realPart), Number.real(imagPart));
+        }
+
         double result = Math.pow(baseValue, expValue);
         if (!Double.isFinite(result) || Double.isNaN(result))
             throw new ArithmeticException("Exponentiation result undefined for given operands");

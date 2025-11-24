@@ -114,7 +114,65 @@ public class PixelGraphics{
                     if (R < 0) return "#t";
                     img.fillCircle((int) cx.intVal, (int) cy.intVal, R, color);
                     return "#t";
-            })
+            }),
+            // ----- text primitives begin -----
+            new Pair<>("text-begin", (Function<PixelGraphics, Graphics2D>) PixelGraphics::beginTextSession),
+            new Pair<>("text-end", (Function<Graphics2D, String>) (ctx) -> {
+                if (ctx == null) {
+                    return "#f";
+                }
+                ctx.dispose();
+                return "#t";
+            }),
+            new Pair<>("text-set-font",
+                (QuadFunction<Graphics2D, Object, Object, Number, String>) (ctx, familyObj, styleObj, sizeNum) -> {
+                    if (ctx == null) {
+                        System.out.println("text-set-font: no graphics context");
+                        return "#f";
+                    }
+                    String family = coerceToJavaString(familyObj);
+                    int style = parseFontStyle(styleObj);
+                    int size = Math.max(1, (int) sizeNum.intVal);
+                    ctx.setFont(new Font(family, style, size));
+                    return "#t";
+                }),
+            new Pair<>("text-set-color",
+                (PentaFunction<Graphics2D, Number, Number, Number, Number, String>) (ctx, rNum, gNum, bNum, aNum) -> {
+                    if (ctx == null) {
+                        System.out.println("text-set-color: no graphics context");
+                        return "#f";
+                    }
+                    int r = clampColorComponent((int) rNum.intVal);
+                    int g = clampColorComponent((int) gNum.intVal);
+                    int b = clampColorComponent((int) bNum.intVal);
+                    int a = clampColorComponent((int) aNum.intVal);
+                    ctx.setColor(new Color(r, g, b, a));
+                    return "#t";
+                }),
+            new Pair<>("text-draw",
+                (QuadFunction<Graphics2D, Number, Number, Object, String>) (ctx, xNum, yNum, textObj) -> {
+                    if (ctx == null) {
+                        System.out.println("text-draw: no graphics context");
+                        return "#f";
+                    }
+                    String text = coerceToJavaString(textObj);
+                    ctx.drawString(text, (int) xNum.intVal, (int) yNum.intVal);
+                    return "#t";
+                }),
+            new Pair<>("text-measure",
+                (BiFunction<Graphics2D, Object, Tuple>) (ctx, textObj) -> {
+                    if (ctx == null) {
+                        System.out.println("text-measure: no graphics context");
+                        return Tuple.of(Number.integer(0), Number.integer(0), Number.integer(0));
+                    }
+                    String text = coerceToJavaString(textObj);
+                    FontMetrics metrics = ctx.getFontMetrics();
+                    return Tuple.of(
+                        Number.integer(metrics.stringWidth(text)),
+                        Number.integer(metrics.getHeight()),
+                        Number.integer(metrics.getAscent()));
+                })
+            // ----- text primitives end -----
         );
     }
 
@@ -254,4 +312,56 @@ public class PixelGraphics{
             Thread.currentThread().interrupt(); 
         }
     }
+
+    // ----- text helpers begin -----
+    private static Graphics2D beginTextSession(PixelGraphics gfx) {
+        Graphics2D g = gfx.canvas.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        return g;
+    }
+
+    private static String coerceToJavaString(Object value) {
+        if (value instanceof String s) {
+            return s;
+        } else if (value instanceof LinkedList<?> list) {
+            return LinkedList.listToRawString((LinkedList) list);
+        } else if (value instanceof Symbol sym) {
+            return sym.name;
+        }
+        return String.valueOf(value);
+    }
+
+    private static int parseFontStyle(Object styleObj) {
+        if (styleObj instanceof Number numberStyle) {
+            return mapStyleFromInt((int) numberStyle.intVal);
+        }
+        String style = coerceToJavaString(styleObj).toLowerCase();
+        switch (style) {
+            case "bold" -> { return Font.BOLD; }
+            case "italic" -> { return Font.ITALIC; }
+            case "bolditalic", "italicbold", "bold-italic", "italic-bold" -> {
+                return Font.BOLD | Font.ITALIC;
+            }
+            default -> { return Font.PLAIN; }
+        }
+    }
+
+    private static int mapStyleFromInt(int style) {
+        return switch (style) {
+            case 1 -> Font.BOLD;
+            case 2 -> Font.ITALIC;
+            case 3 -> Font.BOLD | Font.ITALIC;
+            default -> Font.PLAIN;
+        };
+    }
+
+    private static int clampColorComponent(int value) {
+        if (value < 0) return 0;
+        if (value > 255) return 255;
+        return value;
+    }
+    // ----- text helpers end -----
 }

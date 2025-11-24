@@ -1,5 +1,5 @@
 ;constants
-(define iters 300)
+(define iters 50)
 ;(define xmin -2)
 ;(define xmax 0.5)
 ;(define ymin -1.3)
@@ -27,8 +27,8 @@
 (define xmax (bounds 1))
 (define ymin (bounds 2))
 (define ymax (bounds 3))
-(define height 8640)
-(define width 15360)
+(define height 600)
+(define width 900)
 (define gamma 2.2)
 
 ;these are for making colors
@@ -36,7 +36,7 @@
   (lambda (its)
     (cond ((> its iters) 1.0)
           (else (to-inexact (/ its iters))))))
-
+ 
 (define greyscale 
   (lambda (val) 
     (let ((sat (floor (* 255 (^ val (/ 1 gamma))))))
@@ -125,6 +125,12 @@
             ((< its iters) (loop (+ c (^ z 2)) (+ its 1)))
             (else its)))))
 
+(define rescale-enc
+  (lambda (min max g)
+    (let ((spread (to-inexact (- max min))))
+      (lambda (value)
+        (to-inexact (* g (/ (- value min) spread)))))))
+
 (define rescale-dec
   (lambda (min max g)
     (cond ((< g 1) (error "G must be ≥ 1"))
@@ -132,12 +138,13 @@
 
 (define xr (rescale-dec xmin xmax width))
 (define yr (rescale-dec ymin ymax height))
-
+(define px (rescale-enc xmin xmax width))
+(define py (rescale-enc ymin ymax height))
 
 (define canvas (create-graphics-device width height))
 (define window (create-window canvas "mandelbrot"))
 
-(define f (make-file "./images/mandelbrot24.png"))
+(define f (make-file "./images/mandelbrot27.png"))
 
 (define main 
   (lambda (s)

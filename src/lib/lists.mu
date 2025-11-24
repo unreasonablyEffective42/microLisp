@@ -66,5 +66,19 @@
       (cond ((eq? m n) (cons m xs))
             (else (loop n (- m 1) (cons m xs)))))))
 
+(define interp
+  (lambda (str end stp)
+    (interpp str end stp '())))
+
+(define interpp 
+  (lambda (str end stp xs)
+    (cond ((< str end) (interpp (+ str stp) end stp (cons str xs)))
+          (else (reverse xs)))))
+
+(define list-ref
+    (lambda (xs n)
+      (cond ((eq? n 0) (head xs))
+            (else (list-ref (tail xs) (- n 1))))))
+
 
 
