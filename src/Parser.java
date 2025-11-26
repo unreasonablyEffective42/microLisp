@@ -389,11 +389,18 @@ public class Parser {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private Token normalizeNumberToken(Token tok) {
         if (tok != null && "NUMBER".equals(tok.type()) && tok.value() instanceof String s) {
-            return new Token("NUMBER", parseNumber(s));
+            return new Token("NUMBER", parseNumber(s), tok.line(), tok.column());
         }
         return tok;
     }
 
+    private Token copyToken(Token tok) {
+        return new Token(tok.type(), tok.value(), tok.line(), tok.column());
+    }
+
+    private Token tokenWithType(Token tok, String type, Object value) {
+        return new Token(type, value, tok.line(), tok.column());
+    }
 
     
     public Node<Token> parse() {
@@ -408,16 +415,16 @@ public class Parser {
         }
         // atoms: numbers, booleans, strings, symbols
         if (current.type().equals("BOOLEAN") || current.type().equals("STRING") || current.type().equals("SYMBOL")) {
-            return new Node<>(new Token(current.type(), current.value()));
+            return new Node<>(copyToken(current));
         }
         // ---------- shorthand quote handling ----------
         else if (current.type().equals("QUOTE")) {
-            Node<Token> node = new Node<>(new Token("QUOTE",""));
+            Node<Token> node = new Node<>(tokenWithType(current, "QUOTE", ""));
             node.addChild(parseDatum());   // parse raw datum
             return node;
         }
         else if (current.type().equals("QQUOTE")) {
-            Node<Token> node = new Node<>(new Token("QQUOTE",""));
+            Node<Token> node = new Node<>(tokenWithType(current, "QQUOTE", ""));
             node.addChild(parseDatum());
             return node;
         }

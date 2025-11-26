@@ -121,6 +121,7 @@
   (lambda (s)
     (lets ((canvas (create-graphics-device width height))
            (window (create-window canvas "text"))
+           (file (make-file "./images/graphing-demo.png"))
            (cx (map (lambda (c)
                       ($ (floor (px (c 0)))
                          (floor (py (c 1)))))
@@ -153,5 +154,9 @@
                                          (y (+ 3 (* 1.5 (sin (yc t))))))
                                     (list x y))))
                        (make-color 255 150 0))
+
+
+
         (refresh-window window)
+        (write-image canvas file)
         (print "done")))))

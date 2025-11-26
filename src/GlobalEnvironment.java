@@ -116,8 +116,8 @@ public class GlobalEnvironment {
                 System.out.print(unescapeJava(out));
                 return LinkedList.fromString("");
             }),
-            new Pair<>("string", (Function<Object, String>) x -> {
-                return x.toString();
+            new Pair<>("string", (Function<Object, LinkedList<String>>) x -> {
+                return LinkedList.fromString(x == null ? "null" : x.toString());
             }),
             new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
             new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
@@ -297,6 +297,12 @@ public class GlobalEnvironment {
             ),
             new Pair<>(">", (BiFunction<Object, Object, String>) (x, y) ->
                 Number.greaterThan((Number) x, (Number) y) ? "#t" : "#f"
+            ),
+            new Pair<>("<=", (BiFunction<Object, Object, String>) (x, y) ->
+                Number.lessThanOrEqual((Number) x, (Number) y) ? "#t" : "#f"
+            ),
+            new Pair<>(">=", (BiFunction<Object, Object, String>) (x, y) ->
+                Number.greaterThanOrEqual((Number) x, (Number) y) ? "#t" : "#f"
             ),
             new Pair<>("=", (BiFunction<Object, Object, String>) (x, y) -> {
                 if (x instanceof Number nx && y instanceof Number ny)

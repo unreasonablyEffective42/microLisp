@@ -1,4 +1,6 @@
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -15,6 +17,69 @@ import java.math.BigInteger;
 */
 public class Evaluator {
     Evaluator() {}
+    // Track the current evaluation stack for better error reporting (line/column).
+    private static final ThreadLocal<Deque<Node<Token>>> evalContext =
+        ThreadLocal.withInitial(ArrayDeque::new);
+    private static final ThreadLocal<Integer> currentDepth =
+        ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<Integer> maxDepth =
+        ThreadLocal.withInitial(() -> 0);
+
+    private static void pushContext(Node<Token> expr) {
+        evalContext.get().push(expr);
+        int depth = currentDepth.get() + 1;
+        currentDepth.set(depth);
+        if (depth > maxDepth.get()) {
+            maxDepth.set(depth);
+        }
+    }
+
+    private static void popContext() {
+        Deque<Node<Token>> stack = evalContext.get();
+        if (!stack.isEmpty()) {
+            stack.pop();
+        }
+        int depth = Math.max(0, currentDepth.get() - 1);
+        currentDepth.set(depth);
+    }
+
+    private static String describeCurrentContext() {
+        Deque<Node<Token>> stack = evalContext.get();
+        Node<Token> node = stack.isEmpty() ? null : stack.peek();
+        if (node == null) {
+            return " at unknown location";
+        }
+        Token<?,?> tok = node.getValue();
+        if (tok == null) {
+            return " at unknown form";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(" in ").append(tok.type());
+        if (tok.value() != null) {
+            sb.append(" ").append(tok.value());
+        }
+        if (tok.hasLocation()) {
+            sb.append(" at line ").append(tok.line()).append(", column ").append(tok.column());
+        }
+        int depth = currentDepth.get();
+        int max = maxDepth.get();
+        sb.append(" [depth ").append(depth).append(", max ").append(max).append("]");
+        return sb.toString();
+    }
+
+    public static String currentContextDescription() {
+        return describeCurrentContext();
+    }
+
+    private static <T> T withContext(Node<Token> node, Supplier<T> fn) {
+        pushContext(node);
+        try {
+            return fn.get();
+        } finally {
+            popContext();
+        }
+    }
+
     // ---------- token helpers ----------
     public static boolean isType          (Token<?, ?> t, String ty) { return ty.equals(t.type()); }
     public static boolean isNumber        (Token<?, ?> t){ return isType(t, "NUMBER"); }
@@ -48,6 +113,10 @@ public class Evaluator {
     }
 
     private static Object quoteToValue(Node<Token> node) {
+        return withContext(node, () -> quoteToValueInner(node));
+    }
+
+    private static Object quoteToValueInner(Node<Token> node) {
         Token<?,?> tok = node.getValue();
 
         // Empty list
@@ -132,6 +201,10 @@ public class Evaluator {
     }
 
     private static Object expandQuasiQuote(Node<Token> node, int depth, Environment env) {
+        return withContext(node, () -> expandQuasiQuoteInner(node, depth, env));
+    }
+
+    private static Object expandQuasiQuoteInner(Node<Token> node, int depth, Environment env) {
         Token<?, ?> tok = node.getValue();
         String type = tok == null ? null : String.valueOf(tok.type());
 
@@ -460,7 +533,33 @@ public class Evaluator {
 
     // Public entrypoint: preserve API
     public static Object eval(Node<Token> expr, Environment env){
-        return evalT(expr, env).run();
+        boolean isRoot = evalContext.get().isEmpty();
+        if (isRoot) {
+            maxDepth.set(0);
+            currentDepth.set(0);
+        }
+        pushContext(expr);
+        try {
+            return evalT(expr, env).run();
+        } catch (StackOverflowError e) {
+            String ctx = describeCurrentContext();
+            throw new RuntimeException("Stack overflow" + ctx, e);
+        } catch (RuntimeException e) {
+            String msg = e.getMessage();
+            String ctx = describeCurrentContext();
+            if (msg != null && ctx.contains("unknown")) {
+                throw e; // don't obscure with unknown context
+            }
+            if (msg == null) {
+                throw new RuntimeException(ctx, e);
+            }
+            throw new RuntimeException(msg + ctx, e);
+        } finally {
+            popContext();
+            if (isRoot) {
+                evalContext.get().clear();
+            }
+        }
     }
 
     // Trampolined evaluator

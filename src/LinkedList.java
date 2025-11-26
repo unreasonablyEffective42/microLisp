@@ -172,9 +172,15 @@ public class LinkedList<T> {
 
     @SuppressWarnings("unchecked")
     private void markCharListRecursive() {
-        this.charListTag = true;
-        if (this.list != null && this.list.second instanceof LinkedList<?>) {
-            ((LinkedList<Object>) this.list.second).markCharListRecursive();
+        LinkedList<?> current = this;
+        while (current != null) {
+            current.charListTag = true;
+            Object tail = current.list == null ? null : current.list.second;
+            if (tail instanceof LinkedList<?> next) {
+                current = next;
+            } else {
+                break;
+            }
         }
     }
     @Override

@@ -1,7 +1,6 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.math.BigInteger;
 /*The lexer, or tokenizer, takes in a source file as a string, and produces tokens using the
   getNextToken() method. When the entire source has been consumed, the method will always
   return an EOF token.
@@ -32,28 +31,55 @@ public class Lexer {
             currentChar = this.src.charAt(pos);
         }
         else {
+            pos = src.length();
             currentChar = '~';
         }
     }
     //backs up the current position and updates to previous character
     public void backUp(){
+        if (pos == 0) {
+            return;
+        }
         pos--;
         currentChar = this.src.charAt(pos);
+    }
+
+    private int[] lineAndColumn(int index) {
+        int line = 1;
+        int column = 1;
+        int max = Math.min(index, src.length());
+        for (int i = 0; i < max; i++) {
+            char c = src.charAt(i);
+            if (c == '\n') {
+                line++;
+                column = 1;
+            } else {
+                column++;
+            }
+        }
+        return new int[]{line, column};
+    }
+
+    private Token makeToken(String type, Object value, int startPos) {
+        int[] lc = lineAndColumn(startPos);
+        return new Token<>(type, value, lc[0], lc[1]);
     }
     //if a numeric character is detected, keep consuming until current character is not a digit,
     //then return a NUMBER token with the number as a string
     private Token number(){
+        int startPos = pos;
         StringBuilder res = new StringBuilder();
         while (Character.isDigit(this.currentChar)||numericSymbols.contains(this.currentChar)){
             res.append(currentChar);
             this.advance();
         }
-        Token tok = new Token("NUMBER", res.toString());
+        Token tok = makeToken("NUMBER", res.toString(), startPos);
         return tok;
     }
     //This detects contiguous letters and symbols, and creates a string, these could be keywords, variable names
     //or functions. Returns a LABEL token with the label 
     private Token symbol() {
+        int startPos = pos;
         StringBuilder res = new StringBuilder();
         while (Character.isLetter(this.currentChar) || parsableSymbols.contains(this.currentChar) || Character.isDigit(this.currentChar)) {
             res.append(currentChar);
@@ -62,31 +88,32 @@ public class Lexer {
         String res2 = res.toString();
         // --- special keywords ---
         switch (res2) {
-            case "lambda":         return new Token("LAMBDA", "");
-            case "cond":           return new Token("COND", "");
-            case "quote":          return new Token("QUOTE", "");
-            case "quasi-quote":    return new Token("QQUOTE", "");
-            case "unquote":        return new Token("UNQUOTE","");
-            case "unquote-splice": return new Token("UNQUOTESPLICE","");
-            case "define":         return new Token("DEFINE", "");
-            case "list":           return new Token("LIST", "");
-            case "do":             return new Token("DO", "");
-            case "let":            return new Token("LET", "");
-            case "lets":           return new Token("LETS", "");
-            case "letr":           return new Token("LETR", "");
-            case "eq?":            return new Token("SYMBOL", "eq?"); // eq? now just a symbol
+            case "lambda":         return makeToken("LAMBDA", "", startPos);
+            case "cond":           return makeToken("COND", "", startPos);
+            case "quote":          return makeToken("QUOTE", "", startPos);
+            case "quasi-quote":    return makeToken("QQUOTE", "", startPos);
+            case "unquote":        return makeToken("UNQUOTE","", startPos);
+            case "unquote-splice": return makeToken("UNQUOTESPLICE","", startPos);
+            case "define":         return makeToken("DEFINE", "", startPos);
+            case "list":           return makeToken("LIST", "", startPos);
+            case "do":             return makeToken("DO", "", startPos);
+            case "let":            return makeToken("LET", "", startPos);
+            case "lets":           return makeToken("LETS", "", startPos);
+            case "letr":           return makeToken("LETR", "", startPos);
+            case "eq?":            return makeToken("SYMBOL", "eq?", startPos); // eq? now just a symbol
         }
 
         // --- arithmetic and logical operators as symbols ---
         if ("+-*/%^<>=!".contains(res2)) {
-            return new Token("SYMBOL", res2);
+            return makeToken("SYMBOL", res2, startPos);
         }
 
         // --- default symbol ---
-        return new Token("SYMBOL", res2);
+        return makeToken("SYMBOL", res2, startPos);
     }
     //Lexing booleans #t,#f, or chars #\c
     private Token special(){
+        int startPos = pos;
         StringBuilder res = new StringBuilder();
         res.append(currentChar);
         this.advance();
@@ -95,7 +122,7 @@ public class Lexer {
                 res.append(currentChar);
                 this.advance();
             }
-            Token tok = new Token("BOOLEAN", res.toString());
+            Token tok = makeToken("BOOLEAN", res.toString(), startPos);
             return tok;
         }else if (currentChar == '\\'){
             res.append(currentChar);
@@ -104,7 +131,7 @@ public class Lexer {
                 res.append(currentChar);
                 this.advance();
             }
-            Token tok = new Token("CHARACTER", res.toString());
+            Token tok = makeToken("CHARACTER", res.toString(), startPos);
             return tok;
         }
         else {
@@ -113,6 +140,7 @@ public class Lexer {
 
     }    
     private Token string() {
+        int startPos = pos;
         this.advance(); // skip the opening quote
         StringBuilder res = new StringBuilder();
         while (this.currentChar != '\"') {
@@ -133,7 +161,7 @@ public class Lexer {
         }
 
     this.advance(); // consume closing quote
-    return new Token("STRING", res.toString());}
+    return makeToken("STRING", res.toString(), startPos);}
     //advances past any detected whitespaces
     private void skipWhitespace(){
         while (Character.isWhitespace((this.currentChar))) {
@@ -165,7 +193,7 @@ public class Lexer {
     //the conditionals will choose the correct kind of token to produce  
     public Token getNextToken() {
         if (this.currentChar == '~') {
-            return new Token<>("EOF", "EOF");
+            return makeToken("EOF", "EOF", pos);
         }
 
         if (Character.isWhitespace(this.currentChar)) {
@@ -188,32 +216,38 @@ public class Lexer {
             return this.special();
         }
         else if (this.currentChar == '(') {
+            int startPos = pos;
             this.advance();
-            return new Token<>("LPAREN", null);
+            return makeToken("LPAREN", null, startPos);
         }
         else if (this.currentChar == ')') {
+            int startPos = pos;
             this.advance();
-            return new Token<>("RPAREN", null);
+            return makeToken("RPAREN", null, startPos);
         }
         else if (this.currentChar == '\'') {
+            int startPos = pos;
             this.advance();
-            return new Token<>("QUOTE", "");
+            return makeToken("QUOTE", "", startPos);
         }
         else if (this.currentChar == '`') {
+            int startPos = pos;
             this.advance();
-            return new Token<>("QQUOTE", "");
+            return makeToken("QQUOTE", "", startPos);
         }
         else if (this.currentChar == ',') {
+            int startPos = pos;
             this.advance();
             if (this.currentChar == '@') {
                 this.advance();
-                return new Token<>("UNQUOTESPLICE","");
+                return makeToken("UNQUOTESPLICE","", startPos);
             }
-            return new Token<>("UNQUOTE", "");
+            return makeToken("UNQUOTE", "", startPos);
         } 
         else if (this.currentChar == '.') {
+            int startPos = pos;
             this.advance();
-            return new Token<>("DOT", ".");
+            return makeToken("DOT", ".", startPos);
         }
         else if (this.currentChar == ';') {
             // Discard everything after ';' until newline
@@ -225,6 +259,7 @@ public class Lexer {
         }
 
         // --- fallback ---
-        throw new SyntaxException("Unexpected character '" + currentChar + "' at position " + pos);
+        int[] lc = lineAndColumn(pos);
+        throw new SyntaxException("Unexpected character '" + currentChar + "' at line " + lc[0] + ", column " + lc[1]);
     }
 }

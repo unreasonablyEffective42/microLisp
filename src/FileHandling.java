@@ -72,12 +72,59 @@ public class FileHandling{
                 }
                 return f;
             }),
+            new Pair<>("make-directory", (Function<Object, String>) (name) -> {
+                String dirname;
+                if (name instanceof String s) {
+                    dirname = s;
+                } else if (name instanceof LinkedList<?> list && !list.isEmpty()) {
+                    dirname = LinkedList.listToRawString(list);
+                } else {
+                    throw new RuntimeException("make-directory: expected string, got " + name);
+                }
+                File dir = new File(dirname);
+                if (dir.exists()) {
+                    return dir.isDirectory() ? "#t" : "#f";
+                }
+                if (dir.mkdirs()) {
+                    return "#t";
+                }
+                System.out.println("Error creating directory: " + dirname);
+                return "#f";
+            }),
             new Pair<>("write-to-file", (BiFunction<File, LinkedList, String>) (file, text)->{
                 try(FileWriter writer = new FileWriter(file)){
                     writer.write(LinkedList.listToRawString(text));
                     return "#t";
                 } catch (IOException e) {
                     System.out.println("Error writing to file: " + file.getName() + " " +e);
+                    return "#f";
+                }
+            }),
+            new Pair<>("write-lines", (BiFunction<File, LinkedList, String>) (file, lines) -> {
+                try (FileWriter writer = new FileWriter(file)) {
+                    LinkedList<?> current = lines;
+                    while (current != null && current.head() != null) {
+                        Object row = current.head();
+                        String output;
+                        if (row instanceof LinkedList<?> list) {
+                            output = LinkedList.listToRawString(list);
+                        } else if (row == null) {
+                            output = "";
+                        } else {
+                            output = row.toString();
+                        }
+                        writer.write(output);
+                        writer.write(System.lineSeparator());
+                        Object tail = current.tail();
+                        if (tail instanceof LinkedList<?> next) {
+                            current = next;
+                        } else {
+                            break;
+                        }
+                    }
+                    return "#t";
+                } catch (IOException e) {
+                    System.out.println("Error writing lines to file: " + file.getName() + " " + e);
                     return "#f";
                 }
             }),

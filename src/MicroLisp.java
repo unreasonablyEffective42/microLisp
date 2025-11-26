@@ -85,7 +85,7 @@ public class MicroLisp{
                 environment = loadOnStart(environment,args,0);
                 try {
                     Parser m = new Parser("(main #t)");
-                    Evaluator.eval(m.parse(),environment);
+                    evalWithOverflowContext(m.parse(),environment);
                 }
                 catch (RuntimeException e){
                     if (e.getMessage().contains("Unbound variable 'main'"))
@@ -106,7 +106,7 @@ public class MicroLisp{
                 Node current = parser.parse();
                 Object result = null;
                 while(!((Token) current.value).type().equals("EOF")){
-                    Evaluator.eval(current, environment);
+                    evalWithOverflowContext(current, environment);
                     current = parser.parse();
                 }
                 if (result != null) {
@@ -141,7 +141,7 @@ public class MicroLisp{
                 Parser l = new Parser(src);
                 Node current = l.parse();
                 while(!((Token) current.value).type().equals("EOF")){
-                    Evaluator.eval(current, environment);
+                    evalWithOverflowContext(current, environment);
                     current = l.parse();
                 }
                 System.out.println(file + GREEN +" loaded successfully" + RESET);
@@ -188,7 +188,7 @@ public class MicroLisp{
                     System.out.println("DEBUG LOW\nAST:");
                     parsed.printNodes(0);
                     System.out.println("\nOUTPUT:");
-                    result = Evaluator.eval(parsed, environment);
+                    result = evalWithOverflowContext(parsed, environment);
                     System.out.println(result.toString());
                     break;
                   case 2:
@@ -201,11 +201,11 @@ public class MicroLisp{
                     System.out.println("\nAST:");
                     parsed.printNodes(0);
                     System.out.println("\nOUTPUT:");
-                    result = Evaluator.eval(parsed, environment);
+                    result = evalWithOverflowContext(parsed, environment);
                     System.out.println(result.toString());
                     break;
                   default:
-                    result = Evaluator.eval(parsed, environment);
+                    result = evalWithOverflowContext(parsed, environment);
                     System.out.println(result.toString());
                     break;
                 }
@@ -243,7 +243,7 @@ public class MicroLisp{
                     System.out.println("DEBUG LOW\nAST:");
                     parsed.printNodes(0);
                     System.out.println("\nOUTPUT:");
-                    result = Evaluator.eval(parsed, environment);
+                    result = evalWithOverflowContext(parsed, environment);
                     System.out.println(result.toString());
                     break;
                   case 2:
@@ -256,16 +256,19 @@ public class MicroLisp{
                     System.out.println("\nAST:");
                     parsed.printNodes(0);
                     System.out.println("\nOUTPUT:");
-                    result = Evaluator.eval(parsed, environment);
+                    result = evalWithOverflowContext(parsed, environment);
                     System.out.println(result.toString());
                     break;
                   default:
-                    result = Evaluator.eval(parsed, environment);
+                    result = evalWithOverflowContext(parsed, environment);
                     System.out.println(result.toString());
                     break;
                 }
             }
         }
+    }
+    private static Object evalWithOverflowContext(Node parsed, Environment environment) {
+        return Evaluator.eval(parsed, environment);
     }
     public static void evalString(String src, Environment env) {
         Parser parser = new Parser(src);
@@ -275,7 +278,7 @@ public class MicroLisp{
             if (tok != null && "EOF".equals(tok.type())) {
                 break;
             }
-            Evaluator.eval(form, env);
+            evalWithOverflowContext(form, env);
         }
     }  
 }

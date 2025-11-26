@@ -1473,6 +1473,14 @@ public final class Number {
         return compareNumbers(a, b) > 0;
     }
 
+    public static boolean lessThanOrEqual(Number a, Number b) {
+        return compareNumbers(a, b) <= 0;
+    }
+
+    public static boolean greaterThanOrEqual(Number a, Number b) {
+        return compareNumbers(a, b) >= 0;
+    }
+
     //------ Exact → Inexact conversions -------
     public static Number toInexact(Number n) {
         return switch (n.type) {
