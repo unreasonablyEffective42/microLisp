@@ -1,4 +1,6 @@
 ;constants
+(import lists)
+
 (define iters 50)
 ;(define xmin -2)
 ;(define xmax 0.5)
@@ -27,8 +29,8 @@
 (define xmax (bounds 1))
 (define ymin (bounds 2))
 (define ymax (bounds 3))
-(define height 600)
-(define width 900)
+(define height (* 640 9))
+(define width (* 640 16))
 (define gamma 2.2)
 
 ;these are for making colors
@@ -149,17 +151,18 @@
 (define main 
   (lambda (s)
     (do 
-      (let loopx ((x 0))
-        (cond ((> x (- width 1))#t)
-              (else (do 
-                      (let loopy ((y 0))
-                        (cond ((> y (- height 1)) #t)
-                              (else (do 
-                                      (draw-pixel canvas x y (color (mandel-point (cmplx (xr x) (yr y)))))
-                                      (loopy (+ y 1))))))
-                    (print x) 
-                    (refresh-window window)
-                    (loopx (+ x 1))))))
+      (let loopy ((y 0))
+        (cond ((> y (- height 1)) #t)
+              (else (do
+                      (let fillx ((x 0) (row '()))
+                        (cond ((> x (- width 1))
+                               (set-row canvas y (list->vector (reverse row))))
+                              (else (fillx (+ x 1)
+                                           (cons (color (mandel-point (cmplx (xr x) (yr y)))) row)))))
+                      (print y)
+                      (cond ((eq? (% y 16) 0) (refresh-window window))
+                            (else "#t"))
+                      (loopy (+ y 1))))))
+      (refresh-window window)
       (write-image canvas f)
       (print "done"))))
-

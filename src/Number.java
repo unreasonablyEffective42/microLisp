@@ -462,6 +462,20 @@ public final class Number {
 
     // ---- Addition ----
     public static Number add(Number a, Number b) {
+        // Fast path: two small ints
+        if (a.type == Type.INT && b.type == Type.INT) {
+            try {
+                return Number.integer(Math.addExact(a.intVal, b.intVal));
+            } catch (ArithmeticException ignore) {
+                // fall through to general promotion
+            }
+        }
+
+        // Fast path: two floats
+        if (a.type == Type.FLOAT && b.type == Type.FLOAT) {
+            return Number.real(a.floatVal + b.floatVal);
+        }
+
         if (a.type.ordinal() < b.type.ordinal()) return add(b, a);
 
         switch (a.type) {
@@ -512,6 +526,16 @@ public final class Number {
         return new Vector(elems);
     }
     public static Number sub(Number a, Number b){
+        // Fast path: two small ints
+        if (a.type == Type.INT && b.type == Type.INT) {
+            try {
+                return Number.integer(Math.subtractExact(a.intVal, b.intVal));
+            } catch (ArithmeticException ignore) {}
+        }
+        // Fast path: two floats
+        if (a.type == Type.FLOAT && b.type == Type.FLOAT) {
+            return Number.real(a.floatVal - b.floatVal);
+        }
         return add(a, negate(b));
     }
 
@@ -695,6 +719,17 @@ public final class Number {
 
     //------ Multiplication -------
     public static Number multiply(Number a, Number b) {
+        // Fast path: ints
+        if (a.type == Type.INT && b.type == Type.INT) {
+            try {
+                return Number.integer(Math.multiplyExact(a.intVal, b.intVal));
+            } catch (ArithmeticException ignore) {}
+        }
+        // Fast path: floats
+        if (a.type == Type.FLOAT && b.type == Type.FLOAT) {
+            return Number.real(a.floatVal * b.floatVal);
+        }
+
         // Preserve operand order for non-commutative pairs: COMPLEX ↔ QUATERNION.
         boolean nonCommutativePair =
             (a.type == Type.QUATERNION || b.type == Type.QUATERNION) &&
@@ -935,6 +970,18 @@ public final class Number {
     }
     //------ Division -------
     public static Number divide(Number a, Number b) { 
+        // Fast path: two ints yielding int
+        if (a.type == Type.INT && b.type == Type.INT) {
+            if (b.intVal == 0) throw new ArithmeticException("Division by zero");
+            if (a.intVal % b.intVal == 0) {
+                return Number.integer(a.intVal / b.intVal);
+            }
+        }
+        // Fast path: two floats
+        if (a.type == Type.FLOAT && b.type == Type.FLOAT) {
+            return Number.real(a.floatVal / b.floatVal);
+        }
+
         switch (a.type) {
             case INT:         return divideInt(a, b);
             case BIGINT:      return divideBigInt(a, b);

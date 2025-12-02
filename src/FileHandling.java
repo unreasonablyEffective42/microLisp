@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -26,7 +27,7 @@ public class FileHandling{
                         StringBuilder sb = new StringBuilder("");
                         String src = reader.readLine();
                         while (src != null){
-                            sb.append(src);
+                            sb.append(src).append("\n"); // preserve newlines for callers that split on lines
                             src = reader.readLine();
                         }
                         return LinkedList.fromString(sb.toString());
@@ -42,7 +43,7 @@ public class FileHandling{
                         StringBuilder sb = new StringBuilder("");
                         String src = reader.readLine();
                         while (src != null){
-                            sb.append(src);
+                            sb.append(src).append("\n"); // preserve newlines for callers that split on lines
                             src = reader.readLine();
                         }
                         return LinkedList.fromString(sb.toString());
@@ -128,6 +129,49 @@ public class FileHandling{
                     return "#f";
                 }
             }),
+            new Pair<>("read-lines", (Function<Object, LinkedList<LinkedList<String>>>) (name) -> {
+                File f;
+                if (name instanceof File file) {
+                    f = file;
+                } else if (name instanceof LinkedList<?> list) {
+                    f = new File(LinkedList.listToRawString(list));
+                } else if (name instanceof String s) {
+                    f = new File(s);
+                } else {
+                    System.out.println("read-lines: unsupported path type " + name);
+                    return new LinkedList<>();
+                }
+
+                ArrayList<LinkedList<String>> lines = new ArrayList<>();
+                try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        lines.add(LinkedList.fromString(line));
+                    }
+                } catch (IOException e) {
+                    System.out.println("read-lines IO failed: " + e.getMessage());
+                    return new LinkedList<>();
+                }
+                return new LinkedList<>(lines);
+            }),
+            new Pair<>("split-by-comma", (Function<Object, LinkedList<LinkedList<String>>>) (value) -> {
+                String s;
+                if (value instanceof LinkedList<?> list) {
+                    s = LinkedList.listToRawString(list);
+                } else {
+                    s = value == null ? "" : value.toString();
+                }
+                ArrayList<LinkedList<String>> cells = new ArrayList<>();
+                int start = 0;
+                for (int i = 0; i <= s.length(); i++) {
+                    if (i == s.length() || s.charAt(i) == ',') {
+                        String part = s.substring(start, i);
+                        cells.add(LinkedList.fromString(part));
+                        start = i + 1;
+                    }
+                }
+                return new LinkedList<>(cells);
+            }),
             new Pair<>("import", (Function<Object, String>) (resource) -> {
                 String filename;
                 if (resource instanceof Symbol sym) {
@@ -162,11 +206,6 @@ public class FileHandling{
   }
 
   private static InputStream resolveImportStream(String filename) throws IOException {
-      InputStream in = FileHandling.class.getResourceAsStream("/lib/" + filename);
-      if (in != null) {
-          return in;
-      }
-
       Path localPath = Path.of(filename);
       if (Files.exists(localPath)) {
           return Files.newInputStream(localPath);
@@ -175,6 +214,11 @@ public class FileHandling{
       Path found = findInWorkspace(filename);
       if (found != null) {
           return Files.newInputStream(found);
+      }
+
+      InputStream in = FileHandling.class.getResourceAsStream("/lib/" + filename);
+      if (in != null) {
+          return in;
       }
 
       throw new FileNotFoundException("File not found in lib/ or workspace: " + filename);

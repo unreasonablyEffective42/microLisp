@@ -1,64 +1,70 @@
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-//A dictionary class, will be used for environment frames, where symbols will be bound to expressions
-//An environment will be a List<Frame>, when a new lexical scope is encountered, the current environment will
-// be copied and prepended  to the list, then the bindings in the current frame will be added
-//if a symbol already has a binding in the frame, the old value will be overwritten, but since it will just be for
-//that frame, when exiting the lexical scope, that frame will be popped off and the previous frame will become the
-//new current environment
-class Frame{
-    List<Pair<String,Object>> bindings;
-    Frame (List<Pair<String, Object>> bindings_){
-        this.bindings =  bindings_;
-    }
-    boolean contains(String key){
-        for(Pair<String, Object> pair : bindings){
-            if (pair.first.equals(key)){
-                return true;
-            }
-        }
-        return false;
-    }
-    Object get(String key){
-        for(Pair<String, Object> pair : bindings){
-            if (pair.first.equals(key)){
-                return pair.second;
-            }
-        }
-        return null;
+
+// Single lexical frame with a parent link; environments share parent chains instead of copying them.
+class Frame {
+    final Map<String, Object> bindings;
+    final Frame parent;
+
+    Frame(Map<String, Object> bindings, Frame parent) {
+        this.bindings = bindings;
+        this.parent = parent;
     }
 }
 
 public class Environment {
-    ArrayList<Frame> frames= new ArrayList<>();
-    @SafeVarargs
-    @SuppressWarnings("varargs")
-    Environment(Pair<String, Object> ... firstFrame){
-        frames.add(new Frame(Arrays.asList(firstFrame)));
-    }
-    @SuppressWarnings("unchecked")
-    public void addFrame(Pair<String,Object> ... bindings){
-        frames.add(0,new Frame(Arrays.asList(bindings)));
-    }
-    public void addFrame(List<Pair<String,Object>> bindings){
-        frames.add(0,new Frame(bindings));
+    private Frame head;
+
+    Environment() {
+        this.head = null;
     }
 
-    @Override 
-    public String toString(){
+    @SafeVarargs
+    @SuppressWarnings("varargs")
+    Environment(Pair<String, Object>... firstFrame) {
+        this.head = buildFrame(Arrays.asList(firstFrame), null);
+    }
+
+    private Frame buildFrame(List<Pair<String, Object>> bindings, Frame parent) {
+        Map<String, Object> map = new HashMap<>(bindings.size());
+        for (Pair<String, Object> p : bindings) {
+            map.put(p.first, p.second);
+        }
+        return new Frame(map, parent);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void addFrame(Pair<String, Object>... bindings) {
+        this.head = buildFrame(Arrays.asList(bindings), this.head);
+    }
+
+    public void addFrame(List<Pair<String, Object>> bindings) {
+        this.head = buildFrame(bindings, this.head);
+    }
+
+    // Create a new environment that shares the existing chain; new frames will not mutate the parent.
+    public Environment fork() {
+        Environment env = new Environment();
+        env.head = this.head;
+        return env;
+    }
+
+    @Override
+    public String toString() {
         return "";
     }
 
-    public Optional<Object> lookup(String key){
-        for (Frame frame : frames){
-            if (frame.contains(key)){
-                return Optional.ofNullable(frame.get(key));
+    public Optional<Object> lookup(String key) {
+        Frame current = head;
+        while (current != null) {
+            if (current.bindings.containsKey(key)) {
+                return Optional.ofNullable(current.bindings.get(key));
             }
+            current = current.parent;
         }
         return Optional.empty();
     }
 }
-
-

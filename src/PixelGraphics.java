@@ -40,8 +40,8 @@ public class PixelGraphics{
     
     public static void addPixelGraphicsEnv(Environment env){
         env.addFrame(
-            new Pair<>("create-window", (BiFunction<PixelGraphics,LinkedList,ImageDisplay>) (image, name) -> { 
-                return new ImageDisplay(image,LinkedList.listToRawString(name));
+            new Pair<>("create-window", (BiFunction<PixelGraphics,Object,ImageDisplay>) (image, name) -> { 
+                return new ImageDisplay(image, coerceToJavaString(name));
             }),
             new Pair<>("refresh-window", (Function<ImageDisplay,String>) (window) -> { 
                 window.refresh();
@@ -94,6 +94,26 @@ public class PixelGraphics{
             }),
             new Pair<>("image-height", (Function<PixelGraphics,Integer>) (img) -> {
                 return img.height;
+            }),
+            new Pair<>("set-row", (TriFunction<PixelGraphics, Number, Vector, String>) (img, yNum, colors) -> {
+                int y = (int) yNum.intVal;
+                if (y < 0 || y >= img.height) {
+                    return "#f";
+                }
+                int limit = Math.min(img.width, colors.size);
+                for (int x = 0; x < limit; x++) {
+                    Object c = colors.elems[x];
+                    int color;
+                    if (c instanceof Integer ci) {
+                        color = ci;
+                    } else if (c instanceof Number n) {
+                        color = (int) n.intVal;
+                    } else {
+                        continue;
+                    }
+                    img.setRGBSafe(x, y, color);
+                }
+                return "#t";
             }),
             new Pair<>("lines", (HexFunction<PixelGraphics, Number, Number, Number, Number, Integer, String>)
                 (img, x0, y0, x1, y1, color) -> {
@@ -224,7 +244,7 @@ public class PixelGraphics{
             int yy = cy + dy;
             for (int dx = -radius; dx <= radius; dx++) {
                 if (dx * dx + dy * dy <= r2) {
-                    putPixelSafe(cx + dx, yy, color);
+                    setRGBSafe(cx + dx, yy, color);
                 }
             }
         }
@@ -232,7 +252,8 @@ public class PixelGraphics{
 
 
     // Inside PixelGraphics (add anywhere among instance methods)
-    private void putPixelSafe(int x, int y, int color) {
+    // Safer pixel write without throwing for OOB; used by batch writers and shapes
+    private void setRGBSafe(int x, int y, int color) {
         if (x >= 0 && x < width && y >= 0 && y < height) {
             canvas.setRGB(x, y, color);
         }
@@ -256,7 +277,7 @@ public class PixelGraphics{
         int err = dx + dy; // = dx - |dy|
 
         while (true) {
-            putPixelSafe(x0, y0, color);
+            setRGBSafe(x0, y0, color);
             if (x0 == x1 && y0 == y1) break;
             int e2 = err << 1;
             if (e2 >= dy) { err += dy; x0 += sx; }
@@ -265,14 +286,14 @@ public class PixelGraphics{
     }
 
     private void plot8(int cx, int cy, int x, int y, int color) {
-        putPixelSafe(cx + x, cy + y, color);
-        putPixelSafe(cx + y, cy + x, color);
-        putPixelSafe(cx + y, cy - x, color);
-        putPixelSafe(cx + x, cy - y, color);
-        putPixelSafe(cx - x, cy + y, color);
-        putPixelSafe(cx - y, cy + x, color);
-        putPixelSafe(cx - y, cy - x, color);
-        putPixelSafe(cx - x, cy - y, color);
+        setRGBSafe(cx + x, cy + y, color);
+        setRGBSafe(cx + y, cy + x, color);
+        setRGBSafe(cx + y, cy - x, color);
+        setRGBSafe(cx + x, cy - y, color);
+        setRGBSafe(cx - x, cy + y, color);
+        setRGBSafe(cx - y, cy + x, color);
+        setRGBSafe(cx - y, cy - x, color);
+        setRGBSafe(cx - x, cy - y, color);
     }
 
     public void drawCircleBresenham(int cx, int cy, int r, int color) {

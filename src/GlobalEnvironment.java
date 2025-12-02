@@ -2,6 +2,8 @@ import java.util.function.Function;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.math.BigInteger;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class GlobalEnvironment {
     public static Environment initGlobalEnvironment(){
@@ -67,6 +69,12 @@ public class GlobalEnvironment {
                     }
                     return head;
                 }
+                if (x instanceof String s) {
+                    if (s.isEmpty()) {
+                        return LinkedList.fromString("");
+                    }
+                    return String.valueOf(s.charAt(0));
+                }
                 throw new RuntimeException("head: unsupported type " + x.getClass());
             }),
             new Pair<>("tail", (Function<Object,Object>) (x) -> {
@@ -80,10 +88,23 @@ public class GlobalEnvironment {
                     }
                     return tail;
                 }
+                if (x instanceof String s) {
+                    if (s.isEmpty() || s.length() == 1) {
+                        return LinkedList.fromString("");
+                    }
+                    return LinkedList.fromString(s.substring(1));
+                }
                 throw new RuntimeException("tail: unsupported type " + x.getClass());
             }),                
-            new Pair<>("length", (Function<LinkedList, Number>) (xs) ->
-                Number.integer(xs.size())
+            new Pair<>("length", (Function<Object, Number>) (xs) -> {
+                if (xs instanceof LinkedList<?> list) {
+                    return Number.integer(list.size());
+                }
+                if (xs instanceof String s) {
+                    return Number.integer(s.length());
+                }
+                throw new RuntimeException("length: unsupported type " + xs.getClass());
+            }
             ),
             new Pair<>("print", (Function<Object, Object>) x1 -> {
                 if (x1 == null) {
@@ -119,6 +140,28 @@ public class GlobalEnvironment {
             new Pair<>("string", (Function<Object, LinkedList<String>>) x -> {
                 return LinkedList.fromString(x == null ? "null" : x.toString());
             }),
+            new Pair<>("number->fixed-string", (BiFunction<Number, Number, String>) (value, placesNum) -> {
+                if (value == null || placesNum == null) {
+                    return "";
+                }
+                int places = Math.max(0, (int) placesNum.intVal);
+                Number inexact = Number.toInexact(value);
+                BigDecimal bd;
+                switch (inexact.type) {
+                    case BIGFLOAT -> bd = inexact.bigFloatVal;
+                    case FLOAT, INT, BIGINT, RATIONAL, BIGRATIONAL, COMPLEX, QUATERNION -> {
+                        bd = BigDecimal.valueOf(inexact.floatVal);
+                    }
+                    default -> bd = BigDecimal.ZERO;
+                }
+                return bd.setScale(places, RoundingMode.HALF_UP).toPlainString();
+            }),
+            new Pair<>("chars->raw-string", (Function<Object, String>) (x) -> {
+                if (x instanceof LinkedList<?> list) {
+                    return LinkedList.listToRawString(list);
+                }
+                return x == null ? "" : x.toString();
+            }),
             new Pair<>("to-inexact", (Function<Number, Number>) n -> Number.toInexact(n)),
             new Pair<>("to-inexact-big", (Function<Number, Number>) n -> Number.toInexactBig(n)),
             new Pair<>("clear", (Supplier<Object>) () -> {
@@ -135,6 +178,21 @@ public class GlobalEnvironment {
             new Pair<>("cons", (BiFunction<Object,Object,LinkedList>) (fst, snd) -> {
                 if (fst == null) {
                     throw new SyntaxException("First element of a pair cannot be null");
+                }
+                if (snd instanceof String str) {
+                    LinkedList<?> tailList = LinkedList.fromString(str);
+                    if (LinkedList.isCharList(fst)) {
+                        if (fst instanceof LinkedList<?> headList) {
+                            return LinkedList.concatCharLists(headList, tailList);
+                        }
+                        if (fst instanceof String s && s.length() > 0) {
+                            LinkedList<String> headList = LinkedList.fromString(s);
+                            return LinkedList.concatCharLists(headList, tailList);
+                        }
+                    }
+                    @SuppressWarnings("unchecked")
+                    LinkedList<Object> properTail = (LinkedList<Object>) tailList;
+                    return new LinkedList<>(fst, properTail);
                 }
                 if (LinkedList.isCharList(snd)) {
                     LinkedList<?> tailList = (LinkedList<?>) snd;

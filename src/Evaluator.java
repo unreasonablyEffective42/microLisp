@@ -167,9 +167,9 @@ public class Evaluator {
             return new LinkedList<>(elems);
         }
 
-        // Strings become linked-list char sequences
+        // Strings stay as Java strings for speed; convert to char lists lazily when needed.
         if (tok != null && "STRING".equals(tok.type())) {
-            return LinkedList.fromString((String) tok.value());
+            return tok.value();
         }
 
         // Primitives and symbols stay as symbols/numbers
@@ -187,6 +187,7 @@ public class Evaluator {
                 case "SYMBOL":    return new Symbol((String) tval);
                 case "BOOLEAN":   return new Symbol((String) tval);
                 case "NUMBER":    return tval;
+                case "STRING":    return tval;
             }
         }
 
@@ -327,7 +328,7 @@ public class Evaluator {
             case "UNQUOTESPLICE" -> new Symbol("unquote-splicing");
             case "SYMBOL" -> new Symbol((String) tval);
             case "BOOLEAN" -> new Symbol((String) tval);
-            case "STRING" -> LinkedList.fromString((String) tval);
+            case "STRING" -> tval;
             case "NUMBER" -> tval;
             default -> tval;
         };
@@ -515,8 +516,7 @@ public class Evaluator {
         Token<String,Object> selfClosure = new Token<>("CLOSURE", closureParts);
 
         // Extend environment with self-reference BEFORE evaluating body
-        Environment newEnv = new Environment();
-        newEnv.frames.addAll(env.frames);
+        Environment newEnv = env.fork();
         newEnv.addFrame(new Pair<>(fnName, selfClosure));
 
         // Now update captured env to the extended environment (self-aware)
@@ -572,7 +572,7 @@ public class Evaluator {
         }
         if (isString(t)) {
             String str = (String) t.value();
-            return Trampoline.done(LinkedList.fromString(str));
+            return Trampoline.done(str);
         }
  
         // (quote …)
@@ -1001,14 +1001,7 @@ public class Evaluator {
             ArrayList<Node<Token>> params = (ArrayList<Node<Token>>) closureParts.get(0).value();
             Node<Token> body = (Node<Token>) closureParts.get(1).value();
             Environment capturedEnv = (Environment) closureParts.get(2).value();            
-            Environment newEnv = new Environment();
-            for (Frame f : capturedEnv.frames) {
-                List<Pair<String,Object>> copied = new ArrayList<>();
-                for (Pair<String,Object> p : f.bindings) {
-                    copied.add(new Pair<>(p.first, p.second));
-                }
-                newEnv.frames.add(new Frame(copied));
-            }
+            Environment newEnv = capturedEnv.fork();
             ArrayList<Object> normalizedArgs = new ArrayList<>();
             for (Object a : args) {
                 if (a instanceof Node) {

@@ -1,12 +1,8 @@
 (import lists)
 (import strings)
 
-(define simulation-output-folder "sim-001")
+(define simulation-output-folder "sim-005")
 (define simulations-root "./simulations")
-
-(define plot-width 900)
-(define plot-height 600)
-(define plot-margin 50)
 
 (define concat-chars
   (lambda (a b)
@@ -21,6 +17,13 @@
 (define path-join
   (lambda (base name)
     (string-cat2 base (string-cat2 "/" name))))
+
+(define path-basename
+  (lambda (path)
+    (let loop ((chars (reverse (string->list path))) (acc '()))
+      (cond ((null? chars) (list->string acc))
+            ((eq? (head chars) "/") (list->string acc))
+            (else (loop (tail chars) (cons (head chars) acc)))))))
 
 (define ensure-directory
   (lambda (path)
@@ -42,6 +45,13 @@
   (lambda (values)
     (join-with (map (lambda (v) (string v)) values) ",")))
 
+(define format-sim-time
+  (lambda (time)
+    (let ((ms (floor (+ 0.5 (* time 1000))))) ; round to nearest millisecond
+      (let ((seconds (to-inexact (/ ms 1000))))
+        (string-cat2 "t="
+          (string-cat2 (string seconds) " s"))))))
+
 (define red    (make-color 255 0 0))
 (define blue   (make-color 0 0 255))
 (define black  (make-color 0 0 0))
@@ -52,13 +62,14 @@
 (define orange (make-color 255 150 0))
 (define width 750)
 (define height 750)
+(define top-offset 40) ; reserve space for title/labels
 (define xmin 0)
 (define xmax 100)
 (define ymin 0)
 (define ymax 100)
 
 (define g -9.81)
-(define e 0.8)
+(define e 0.95)
 
 (define abs
   (lambda (n)
@@ -90,7 +101,8 @@
 (define yr (rescale-dec ymin ymax height))
 ;convert math coords to pixel coords
 (define xp (rescale-pix 0 width (- xmax xmin)))
-(define yp (rescale-pix height 0 (- ymax ymin)))
+(define yp-raw (rescale-pix (- height top-offset) 0 (- ymax ymin)))
+(define yp (lambda (y) (+ top-offset (yp-raw y))))
 
 (define make-ball
    (lambda (r x y vx vy m c id) 
@@ -297,7 +309,7 @@
     "Physics Sim (refactored)"
     width
     height
-    2
+    20 
     0.0083333333
     120
     "./video/Simulation-refactored3.mp4"
@@ -416,179 +428,6 @@
           (write-lines csv-file rows)
           (print "energy csv written."))))))
 
-(define collect-points-for-id
-  (lambda (rows id index)
-    (let loop ((xs rows) (pts '()))
-      (cond ((null? xs) (reverse pts))
-            (else
-              (let ((row (head xs)))
-                (cond ((eq? (list-ref row 1) id)
-                       (loop (tail xs)
-                             (cons (list (list-ref row 0)
-                                         (list-ref row index))
-                                   pts)))
-                      (else (loop (tail xs) pts)))))))))
-
-(define build-series
-  (lambda (ids rows index)
-    (map (lambda (id)
-           (list id (collect-points-for-id rows id index)))
-         ids)))
-
-(define build-total-series
-  (lambda (rows)
-    (list
-      (list 'total-kinetic
-            (map (lambda (row) (list (list-ref row 0) (list-ref row 1))) rows))
-      (list 'total-potential
-            (map (lambda (row) (list (list-ref row 0) (list-ref row 2))) rows))
-      (list 'total-energy
-            (map (lambda (row) (list (list-ref row 0) (list-ref row 3))) rows)))))
-
-(define find-color
-  (lambda (colors id default)
-    (cond ((null? colors) default)
-          ((eq? (list-ref (head colors) 0) id) (list-ref (head colors) 1))
-          (else (find-color (tail colors) id default)))))
-
-(define make-plot-encoder
-  (lambda (min max size)
-    (let ((spread (- max min)))
-      (cond ((= spread 0) (lambda (value) (/ size 2)))
-            (else (lambda (value)
-                    (* size (/ (- value min) spread))))))))
-
-(define make-plot-scale
-  (lambda (xmin xmax ymin ymax)
-    (lets ((inner-width (- plot-width (* 2 plot-margin)))
-           (inner-height (- plot-height (* 2 plot-margin)))
-           (enc-x (make-plot-encoder xmin xmax inner-width))
-           (enc-y (make-plot-encoder ymin ymax inner-height)))
-      (list (lambda (value)
-              (+ plot-margin (to-inexact (enc-x value))))
-            (lambda (value)
-              (- (- plot-height plot-margin) (to-inexact (enc-y value))))))))
-
-(define series-ranges
-  (lambda (series)
-    (let loop ((entries series) (tmin '#f) (tmax '#f) (ymin '#f) (ymax '#f))
-      (cond ((null? entries) (list tmin tmax ymin ymax))
-            (else
-              (let loop-points ((pts (list-ref (head entries) 1))
-                                (tmin tmin) (tmax tmax) (ymin ymin) (ymax ymax))
-                (cond ((null? pts) (loop (tail entries) tmin tmax ymin ymax))
-                      (else
-                        (lets ((pt (head pts))
-                               (time (list-ref pt 0))
-                               (val (list-ref pt 1))
-                               (new-tmin (cond ((eq? tmin '#f) time)
-                                               ((< time tmin) time)
-                                               (else tmin)))
-                               (new-tmax (cond ((eq? tmax '#f) time)
-                                               ((> time tmax) time)
-                                               (else tmax)))
-                               (new-ymin (cond ((eq? ymin '#f) val)
-                                               ((< val ymin) val)
-                                               (else ymin)))
-                               (new-ymax (cond ((eq? ymax '#f) val)
-                                               ((> val ymax) val)
-                                               (else ymax))))
-                          (loop-points (tail pts) new-tmin new-tmax new-ymin new-ymax))))))))))
-
-(define draw-series-line
-  (lambda (canvas points color px py)
-    (let loop ((pts points) (prev '#f))
-      (cond ((null? pts) '#t)
-            ((eq? prev '#f)
-             (let ((pt (head pts))
-                   (rest (tail pts)))
-               (loop rest
-                     (list (floor (px (list-ref pt 0)))
-                           (floor (py (list-ref pt 1)))))))
-            (else
-              (let ((pt (head pts))
-                    (rest (tail pts)))
-                (let ((cx (floor (px (list-ref pt 0))))
-                      (cy (floor (py (list-ref pt 1)))))
-                  (do
-                    (lines canvas
-                           (list-ref prev 0)
-                           (list-ref prev 1)
-                           cx
-                           cy
-                           color)
-                    (loop rest (list cx cy))))))))))
-
-(define draw-plot-axes
-  (lambda (canvas)
-    (do
-      (lines canvas plot-margin (- plot-height plot-margin)
-             (- plot-width plot-margin) (- plot-height plot-margin) black)
-      (lines canvas plot-margin plot-margin
-             plot-margin (- plot-height plot-margin) black))))
-
-(define plot-series
-  (lambda (series title output-path color-map)
-    (cond
-      ((null? series) '#t)
-      (else
-        (lets ((ranges (series-ranges series))
-               (xmin (list-ref ranges 0))
-               (xmax (list-ref ranges 1))
-               (ymin (list-ref ranges 2))
-               (ymax (list-ref ranges 3)))
-          (cond
-            ((or (eq? xmin '#f) (eq? ymin '#f)) '#t)
-            (else
-              (lets ((canvas (create-graphics-device plot-width plot-height))
-                     (scale (make-plot-scale xmin xmax ymin ymax))
-                     (px (head scale))
-                     (py (head (tail scale)))
-                     (ctx (text-begin canvas)))
-                (do
-                  (fill canvas white)
-                  (draw-plot-axes canvas)
-                  (text-set-font ctx "SansSerif" 'normal 18)
-                  (text-set-color ctx 0 0 0 255)
-                  (text-draw ctx 40 30 title)
-                  (text-end ctx)
-                  (let series-loop ((remaining series))
-                    (cond ((null? remaining) '#t)
-                          (else
-                            (let ((entry (head remaining)))
-                              (let ((id (head entry))
-                                    (points (head (tail entry)))
-                                    (color (find-color color-map id black)))
-                                (do
-                                  (draw-series-line canvas points color px py)
-                                  (series-loop (tail remaining))))))))
-                  (let ((file (make-file output-path)))
-                    (write-image canvas file)))))))))))
-
-(define generate-energy-plots
-  (lambda (folder ball-rows total-rows ball-ids color-map)
-    (lets ((kinetic-series (build-series ball-ids ball-rows 3))
-           (potential-series (build-series ball-ids ball-rows 4))
-           (total-series (build-series ball-ids ball-rows 5))
-           (overall-series (build-total-series total-rows))
-           (overall-colors (list (list 'total-kinetic blue)
-                                 (list 'total-potential red)
-                                 (list 'total-energy green))))
-      (do
-        (print "plotting potential energies…")
-        (plot-series potential-series "Potential Energy per Ball"
-                     (path-join folder "potential.png") color-map)
-        (print "plotting kinetic energies…")
-        (plot-series kinetic-series "Kinetic Energy per Ball"
-                     (path-join folder "kinetic.png") color-map)
-        (print "plotting per-ball totals…")
-        (plot-series total-series "Total Energy per Ball"
-                     (path-join folder "ball-total.png") color-map)
-        (print "plotting total energies…")
-        (plot-series overall-series "Simulation Energy Totals"
-                     (path-join folder "simulation-total.png") overall-colors)
-        (print "plots complete.")))))
-
 (define update-ball-with-wall
   (lambda (ball wall)
     (cond ((boundary-collision? ball wall)
@@ -629,17 +468,24 @@
          (resolve-wall-collisions (resolve-ball-collisions balls) walls))))
 
 (define render-scene
-  (lambda (canvas window walls balls)
+  (lambda (canvas window walls balls time)
     (do
       (fill canvas white)
+      (let ((ctx (text-begin canvas)))
+        (do
+          (text-set-font ctx "SansSerif" 'normal 16)
+          (text-set-color ctx 0 0 0 255)
+          (text-draw ctx (- (/ width 2) 60) 18 (string-cat2 "COR: e ≈ " (string e)))
+          (text-draw ctx 12 40 (format-sim-time time))
+          (text-end ctx)))
       (map (lambda (wall) (display-wall canvas wall)) walls)
       (map (lambda (ball) (display-ball canvas ball)) balls)
       (refresh-window window))))
 
 (define begin-recording
-  (lambda (record? canvas fps output)
+  (lambda (record? canvas fps output-path)
     (cond (record?
-            (let ((file (make-file output)))
+            (let ((file (make-file output-path)))
               (start-recording canvas fps file)))
           (else '#f))))
 
@@ -665,14 +511,13 @@
            (output (scenario 'output))
            (log-interval (scenario 'log-interval))
            (initial-balls (scenario 'balls))
-           (ball-ids (map (lambda (ball) (ball 'id)) initial-balls))
-           (ball-colors (map (lambda (ball) (list (ball 'id) (ball 'color))) initial-balls))
            (sim-root simulations-root)
-           (sim-folder (path-join sim-root simulation-output-folder)))
+           (sim-folder (path-join sim-root simulation-output-folder))
+           (video-path (path-join sim-folder (path-basename output))))
       (do
         (ensure-directory sim-root)
         (ensure-directory sim-folder)
-        (begin-recording record? canvas fps output)
+        (begin-recording record? canvas fps video-path)
         (let loop ((time 0)
                    (balls initial-balls)
                    (step 0)
@@ -686,7 +531,7 @@
                          (ordered-total-log (reverse total-log)))
                      (do
                        (write-energy-csv sim-folder ordered-ball-log ordered-total-log)
-                       (generate-energy-plots sim-folder ordered-ball-log ordered-total-log ball-ids ball-colors)))
+                       '#t))
                    (print "artifacts generated in ")
                    (print sim-folder)
                    (print "done")
@@ -695,7 +540,7 @@
                   (lets ((ball-stats (capture-ball-stats time balls))
                          (total-stats (capture-total-stats time balls)))
                     (do
-                      (render-scene canvas window walls balls)
+                      (render-scene canvas window walls balls time)
                       (record-frame record? canvas)
                       (maybe-log-energy log-interval step time balls)
                       (loop (+ time dt)
